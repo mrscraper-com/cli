@@ -5,8 +5,15 @@ Official npm package [**`@mrscraper/cli`**](https://www.npmjs.com/package/@mrscr
 
 The CLI prints JSON to stdout. Use `mrscraper --help` and `mrscraper <command> --help` for the same information as in this document.
 
+Example usage
+```bash
+mrscraper scrape "https://www.ebay.com/itm/266727555514" \
+  --prompt "get name, price, features/description, images, seller, and shipping"
+```
+
 ## Table of contents
 
+- [Quick start](#quick-start)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Authentication](#authentication)
@@ -24,6 +31,14 @@ The CLI prints JSON to stdout. Use `mrscraper --help` and `mrscraper <command> -
 - [Programmatic use](#programmatic-use)
 - [Publishing (maintainers)](#publishing-maintainers)
 - [License](#license)
+
+## Quick start
+```bash
+npm install -g @mrscraper/cli
+mrscraper login
+mrscraper scrape "https://www.ebay.com/itm/266727555514" \
+  --prompt "get name, price, features/description, images, seller, and shipping"
+```
 
 ## Requirements
 
@@ -58,6 +73,7 @@ node bin/mrscraper.js --help
 
 ## Authentication
 
+To get MrScraper API key, visit https://app.mrscraper.com/api-tokens
 Prefer storing the key on disk or in the environment instead of pasting it into chats.
 
 | Method | What to do |
