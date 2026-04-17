@@ -1,0 +1,52 @@
+{
+  "name": "@mrscraper/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for MrScraper. Scrape pages, run AI scrapers, rerun jobs, and fetch results from your terminal.",
+  "license": "MIT",
+  "author": "MrScraper",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrscraper-com/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrscraper-com/cli/issues"
+  },
+  "homepage": "https://app.mrscraper.com",
+  "keywords": [
+    "mrscraper",
+    "cli",
+    "web-scraping",
+    "scraper",
+    "data-extraction",
+    "ai",
+    "crawler"
+  ],
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "mrscraper": "bin/mrscraper.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "mrscraper": "node bin/mrscraper.js"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "prompts": "^2.4.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
