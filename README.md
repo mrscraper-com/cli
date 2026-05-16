@@ -26,6 +26,7 @@ mrscraper scrape "https://www.ebay.com/itm/266727555514" \
   - [`rerun`](#rerun)
   - [`results`](#results)
   - [`result`](#result)
+  - [`serp`](#serp)
 - [Environment variables](#environment-variables)
 - [Typical workflow](#typical-workflow)
 - [Programmatic use](#programmatic-use)
@@ -259,6 +260,26 @@ Fetch a single result row by id (synchronous).
 mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
 ```
+
+---
+
+### `serp`
+
+Google SERP sync scrape — one POST to the sync API; the response is printed when the request completes (synchronous for this CLI call). Uses `Authorization: Bearer` with your API key (same key as other commands).
+
+| Argument / option | Required | Description |
+|-------------------|----------|-------------|
+| `<url>` | Yes | Google search or SERP URL (e.g. `https://www.google.com/search?q=...`). |
+| `--raw` | No | When set, request raw SERP payload (`raw: true` in the API body). |
+| `--timeout <seconds>` | No (default `120`) | Request timeout in seconds. |
+| `--token <key>` | No | Override saved key / env. |
+
+```bash
+mrscraper serp "https://www.google.com/search?q=iphone+17"
+mrscraper serp "https://www.google.com/search?q=iphone+17" --raw
+```
+
+---
 
 ## Environment variables
 
