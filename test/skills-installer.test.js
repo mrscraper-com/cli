@@ -187,7 +187,7 @@ test("the npx GitHub branch becomes the skill installation source", () => {
 
   assert.match(
     messages.join("\n"),
-    /skills add https:\/\/github\.com\/example-org\/mrscraper-cli\/tree\/feature\/test-bootstrap\/skills\/mrscraper/,
+    /skills add "github:example-org\/mrscraper-cli#feature\/test-bootstrap"/,
   );
 });
 

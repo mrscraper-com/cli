@@ -83,9 +83,13 @@ does not install MCP configuration, templates, browser OAuth, or default
 provider settings. `--yes` prevents prompting; when no credential already
 exists, authenticate later with `mrscraper login`.
 
-When `init` is launched through npx from a Git branch or local checkout, it
-reuses that same source for both the global CLI and the agent skill. This keeps
-branch testing from falling back to a registry version or the default branch.
+When `init` is launched as `npx --package=<source> mrscraper`, it reuses a Git
+branch or local source for both the global CLI and the agent skill. This keeps
+branch testing from falling back to a registry version or the default branch:
+
+```bash
+npx -y --package='github:mrscraper-com/cli#your-branch' mrscraper init --all
+```
 
 ## Authentication
 
