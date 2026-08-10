@@ -179,7 +179,7 @@ test("the npx GitHub branch becomes the skill installation source", () => {
     agent: "claude-code",
     environment: {
       npm_config_package:
-        "github:pray-mrscraper/cli#feat/fetch-status-unblocker",
+        "github:example-org/mrscraper-cli#feature/test-bootstrap",
     },
     dryRun: true,
     log: (message) => messages.push(message),
@@ -187,7 +187,7 @@ test("the npx GitHub branch becomes the skill installation source", () => {
 
   assert.match(
     messages.join("\n"),
-    /skills add https:\/\/github\.com\/pray-mrscraper\/cli\/tree\/feat\/fetch-status-unblocker\/skills\/mrscraper/,
+    /skills add https:\/\/github\.com\/example-org\/mrscraper-cli\/tree\/feature\/test-bootstrap\/skills\/mrscraper/,
   );
 });
 

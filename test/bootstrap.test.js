@@ -55,7 +55,7 @@ test("installGlobalCli preserves a GitHub branch used to invoke npx", () => {
     version: "0.3.0",
     environment: {
       npm_config_package:
-        "github:pray-mrscraper/cli#feat/fetch-status-unblocker",
+        "github:example-org/mrscraper-cli#feature/test-bootstrap",
     },
     execute: (command, args) => {
       call = { command, args };
@@ -68,7 +68,7 @@ test("installGlobalCli preserves a GitHub branch used to invoke npx", () => {
     args: [
       "install",
       "--global",
-      "github:pray-mrscraper/cli#feat/fetch-status-unblocker",
+      "github:example-org/mrscraper-cli#feature/test-bootstrap",
     ],
   });
 });
