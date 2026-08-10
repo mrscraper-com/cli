@@ -32,6 +32,7 @@ test("MrScraper skill documents only supported CLI command names", () => {
     "results",
     "scrape",
     "serp",
+    "setup",
     "status",
   ]);
   const documentedCommands = [
@@ -48,7 +49,7 @@ test("MrScraper skill documents only supported CLI command names", () => {
   }
 });
 
-test("onboarding is remote guidance without local-agent metadata", () => {
+test("onboarding documents the bootstrap without local-agent metadata", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(repositoryRoot, "package.json"), "utf8"),
   );
@@ -62,9 +63,10 @@ test("onboarding is remote guidance without local-agent metadata", () => {
 
   assert.equal(packageJson.files.includes("skills"), false);
   assert.equal(fs.existsSync(metadataPath), false);
-  assert.doesNotMatch(skill, /\bskills add\b/);
   assert.doesNotMatch(skill, /\bPath [A-F]\b/);
   assert.doesNotMatch(skill, /^## Get Credentials$/m);
-  assert.match(skill, /Read this onboarding document directly/);
+  assert.match(skill, /npx -y @mrscraper\/cli@latest init --all/);
+  assert.match(skill, /mrscraper setup skills/);
+  assert.match(skill, /^## Bootstrap MrScraper$/m);
   assert.match(skill, /^## Authenticate$/m);
 });

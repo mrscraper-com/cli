@@ -1,0 +1,6 @@
+.git
+.mrscraper
+.env
+node_modules
+npm-debug.log*
+UPDATE.md

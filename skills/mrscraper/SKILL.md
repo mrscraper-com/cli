@@ -8,20 +8,39 @@ description: |
 
 MrScraper helps agents fetch readable page content, extract structured data,
 discover pages through Google, reuse saved scrapers, and inspect results and
-account usage.
+account usage. One bootstrap command installs the CLI, configures credentials,
+and adds this skill to agent harnesses already present on the machine.
 
-Read this onboarding document directly; do not install it into the human's
-local agent configuration. It directs the agent to install and use the
-MrScraper CLI only when the task requires live web data.
+## Bootstrap MrScraper
 
-## Set Up the CLI
-
-Install the CLI and confirm that it is available:
+Run the bootstrap from any directory:
 
 ```bash
-npm install -g @mrscraper/cli@latest
-mrscraper --version
+npx -y @mrscraper/cli@latest init --all
 ```
+
+It performs three focused actions:
+
+- installs the same `@mrscraper/cli` version globally;
+- reuses existing credentials or asks the human to enter an API key; and
+- detects supported agent harnesses and installs the `mrscraper` skill into
+  those harnesses through the public `skills` installer.
+
+`--all` means all **detected** harnesses; it does not add configuration for
+agents that are not installed. Use `--agent codex` (or another value shown by
+`mrscraper init --help`) to choose one explicitly. To refresh skills later
+without reinstalling or authenticating the CLI, run:
+
+```bash
+mrscraper setup skills
+mrscraper setup skills --agent codex
+```
+
+For unattended setup, `--yes` prevents an API-key prompt. If no credential is
+already configured, run `mrscraper login` before making web requests.
+
+The bootstrap does not configure MCP servers, project templates, browser OAuth,
+or a default web provider. Those are not MrScraper CLI features.
 
 This gives the agent:
 
@@ -58,12 +77,12 @@ Users can authenticate in two ways:
 
 - **Saved CLI credential (default)** — ask the human to create or copy an API
   key at <https://app.mrscraper.com/api-tokens>, then let them enter it directly
-  into `mrscraper init`.
+  into the bootstrap or `mrscraper login`.
 - **Environment variable** — set `MRSCRAPER_API_KEY` for CI, containers, or
   other unattended environments.
 
 ```bash
-mrscraper init
+mrscraper login
 ```
 
 Do not ask the human to paste the key into chat. Prefer a saved credential or
@@ -77,6 +96,7 @@ environment variable over `--token`, which can expose a key in shell history.
 - **Need to rerun or inspect saved work** → use `rerun`, `results`, or `result`
 - **Need quota or scrape-outcome analytics** → use `status`
 - **Do not want a global CLI installation** → run the package with `npx`
+- **Need to restore or update the agent skill** → use `setup skills`
 - **Need clicks, login, local-file parsing, monitoring, manual creation, or
   scheduling** → see Know the Limits
 
@@ -247,8 +267,9 @@ npx -y @mrscraper/cli@latest scrape "https://example.com/product" \
 ```
 
 Authentication requirements are unchanged: use `MRSCRAPER_API_KEY`, an
-existing saved credential, or run the package's `init` command interactively.
-There is no keyless fallback.
+existing saved credential, or run `mrscraper login`. Running `init` is not an
+ephemeral action: the bootstrap intentionally installs the CLI and skill
+globally. There is no keyless fallback.
 
 ## Handle JSON Output
 
@@ -263,8 +284,11 @@ There is no keyless fallback.
 
 ## Troubleshoot
 
-- **Unauthorized or 401** — run `mrscraper init` again or verify
+- **Unauthorized or 401** — run `mrscraper login` again or verify
   `MRSCRAPER_API_KEY`.
+- **Skill missing after bootstrap** — run `mrscraper setup skills --dry-run` to
+  inspect detection, then use `--agent <name>` when the harness uses a
+  nonstandard home directory.
 - **Challenge page, 403, 429, or incomplete HTML** — retry `fetch` with
   `--unblock always`; add `--geo`, `--homepage`, or `--wait-for` only when the
   target requires it.

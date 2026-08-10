@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const repositoryRoot = path.resolve(
@@ -43,6 +45,35 @@ function runCli(args, environment = {}) {
     );
   });
 }
+
+test("init dry-run detects installed harnesses without changing the system", async (t) => {
+  const homeDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-home-"),
+  );
+  t.after(() => fs.rmSync(homeDirectory, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(homeDirectory, ".cursor"));
+  fs.mkdirSync(path.join(homeDirectory, ".codex"));
+
+  const result = await runCli(
+    ["init", "--skip-install", "--skip-auth", "--all", "--dry-run"],
+    { HOME: homeDirectory },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /Skipping global CLI installation/);
+  assert.match(result.stdout, /for Cursor, Codex: npx -y skills add/);
+  assert.match(result.stdout, /--agent cursor --agent codex --yes/);
+});
+
+test("setup skills can target one harness without requiring detection", async () => {
+  const result = await runCli(["setup", "skills", "--agent", "codex", "--dry-run"]);
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /Would install the MrScraper skill for Codex/);
+  assert.match(result.stdout, /--skill mrscraper/);
+});
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {
   let requestUrl;

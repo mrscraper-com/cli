@@ -4,18 +4,32 @@
 
 Official command-line client for [MrScraper](https://app.mrscraper.com). It fetches page content, creates AI extraction scrapers, retrieves Google results, reruns saved scrapers, and reports account usage.
 
-The CLI writes JSON to stdout. Progress and deprecation notices use stderr, and failed API calls exit with a non-zero status. Sensitive response headers, API-token fields, signed query parameters, and credentials embedded in generated curl commands are redacted before output.
+Data commands write JSON to stdout; setup and authentication commands use
+human-readable output. Progress and deprecation notices use stderr, and failed
+API calls exit with a non-zero status. Sensitive response headers, API-token
+fields, signed query parameters, and credentials embedded in generated curl
+commands are redacted before output.
 
 ## Install
 
 Requires Node.js 18 or newer.
 
+For agent environments, one bootstrap command installs the CLI globally,
+configures credentials, and installs the MrScraper skill into every supported
+agent harness detected on the machine:
+
 ```bash
-npm install -g @mrscraper/cli
+npx -y @mrscraper/cli@latest init --all
+```
+
+For a CLI-only installation:
+
+```bash
+npm install -g @mrscraper/cli@latest
 mrscraper login
 ```
 
-You can also run it from this repository:
+You can also run the current checkout:
 
 ```bash
 npm install
@@ -24,18 +38,47 @@ node bin/mrscraper.js --help
 
 ### Agent onboarding
 
-Direct a new agent to read
-[`skills/mrscraper/SKILL.md`](./skills/mrscraper/SKILL.md) before using the CLI.
-The document teaches the agent how to authenticate, choose between `fetch`,
-`scrape`, and `serp`, reuse stored scrapers, inspect results, recover from
-blocked pages, and handle CLI output safely. It is meant to be read remotely,
-not installed into a person's local agent configuration.
+The bootstrap installs [`skills/mrscraper/SKILL.md`](./skills/mrscraper/SKILL.md)
+through the public `skills` installer. The document teaches a new agent how to
+authenticate, choose between `fetch`, `scrape`, and `serp`, reuse stored
+scrapers, inspect results, recover from blocked pages, and handle CLI output
+safely.
 
 After this branch is merged, the raw onboarding URL will be:
 
 ```text
 https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
 ```
+
+### Bootstrap behavior
+
+`mrscraper init` performs only these steps:
+
+1. installs its current version globally with npm;
+2. reuses an existing API key or prompts the human for one; and
+3. detects supported harnesses and targets them in one `npx skills add` call.
+
+The skill source stays in this GitHub repository; it is not bundled in the npm
+package. The `skills` installer controls the harness-specific global skill
+location. Detection currently covers Claude Code, Cursor, Windsurf, Codex,
+Continue, Roo Code, Gemini CLI, GitHub Copilot, Droid, OpenCode, OpenClaw,
+OpenHands, and Hermes Agent.
+
+Useful variants:
+
+```bash
+mrscraper init --agent codex
+mrscraper init --yes
+mrscraper init --dry-run
+mrscraper setup skills
+mrscraper setup skills --agent codex
+```
+
+`--all` installs only into detected harnesses. `setup skills` refreshes the
+skill without reinstalling the CLI or changing authentication. The bootstrap
+does not install MCP configuration, templates, browser OAuth, or default
+provider settings. `--yes` prevents prompting; when no credential already
+exists, authenticate later with `mrscraper login`.
 
 ## Authentication
 
@@ -52,6 +95,8 @@ Authentication precedence is `--token`, `MRSCRAPER_API_KEY`, `MRSCRAPER_API_TOKE
 ## Command Summary
 
 ```text
+init    bootstrap the CLI, credentials, and detected agent skills
+setup   install or refresh the agent skill
 fetch   return page content without a prompt
 scrape  extract requested data using a prompt or schema
 serp    return Google search results
@@ -251,6 +296,13 @@ The legacy positional `fetchHtmlApi(token, url, timeout, geoCode, blockResources
 npm install
 npm test
 node bin/mrscraper.js --help
+```
+
+Run the complete package-and-skill smoke test inside Docker so global npm and
+agent-directory writes stay out of the host environment:
+
+```bash
+docker build --file test/bootstrap.Dockerfile .
 ```
 
 For local integration tests, API hosts may be overridden with `MRSCRAPER_API_BASE_URL`, `MRSCRAPER_FETCH_BASE_URL`, and `MRSCRAPER_SYNC_BASE_URL`.
