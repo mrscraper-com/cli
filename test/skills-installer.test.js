@@ -21,14 +21,28 @@ function temporaryHome(t) {
 test("detectInstalledHarnesses returns only harnesses present in the home directory", (t) => {
   const homeDirectory = temporaryHome(t);
   fs.mkdirSync(path.join(homeDirectory, ".codex"));
-  fs.mkdirSync(path.join(homeDirectory, ".config", "opencode"), {
-    recursive: true,
-  });
+  fs.mkdirSync(path.join(homeDirectory, ".cursor"));
+  fs.mkdirSync(path.join(homeDirectory, ".opencode"));
+  fs.mkdirSync(path.join(homeDirectory, ".pi", "agent"), { recursive: true });
+  fs.mkdirSync(path.join(homeDirectory, ".omp"));
   fs.writeFileSync(path.join(homeDirectory, ".claude"), "not a directory");
 
   assert.deepEqual(
     detectInstalledHarnesses(homeDirectory).map(({ name }) => name),
-    ["codex", "opencode"],
+    ["cursor", "codex", "opencode", "pi", "omp"],
+  );
+});
+
+test("OpenCode detection honors XDG_CONFIG_HOME", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const xdgConfigHome = path.join(homeDirectory, "custom-config");
+  fs.mkdirSync(path.join(xdgConfigHome, "opencode"), { recursive: true });
+
+  assert.deepEqual(
+    detectInstalledHarnesses(homeDirectory, {
+      XDG_CONFIG_HOME: xdgConfigHome,
+    }).map(({ name }) => name),
+    ["opencode"],
   );
 });
 
@@ -85,6 +99,26 @@ test("an explicit supported agent installs even when its detection directory is 
   assert.deepEqual(result.targets, ["claude-code"]);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].args, buildSkillsInstallArgs("claude-code"));
+});
+
+test("Oh My Pi installs through its supported standard-agent skills provider", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const calls = [];
+  const messages = [];
+
+  const result = installMrscraperSkill({
+    agent: "omp",
+    homeDirectory,
+    execute: (command, args) => calls.push({ command, args }),
+    log: (message) => messages.push(message),
+  });
+
+  assert.deepEqual(result.targets, ["omp"]);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].args, buildSkillsInstallArgs("omp"));
+  assert.match(calls[0].args.join(" "), /--agent cline/);
+  assert.doesNotMatch(calls[0].args.join(" "), /--agent omp/);
+  assert.match(messages.join("\n"), /standard ~\/.agents\/skills provider/);
 });
 
 test("no detected harness is a safe no-op", (t) => {

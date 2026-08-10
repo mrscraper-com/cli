@@ -61,8 +61,11 @@ https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.
 The skill source stays in this GitHub repository; it is not bundled in the npm
 package. The `skills` installer controls the harness-specific global skill
 location. Detection currently covers Claude Code, Cursor, Windsurf, Codex,
-Continue, Roo Code, Gemini CLI, GitHub Copilot, Droid, OpenCode, OpenClaw,
-OpenHands, and Hermes Agent.
+Continue, Roo Code, Gemini CLI, GitHub Copilot, Droid, OpenCode, Pi, Oh My Pi,
+OpenClaw, OpenHands, and Hermes Agent. OpenCode is recognized at its XDG
+configuration location, `~/.config/opencode`, or `~/.opencode`. OMP is
+installed through the standard `~/.agents/skills` provider it supports because
+the upstream `skills` installer does not currently expose an `omp` target.
 
 Useful variants:
 
