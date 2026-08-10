@@ -60,12 +60,11 @@ https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.
 
 The skill source stays in this GitHub repository; it is not bundled in the npm
 package. The `skills` installer controls the harness-specific global skill
-location. Detection currently covers Claude Code, Cursor, Windsurf, Codex,
-Continue, Roo Code, Gemini CLI, GitHub Copilot, Droid, OpenCode, Pi, Oh My Pi,
-OpenClaw, OpenHands, and Hermes Agent. OpenCode is recognized at its XDG
-configuration location, `~/.config/opencode`, or `~/.opencode`. OMP is
-installed through the standard `~/.agents/skills` provider it supports because
-the upstream `skills` installer does not currently expose an `omp` target.
+location. Detection currently covers the six verified harnesses: Claude Code,
+Cursor, Codex, OpenCode, Pi, and Oh My Pi. OpenCode is recognized at its XDG
+configuration location, `~/.config/opencode`, or `~/.opencode`. OMP is installed
+through the standard `~/.agents/skills` provider it supports because the
+upstream `skills` installer does not currently expose an `omp` target.
 
 Useful variants:
 
@@ -82,14 +81,6 @@ skill without reinstalling the CLI or changing authentication. The bootstrap
 does not install MCP configuration, templates, browser OAuth, or default
 provider settings. `--yes` prevents prompting; when no credential already
 exists, authenticate later with `mrscraper login`.
-
-When `init` is launched as `npx --package=<source> mrscraper`, it reuses a Git
-branch or local source for both the global CLI and the agent skill. This keeps
-branch testing from falling back to a registry version or the default branch:
-
-```bash
-npx -y --package='github:mrscraper-com/cli#your-branch' mrscraper init --all
-```
 
 ## Authentication
 

@@ -172,25 +172,6 @@ test("a development source override is passed to the skills installer", () => {
   assert.match(messages.join("\n"), /skills add \/workspace --skill mrscraper/);
 });
 
-test("the npx GitHub branch becomes the skill installation source", () => {
-  const messages = [];
-
-  installMrscraperSkill({
-    agent: "claude-code",
-    environment: {
-      npm_config_package:
-        "github:example-org/mrscraper-cli#feature/test-bootstrap",
-    },
-    dryRun: true,
-    log: (message) => messages.push(message),
-  });
-
-  assert.match(
-    messages.join("\n"),
-    /skills add "github:example-org\/mrscraper-cli#feature\/test-bootstrap"/,
-  );
-});
-
 test("npm environment cleanup and Windows executable names are deterministic", () => {
   assert.deepEqual(cleanNpmEnvironment({ npm_TOKEN: "secret", Safe: "ok" }), {
     Safe: "ok",
