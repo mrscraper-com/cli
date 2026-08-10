@@ -48,6 +48,31 @@ test("installGlobalCli accepts a sandbox package spec override", () => {
   });
 });
 
+test("installGlobalCli preserves a GitHub branch used to invoke npx", () => {
+  let call;
+
+  installGlobalCli({
+    version: "0.3.0",
+    environment: {
+      npm_config_package:
+        "github:pray-mrscraper/cli#feat/fetch-status-unblocker",
+    },
+    execute: (command, args) => {
+      call = { command, args };
+    },
+    log: () => {},
+  });
+
+  assert.deepEqual(call, {
+    command: "npm",
+    args: [
+      "install",
+      "--global",
+      "github:pray-mrscraper/cli#feat/fetch-status-unblocker",
+    ],
+  });
+});
+
 test("runBootstrap executes install, authentication, and skill phases", async () => {
   const calls = [];
   const messages = [];

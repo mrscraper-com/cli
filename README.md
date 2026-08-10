@@ -83,6 +83,10 @@ does not install MCP configuration, templates, browser OAuth, or default
 provider settings. `--yes` prevents prompting; when no credential already
 exists, authenticate later with `mrscraper login`.
 
+When `init` is launched through npx from a Git branch or local checkout, it
+reuses that same source for both the global CLI and the agent skill. This keeps
+branch testing from falling back to a registry version or the default branch.
+
 ## Authentication
 
 Get an API key from [app.mrscraper.com/api-tokens](https://app.mrscraper.com/api-tokens), then use one of these methods:
