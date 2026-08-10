@@ -22,6 +22,21 @@ npm install
 node bin/mrscraper.js --help
 ```
 
+### Agent onboarding
+
+Direct a new agent to read
+[`skills/mrscraper/SKILL.md`](./skills/mrscraper/SKILL.md) before using the CLI.
+The document teaches the agent how to authenticate, choose between `fetch`,
+`scrape`, and `serp`, reuse stored scrapers, inspect results, recover from
+blocked pages, and handle CLI output safely. It is meant to be read remotely,
+not installed into a person's local agent configuration.
+
+After this branch is merged, the raw onboarding URL will be:
+
+```text
+https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
+```
+
 ## Authentication
 
 Get an API key from [app.mrscraper.com/api-tokens](https://app.mrscraper.com/api-tokens), then use one of these methods:
