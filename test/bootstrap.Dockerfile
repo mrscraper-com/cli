@@ -33,10 +33,16 @@ ENV MRSCRAPER_CLI_PACKAGE_SPEC=/tmp/mrscraper-cli.tgz
 # Run the checkout directly; init then globally installs the tarball above.
 RUN node bin/mrscraper.js init --skip-auth --all
 RUN mrscraper --version
-# Cursor, Codex, OpenCode, and OMP read the universal skill directly.
-RUN test -f /root/.agents/skills/mrscraper/SKILL.md
-# Claude Code and Pi receive harness-specific links to that universal skill.
-RUN test -f /root/.claude/skills/mrscraper/SKILL.md
-RUN test -f /root/.pi/agent/skills/mrscraper/SKILL.md
+# Cursor, Codex, OpenCode, and OMP read the universal skills directly.
+RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+  test -f "/root/.agents/skills/$skill/SKILL.md"; \
+  done
+# Claude Code and Pi receive harness-specific links to the universal skills.
+RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+  test -f "/root/.claude/skills/$skill/SKILL.md"; \
+  done
+RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+  test -f "/root/.pi/agent/skills/$skill/SKILL.md"; \
+  done
 RUN mrscraper setup skills --agent claude-code
 RUN mrscraper setup skills --agent omp --dry-run

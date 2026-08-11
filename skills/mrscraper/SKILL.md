@@ -1,15 +1,14 @@
 ---
 name: mrscraper
 description: |
-  MrScraper gives AI agents live web context through page fetching with automatic unblocking, prompt- or schema-based extraction, Google SERPs, saved scraper reruns, stored results, and account analytics. Use this onboarding guide when an agent needs to install or authenticate the MrScraper CLI, choose the correct command, recover from a failed web request, or route a user's web-data task. Do not invent browser interaction, local-file parsing, monitoring, scheduling, or manual-scraper creation commands; those are not provided by this CLI.
+  MrScraper CLI onboarding and routing guide. Use when an agent needs to install, authenticate, configure, or troubleshoot MrScraper; choose between its web-data commands; work with saved scraper reruns or stored results; check account usage; or handle a request that spans multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured field extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not invent browser interaction, local-file parsing, monitoring, scheduling, or manual-scraper creation commands; this CLI does not provide them.
 ---
 
-# MrScraper
+# MrScraper Router
 
-MrScraper helps agents fetch readable page content, extract structured data,
-discover pages through Google, reuse saved scrapers, and inspect results and
-account usage. One bootstrap command installs the CLI, configures credentials,
-and adds this skill to agent harnesses already present on the machine.
+Use this skill for setup, command selection, shared operating rules, and the
+commands that do not have a focused skill. Load the focused skill whenever the
+request clearly belongs to fetch, scrape, or SERP.
 
 ## Bootstrap MrScraper
 
@@ -19,197 +18,69 @@ Run the bootstrap from any directory:
 npx -y @mrscraper/cli@latest init --all
 ```
 
-It performs three focused actions:
+The bootstrap:
 
-- installs the same `@mrscraper/cli` version globally;
-- reuses existing credentials or asks the human to enter an API key; and
-- detects supported agent harnesses and installs the `mrscraper` skill into
-  those harnesses through the public `skills` installer.
+- installs the same published `@mrscraper/cli` version globally;
+- reuses saved credentials or asks the human to enter an API key; and
+- installs the four-skill MrScraper pack into supported agent harnesses already
+  present on the machine.
 
-`--all` means all **detected** harnesses; it does not add configuration for
-agents that are not installed. Use `--agent codex` (or another value shown by
-`mrscraper init --help`) to choose one explicitly. To refresh skills later
-without reinstalling or authenticating the CLI, run:
+`--all` means all detected harnesses. It does not add agents that are not
+installed. Use `--agent codex` or another value shown by
+`mrscraper init --help` to target one harness.
+
+Refresh the complete skill pack without reinstalling the CLI or authenticating:
 
 ```bash
 mrscraper setup skills
 mrscraper setup skills --agent codex
 ```
 
-For unattended setup, `--yes` prevents an API-key prompt. If no credential is
-already configured, run `mrscraper login` before making web requests.
-
-The bootstrap does not configure MCP servers, project templates, browser OAuth,
-or a default web provider. Those are not MrScraper CLI features.
-
-This gives the agent:
-
-- **Page fetching** — `mrscraper fetch` returns Markdown, HTML, or a page
-  document and can escalate automatically to browser rendering.
-- **Structured extraction** — `mrscraper scrape` extracts requested fields
-  using a prompt or JSON Schema.
-- **Google discovery** — `mrscraper serp` returns parsed Google results or raw
-  result-page HTML.
-- **Saved work** — `mrscraper rerun`, `mrscraper results`, and
-  `mrscraper result` reuse and inspect existing jobs.
-- **Account visibility** — `mrscraper status` reports quota and optional domain
-  scrape analytics.
-
-Before doing substantial work, verify the installation and authentication with
-one small real request:
-
-```bash
-mrscraper status
-mkdir -p .mrscraper
-mrscraper fetch "https://books.toscrape.com/" > .mrscraper/install-check.json
-jq -r '.data' .mrscraper/install-check.json | head -40
-```
-
-Keep `.mrscraper/` out of version control unless the user explicitly wants the
-artifacts committed.
+For unattended setup, use `--yes` to prevent an API-key prompt. The bootstrap
+does not configure MCP, project templates, browser OAuth, or a default web
+provider.
 
 ## Authenticate
 
-MrScraper requires an API key. It does not currently provide browser OAuth or a
-keyless CLI tier.
+MrScraper requires an API key and has no browser OAuth or keyless CLI tier.
 
-Users can authenticate in two ways:
-
-- **Saved CLI credential (default)** — ask the human to create or copy an API
-  key at <https://app.mrscraper.com/api-tokens>, then let them enter it directly
-  into the bootstrap or `mrscraper login`.
-- **Environment variable** — set `MRSCRAPER_API_KEY` for CI, containers, or
-  other unattended environments.
+- For interactive use, create or copy a key at
+  <https://app.mrscraper.com/api-tokens>, then enter it directly into
+  `mrscraper login` or the bootstrap prompt.
+- For CI or containers, set `MRSCRAPER_API_KEY`.
 
 ```bash
 mrscraper login
+mrscraper status
 ```
 
-Do not ask the human to paste the key into chat. Prefer a saved credential or
+Do not ask the human to paste an API key into chat. Prefer a saved credential or
 environment variable over `--token`, which can expose a key in shell history.
 
-## Choose the Right Command
+## Route the Request
 
-- **Have a URL and need its readable content** → use `fetch`
-- **Have a URL and need specific structured fields** → use `scrape`
-- **Need to discover relevant pages first** → use `serp`
-- **Need to rerun or inspect saved work** → use `rerun`, `results`, or `result`
-- **Need quota or scrape-outcome analytics** → use `status`
-- **Do not want a global CLI installation** → run the package with `npx`
-- **Need to restore or update the agent skill** → use `setup skills`
-- **Need clicks, login, local-file parsing, monitoring, manual creation, or
-  scheduling** → see Know the Limits
+- **Known URL; need readable page content, HTML, or a page document** → load
+  [mrscraper-fetch](../mrscraper-fetch/SKILL.md).
+- **Known URL; need defined fields, records, listings, or structured JSON** →
+  load [mrscraper-scrape](../mrscraper-scrape/SKILL.md).
+- **No target URL; need to find pages through Google** → load
+  [mrscraper-serp](../mrscraper-serp/SKILL.md).
+- **Need to rerun a saved AI/manual scraper or inspect stored results** → use
+  `rerun`, `results`, or `result` below.
+- **Need subscription quota or MrScraper request outcomes for a domain** → use
+  `status` below.
 
-The default live-web flow is:
+When “scrape this page” is ambiguous, decide from the requested output:
 
-1. Start with `serp` only when no target URL is known.
-2. Use `fetch` when the agent needs content to read, summarize, cite, or reason
-   over.
-3. Use `scrape` directly when the user needs defined fields or a JSON-shaped
-   result.
-4. Preserve returned IDs and use `results` or `result` for follow-up.
-5. If a page blocks `fetch`, escalate its unblocker controls instead of
-   switching to an invented interaction command.
+- content to read, summarize, cite, or archive means `fetch`;
+- selected fields, repeated records, or a JSON contract means `scrape`.
 
----
-
-## Fetch Page Content
-
-Use this when the agent has a URL and needs the page content without an
-extraction prompt.
-
-```bash
-mrscraper fetch "https://example.com" > .mrscraper/example.json
-mrscraper fetch "https://example.com" --format html > .mrscraper/example-html.json
-mrscraper fetch "https://example.com" --format json > .mrscraper/example-document.json
-```
-
-Markdown is the default. The CLI writes a JSON envelope to stdout, and the
-formatted page is in `.data`:
-
-```bash
-mrscraper fetch "https://example.com" | jq -r '.data'
-```
-
-Escalate the unblocker progressively:
-
-```bash
-# Start direct and escalate automatically when a likely block is detected
-mrscraper fetch "https://example.com" --unblock auto
-
-# Force browser rendering
-mrscraper fetch "https://example.com" --unblock always
-
-# Wait for a CSS selector on a dynamic page
-mrscraper fetch "https://example.com/products" \
-  --unblock always --wait-for ".product-card"
-
-# Add geo routing or homepage navigation when the site requires it
-mrscraper fetch "https://example.com" \
-  --unblock always --geo ID --homepage --retries 3
-```
-
-Treat `--wait-for` as a CSS selector, not a number of milliseconds. Use
-`--block-resources` when non-essential assets slow rendering and
-`--timeout <seconds>` for slow pages. Keep retries bounded.
-
----
-
-## Extract Structured Data
-
-Use this when the user requests particular fields or an explicit output
-contract. Always provide `--prompt` or `--schema`; promptless `scrape` is only a
-deprecated HTML-fetch compatibility alias.
-
-```bash
-mrscraper scrape "https://books.toscrape.com/" \
-  --prompt "Extract every book's title, price, and availability"
-
-mrscraper scrape "https://example.com/product" \
-  --prompt "Extract the product" \
-  --schema ./product.schema.json
-```
-
-Use the existing extraction modes only when needed:
-
-```bash
-mrscraper scrape "https://example.com/product" \
-  --agent general --prompt "Extract the product details"
-
-mrscraper scrape "https://example.com/products" \
-  --agent listing --prompt "Extract every product" --max-pages 5
-
-mrscraper scrape "https://example.com" \
-  --agent map --max-depth 2 --max-pages 50 --limit 1000
-```
-
-Map mode does not accept `--schema`. AI scrape accepts
-`--proxy-country <code>`, but not fetch-only controls such as `--unblock`,
-`--wait-for`, `--homepage`, retry caps, or token caps.
-
----
-
-## Find Pages with Google
-
-Use `serp` when the task begins with a query rather than a known URL. Select
-only results relevant to the goal, then fetch page content or extract
-structured data from the chosen URLs.
-
-```bash
-mrscraper serp "web scraping best practices" > .mrscraper/search.json
-mrscraper serp "running shoes" --region id --language id --page 2
-mrscraper serp "https://www.google.com/search?q=web+scraping&gl=us&hl=en"
-```
-
-JSON is the default. Use `--format html` only when raw Google HTML is required,
-and use `--render-js` only for JavaScript-rendered SERP features. Do not fetch
-every result by default.
-
----
+For discovery-first work, run SERP, select only relevant URLs, and then load
+either fetch or scrape for the chosen pages.
 
 ## Rerun and Inspect Saved Work
 
-Rerun an existing scraper instead of recreating its extraction logic:
+Reuse an existing scraper instead of recreating its extraction logic:
 
 ```bash
 mrscraper rerun "https://example.com/product" \
@@ -222,7 +93,7 @@ mrscraper rerun "https://a.example,https://b.example" \
   --bulk --type manual --id SCRAPER_UUID
 ```
 
-Single reruns require `--scraper-id`; bulk reruns require `--bulk` and `--id`.
+Single reruns require `--scraper-id`. Bulk reruns require `--bulk` and `--id`.
 
 Find or retrieve stored results:
 
@@ -232,15 +103,13 @@ mrscraper results --search example.com --page 2
 mrscraper result RESULT_UUID
 ```
 
-This CLI can rerun an existing manual scraper, but cannot create or schedule
-one.
-
----
+The CLI can run a manual scraper created elsewhere in MrScraper, but cannot
+create or schedule one.
 
 ## Review Usage and Domain Outcomes
 
 Use `status` without a domain for subscription and quota information. Add a
-domain and time range for stored scrape-outcome analytics.
+domain and time range for stored MrScraper request outcomes:
 
 ```bash
 mrscraper status
@@ -250,63 +119,52 @@ mrscraper status --domain example.com \
   --to 2026-08-10T00:00:00Z
 ```
 
-Domain analytics describe MrScraper request outcomes for the selected domain.
-They are not SEO, traffic, audience, or market analytics.
-
----
+Domain analytics are scrape request outcomes. They are not SEO, traffic,
+audience, or market analytics.
 
 ## Run Without a Global Install
 
-Use the npm package directly for an ephemeral or one-off session:
+Use the npm package directly for one-off commands:
 
 ```bash
 npx -y @mrscraper/cli@latest status
-npx -y @mrscraper/cli@latest fetch "https://example.com"
-npx -y @mrscraper/cli@latest scrape "https://example.com/product" \
-  --prompt "Extract the product name and price"
+npx -y @mrscraper/cli@latest results --page-size 10
 ```
 
-Authentication requirements are unchanged: use `MRSCRAPER_API_KEY`, an
-existing saved credential, or run `mrscraper login`. Running `init` is not an
-ephemeral action: the bootstrap intentionally installs the CLI and skill
-globally. There is no keyless fallback.
+Authentication requirements remain the same. Running `init` is not ephemeral;
+it intentionally installs the CLI and skills globally.
 
-## Handle JSON Output
+## Handle Shared Output Safely
 
-- Expect JSON on stdout for every data command. Progress and warnings go to
-  stderr.
+- Expect JSON on stdout for data commands. Progress and warnings go to stderr.
 - Check the process exit code. API failures exit nonzero and include `error`,
   `status_code`, and response `data` when available.
-- Save large responses under `.mrscraper/`, inspect their size first, and read
+- Save large web responses under `.mrscraper/`, inspect their size, and read
   them incrementally with `jq`, `head`, or targeted searches.
-- Quote every URL because `?` and `&` have shell meaning.
-- Do not print credentials, commit credential files, or publish account output.
+- Quote URLs because `?` and `&` have shell meaning.
+- Keep `.mrscraper/` out of version control unless the user explicitly wants
+  its artifacts committed.
+- Never print credentials, commit credential files, or publish account output.
 
-## Troubleshoot
+## Troubleshoot Shared Failures
 
 - **Unauthorized or 401** — run `mrscraper login` again or verify
   `MRSCRAPER_API_KEY`.
-- **Skill missing after bootstrap** — run `mrscraper setup skills --dry-run` to
-  inspect detection, then use `--agent <name>` when the harness uses a
-  nonstandard home directory.
-- **Challenge page, 403, 429, or incomplete HTML** — retry `fetch` with
-  `--unblock always`; add `--geo`, `--homepage`, or `--wait-for` only when the
-  target requires it.
-- **Dynamic content missing** — use `fetch --unblock always --wait-for
-  "<selector>"`.
-- **Slow page** — increase `fetch --timeout` moderately.
-- **Incorrect extraction** — make the `scrape --prompt` explicit and add a JSON
-  Schema when the output contract matters.
-- **Need a prior run** — use `results` to locate its UUID, then `result`.
-- **Unknown option or behavior** — run `mrscraper <command> --help` rather than
-  guessing.
+- **Skill pack missing after bootstrap** — run
+  `mrscraper setup skills --dry-run`, then pass `--agent <name>` if harness
+  detection uses a nonstandard home directory.
+- **Page blocked or incomplete** — load `mrscraper-fetch` for its unblock
+  escalation procedure.
+- **Extraction is incorrect** — load `mrscraper-scrape` and tighten the prompt
+  or schema.
+- **Search results are wrong or incomplete** — load `mrscraper-serp` and review
+  its query and locale guidance.
+- **Unknown option** — run `mrscraper <command> --help` instead of guessing.
 
 ## Know the Limits
 
-Do not invent unsupported commands or claim that an extraction mode is an
-interactive browser agent.
-
-The current CLI does not provide:
+Do not claim that an extraction mode is an interactive browser agent. The CLI
+does not provide:
 
 - clicks, form entry, or authenticated browser-session interaction;
 - local PDF, DOCX, spreadsheet, or other file parsing;
@@ -314,8 +172,6 @@ The current CLI does not provide:
 - manual scraper creation or scheduling; or
 - a keyless API tier.
 
-If the task requires one of these, stop and explain the limitation. A manual
-scraper created elsewhere in MrScraper can still be run with `rerun`.
-
-Scrape only content the user is authorized to access. Respect applicable site
+If the task requires one of these capabilities, explain the limitation. Scrape
+only content the user is authorized to access, and respect applicable site
 terms, privacy rules, copyright, and computer-access laws.

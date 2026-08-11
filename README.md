@@ -15,8 +15,8 @@ commands are redacted before output.
 Requires Node.js 18 or newer.
 
 For agent environments, one bootstrap command installs the CLI globally,
-configures credentials, and installs the MrScraper skill into every supported
-agent harness detected on the machine:
+configures credentials, and installs the MrScraper skill pack into every
+supported agent harness detected on the machine:
 
 ```bash
 npx -y @mrscraper/cli@latest init --all
@@ -38,11 +38,17 @@ node bin/mrscraper.js --help
 
 ### Agent onboarding
 
-The bootstrap installs [`skills/mrscraper/SKILL.md`](./skills/mrscraper/SKILL.md)
-through the public `skills` installer. The document teaches a new agent how to
-authenticate, choose between `fetch`, `scrape`, and `serp`, reuse stored
-scrapers, inspect results, recover from blocked pages, and handle CLI output
-safely.
+The bootstrap installs four focused skills through the public `skills`
+installer:
+
+- [`mrscraper`](./skills/mrscraper/SKILL.md) — onboarding, authentication,
+  routing, shared output rules, saved runs, status, troubleshooting, and limits;
+- [`mrscraper-fetch`](./skills/mrscraper-fetch/SKILL.md) — readable page content,
+  output formats, rendering, and unblock escalation;
+- [`mrscraper-scrape`](./skills/mrscraper-scrape/SKILL.md) — prompt/schema
+  extraction and AI modes; and
+- [`mrscraper-serp`](./skills/mrscraper-serp/SKILL.md) — query-first Google
+  discovery and handoff to fetch or scrape.
 
 After this branch is merged, the raw onboarding URL will be:
 
@@ -58,8 +64,8 @@ https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.
 2. reuses an existing API key or prompts the human for one; and
 3. detects supported harnesses and targets them in one `npx skills add` call.
 
-The skill source stays in this GitHub repository; it is not bundled in the npm
-package. The `skills` installer controls the harness-specific global skill
+The skill sources stay in this GitHub repository; they are not bundled in the
+npm package. The `skills` installer controls the harness-specific global skill
 location. Detection currently covers the six verified harnesses: Claude Code,
 Cursor, Codex, OpenCode, Pi, and Oh My Pi. OpenCode is recognized at its XDG
 configuration location, `~/.config/opencode`, or `~/.opencode`. OMP is installed
@@ -77,10 +83,10 @@ mrscraper setup skills --agent codex
 ```
 
 `--all` installs only into detected harnesses. `setup skills` refreshes the
-skill without reinstalling the CLI or changing authentication. The bootstrap
-does not install MCP configuration, templates, browser OAuth, or default
-provider settings. `--yes` prevents prompting; when no credential already
-exists, authenticate later with `mrscraper login`.
+complete pack without reinstalling the CLI or changing authentication. The
+bootstrap does not install MCP configuration, templates, browser OAuth, or
+default provider settings. `--yes` prevents prompting; when no credential
+already exists, authenticate later with `mrscraper login`.
 
 ## Authentication
 
@@ -97,8 +103,8 @@ Authentication precedence is `--token`, `MRSCRAPER_API_KEY`, `MRSCRAPER_API_TOKE
 ## Command Summary
 
 ```text
-init    bootstrap the CLI, credentials, and detected agent skills
-setup   install or refresh the agent skill
+init    bootstrap the CLI, credentials, and detected agent skill pack
+setup   install or refresh the agent skill pack
 fetch   return page content without a prompt
 scrape  extract requested data using a prompt or schema
 serp    return Google search results

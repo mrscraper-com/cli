@@ -8,19 +8,81 @@ const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const skillPath = path.join(repositoryRoot, "skills", "mrscraper", "SKILL.md");
-const skill = fs.readFileSync(skillPath, "utf8");
+const skillsRoot = path.join(repositoryRoot, "skills");
+const skillNames = [
+  "mrscraper",
+  "mrscraper-fetch",
+  "mrscraper-scrape",
+  "mrscraper-serp",
+];
+const skills = Object.fromEntries(
+  skillNames.map((name) => [
+    name,
+    fs.readFileSync(path.join(skillsRoot, name, "SKILL.md"), "utf8"),
+  ]),
+);
 
-test("MrScraper skill has complete and minimal frontmatter", () => {
-  const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/);
-  assert.ok(frontmatter, "SKILL.md must start with YAML frontmatter");
-  assert.match(frontmatter[1], /^name: mrscraper$/m);
-  assert.match(frontmatter[1], /^description: \|$/m);
-  assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
-  assert.doesNotMatch(skill, /\bTODO\b/);
+test("repository contains exactly the four approved MrScraper skills", () => {
+  const discovered = fs
+    .readdirSync(skillsRoot, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        fs.existsSync(path.join(skillsRoot, entry.name, "SKILL.md")),
+    )
+    .map(({ name }) => name)
+    .sort();
+
+  assert.deepEqual(discovered, [...skillNames].sort());
 });
 
-test("MrScraper skill documents only supported CLI command names", () => {
+test("every skill has complete, minimal, harness-neutral metadata", () => {
+  for (const [name, skill] of Object.entries(skills)) {
+    const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/);
+    assert.ok(frontmatter, `${name} must start with YAML frontmatter`);
+    assert.match(frontmatter[1], new RegExp(`^name: ${name}$`, "m"));
+    assert.match(frontmatter[1], /^description: \|$/m);
+    assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
+    assert.doesNotMatch(skill, /\bTODO\b/);
+    assert.ok(skill.split("\n").length < 500, `${name} must stay concise`);
+    assert.equal(
+      fs.existsSync(path.join(skillsRoot, name, "agents", "openai.yaml")),
+      false,
+    );
+  }
+});
+
+test("router owns onboarding and routes detailed web work to focused skills", () => {
+  const router = skills.mrscraper;
+
+  assert.match(router, /npx -y @mrscraper\/cli@latest init --all/);
+  assert.match(router, /mrscraper setup skills/);
+  assert.match(router, /\.\.\/mrscraper-fetch\/SKILL\.md/);
+  assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
+  assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
+  assert.match(router, /^## Rerun and Inspect Saved Work$/m);
+  assert.match(router, /^## Review Usage and Domain Outcomes$/m);
+  assert.match(router, /^## Know the Limits$/m);
+  assert.doesNotMatch(router, /--unblock|--schema|--region/);
+  assert.doesNotMatch(router, /\bPath [A-F]\b|^## Get Credentials$/m);
+});
+
+test("focused skills have distinct commands and intent boundaries", () => {
+  assert.match(skills["mrscraper-fetch"], /mrscraper fetch/);
+  assert.match(skills["mrscraper-fetch"], /--unblock always/);
+  assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
+
+  assert.match(skills["mrscraper-scrape"], /mrscraper scrape/);
+  assert.match(skills["mrscraper-scrape"], /--prompt/);
+  assert.match(skills["mrscraper-scrape"], /--schema/);
+  assert.match(skills["mrscraper-scrape"], /defined fields|requested fields/);
+
+  assert.match(skills["mrscraper-serp"], /mrscraper serp/);
+  assert.match(skills["mrscraper-serp"], /--region/);
+  assert.match(skills["mrscraper-serp"], /no known target URL/);
+});
+
+test("skill pack documents only supported CLI command names", () => {
   const supportedCommands = new Set([
     "--version",
     "fetch",
@@ -35,38 +97,36 @@ test("MrScraper skill documents only supported CLI command names", () => {
     "setup",
     "status",
   ]);
-  const documentedCommands = [
-    ...skill.matchAll(/^mrscraper\s+([^\s]+)/gm),
-  ].map((match) => match[1]);
+  const documentedCommands = Object.values(skills).flatMap((skill) =>
+    [...skill.matchAll(/^mrscraper\s+([^\s]+)/gm)].map((match) => match[1]),
+  );
 
   assert.ok(documentedCommands.length > 0);
   assert.deepEqual(
-    [...new Set(documentedCommands.filter((name) => !supportedCommands.has(name)))],
+    [
+      ...new Set(
+        documentedCommands.filter((name) => !supportedCommands.has(name)),
+      ),
+    ],
     [],
   );
-  for (const command of ["fetch", "scrape", "serp", "rerun", "results", "result", "status"]) {
+  for (const command of [
+    "fetch",
+    "scrape",
+    "serp",
+    "rerun",
+    "results",
+    "result",
+    "status",
+  ]) {
     assert.ok(documentedCommands.includes(command), `missing ${command} example`);
   }
 });
 
-test("onboarding documents the bootstrap without local-agent metadata", () => {
+test("skills remain repository-hosted rather than npm-bundled", () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(repositoryRoot, "package.json"), "utf8"),
   );
-  const metadataPath = path.join(
-    repositoryRoot,
-    "skills",
-    "mrscraper",
-    "agents",
-    "openai.yaml",
-  );
 
   assert.equal(packageJson.files.includes("skills"), false);
-  assert.equal(fs.existsSync(metadataPath), false);
-  assert.doesNotMatch(skill, /\bPath [A-F]\b/);
-  assert.doesNotMatch(skill, /^## Get Credentials$/m);
-  assert.match(skill, /npx -y @mrscraper\/cli@latest init --all/);
-  assert.match(skill, /mrscraper setup skills/);
-  assert.match(skill, /^## Bootstrap MrScraper$/m);
-  assert.match(skill, /^## Authenticate$/m);
 });

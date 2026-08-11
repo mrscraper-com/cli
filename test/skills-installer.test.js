@@ -155,7 +155,7 @@ test("dry-run renders the nested npx command without executing it", () => {
   assert.equal(executed, false);
   assert.match(
     messages.join("\n"),
-    /npx -y skills add mrscraper-com\/cli --skill mrscraper --full-depth --global --agent codex --yes/,
+    /npx -y skills add mrscraper-com\/cli --skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp --full-depth --global --agent codex --yes/,
   );
 });
 
@@ -169,7 +169,10 @@ test("a development source override is passed to the skills installer", () => {
     log: (message) => messages.push(message),
   });
 
-  assert.match(messages.join("\n"), /skills add \/workspace --skill mrscraper/);
+  assert.match(
+    messages.join("\n"),
+    /skills add \/workspace --skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp/,
+  );
 });
 
 test("npm environment cleanup and Windows executable names are deterministic", () => {

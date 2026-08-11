@@ -71,8 +71,11 @@ test("setup skills can target one harness without requiring detection", async ()
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /Would install the MrScraper skill for Codex/);
-  assert.match(result.stdout, /--skill mrscraper/);
+  assert.match(result.stdout, /Would install the MrScraper skill pack for Codex/);
+  assert.match(
+    result.stdout,
+    /--skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp/,
+  );
 });
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {
