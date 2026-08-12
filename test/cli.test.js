@@ -264,3 +264,40 @@ test("scrape includes a local JSON Schema in the AI extraction message", async (
   assert.match(requestBody.message, /JSON Schema/);
   assert.match(requestBody.message, /\"price\"/);
 });
+
+test("listing scrape warns agents while keeping stdout as JSON", async (t) => {
+  let requestBody;
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful operation!","data":{"id":"listing-1"}}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listings",
+      "--agent",
+      "listing",
+      "--prompt",
+      "Extract every listing",
+      "--max-pages",
+      "2",
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.doesNotThrow(() => JSON.parse(result.stdout));
+  assert.match(result.stderr, /150\+ seconds/);
+  assert.match(result.stderr, /do not submit a duplicate request/);
+  assert.match(result.stderr, /max-pages=2/);
+  assert.equal(requestBody.agent, "listing");
+  assert.equal(requestBody.maxPages, 2);
+});

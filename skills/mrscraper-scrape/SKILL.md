@@ -70,6 +70,27 @@ Keep `--max-pages`, `--max-depth`, and `--limit` proportional to the user's
 request. Use include or exclude URL patterns only when the requested site scope
 is clear.
 
+### Treat Listing as a Long-Running Operation
+
+`--agent listing` is synchronous and can take several minutes before it prints
+JSON. In current testing, even a one-page listing took about 150 seconds; the
+actual time varies with the target and service load.
+
+Before starting listing mode:
+
+- use `general` when every requested record is already visible on one page and
+  pagination is unnecessary;
+- tell the user that the listing request may take 2–3 minutes or longer;
+- choose the smallest practical `--max-pages` value;
+- allow at least a 10-minute execution timeout when the agent harness permits
+  it; and
+- keep waiting on the original process instead of submitting a duplicate
+  request when no JSON has appeared yet.
+
+The CLI writes `Listing still running...` heartbeats to stderr every 30 seconds
+for non-interactive sessions. Treat those messages as progress and continue
+waiting for the final JSON on stdout.
+
 ## Respect API Boundaries
 
 The AI scrape API accepts `--proxy-country <code>`. It does not accept

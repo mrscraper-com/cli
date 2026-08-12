@@ -76,6 +76,12 @@ test("focused skills have distinct commands and intent boundaries", () => {
   assert.match(skills["mrscraper-scrape"], /--prompt/);
   assert.match(skills["mrscraper-scrape"], /--schema/);
   assert.match(skills["mrscraper-scrape"], /defined fields|requested fields/);
+  assert.match(
+    skills["mrscraper-scrape"],
+    /one-page listing took about 150 seconds/,
+  );
+  assert.match(skills["mrscraper-scrape"], /Listing still running\.\.\./);
+  assert.match(skills["mrscraper-scrape"], /submitting a duplicate/);
 
   assert.match(skills["mrscraper-serp"], /mrscraper serp/);
   assert.match(skills["mrscraper-serp"], /--region/);
