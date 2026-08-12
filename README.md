@@ -14,13 +14,17 @@ commands are redacted before output.
 
 Requires Node.js 18 or newer.
 
-For agent environments, one bootstrap command installs the CLI globally,
-configures credentials, and installs the MrScraper skill pack into every
-supported agent harness detected on the machine:
+For agent environments, one non-interactive bootstrap command installs the CLI
+globally, reuses existing credentials, and installs the MrScraper skill pack
+into every supported agent harness detected on the machine:
 
 ```bash
-npx -y @mrscraper/cli@latest init --all
+npx -y @mrscraper/cli@latest init --all --yes
 ```
+
+If no API key is configured, bootstrap continues without one. Set
+`MRSCRAPER_API_KEY` or run `mrscraper login` yourself in an interactive terminal
+before making web requests.
 
 For a CLI-only installation:
 
@@ -92,7 +96,8 @@ browser OAuth, templates, or another copy of the CLI.
 `mrscraper init` performs only these steps:
 
 1. installs its current version globally with npm;
-2. reuses an existing API key or prompts the human for one; and
+2. reuses an existing API key, or leaves authentication for later when running
+   non-interactively or with `--yes`; and
 3. detects supported harnesses and targets them in one `npx skills add` call.
 
 The skill sources stay in this GitHub repository; they are not bundled in the
@@ -106,9 +111,9 @@ upstream `skills` installer does not currently expose an `omp` target.
 Useful variants:
 
 ```bash
-mrscraper init --agent codex
-mrscraper init --yes
-mrscraper init --dry-run
+mrscraper init --agent codex --yes
+mrscraper init --all --yes
+mrscraper init --all --yes --dry-run
 mrscraper setup skills
 mrscraper setup skills --agent codex
 ```
@@ -117,7 +122,9 @@ mrscraper setup skills --agent codex
 complete pack without reinstalling the CLI or changing authentication. The
 bootstrap does not install MCP configuration, templates, browser OAuth, or
 default provider settings. `--yes` prevents prompting; when no credential
-already exists, authenticate later with `mrscraper login`.
+already exists, authenticate later with `mrscraper login`. Package-runner flags
+such as `npx -y` or `pnpm dlx -y` approve package execution only and do not
+answer prompts from the CLI itself.
 
 ## Authentication
 

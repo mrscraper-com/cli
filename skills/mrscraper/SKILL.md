@@ -12,22 +12,26 @@ request clearly belongs to fetch, scrape, or SERP.
 
 ## Bootstrap MrScraper
 
-Run the bootstrap from any directory:
+Run the bootstrap non-interactively from any directory:
 
 ```bash
-npx -y @mrscraper/cli@latest init --all
+npx -y @mrscraper/cli@latest init --all --yes
 ```
 
 The bootstrap:
 
 - installs the same published `@mrscraper/cli` version globally;
-- reuses saved credentials or asks the human to enter an API key; and
+- reuses saved credentials or leaves authentication for the human to configure
+  later; and
 - installs the four-skill MrScraper pack into supported agent harnesses already
   present on the machine.
 
-`--all` means all detected harnesses. It does not add agents that are not
-installed. Use `--agent codex` or another value shown by
-`mrscraper init --help` to target one harness.
+Always include `--yes` when an agent launches `init`. It prevents the CLI from
+waiting for an API-key response. The `-y` in `npx -y` or `pnpm dlx -y` approves
+package execution only; it does not answer CLI prompts. `--all` means all
+detected harnesses. It does not add agents that are not installed. Use
+`--agent codex --yes` or another value shown by `mrscraper init --help` to
+target one harness.
 
 Refresh the complete skill pack without reinstalling the CLI or authenticating:
 
@@ -36,9 +40,11 @@ mrscraper setup skills
 mrscraper setup skills --agent codex
 ```
 
-For unattended setup, use `--yes` to prevent an API-key prompt. The bootstrap
-does not configure MCP, project templates, browser OAuth, or a default web
-provider.
+When no key is already configured, let bootstrap finish and ask the human to
+set `MRSCRAPER_API_KEY` or run `mrscraper login` themselves in an interactive
+terminal. Do not run an interactive login on their behalf, ask them to paste a
+key into chat, or wait for secret input. The bootstrap does not configure MCP,
+project templates, browser OAuth, or a default web provider.
 
 ## Authenticate
 

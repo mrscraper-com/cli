@@ -94,6 +94,46 @@ test("runBootstrap reuses existing credentials and --yes never prompts", async (
   assert.match(messages.join("\n"), /credentials are already configured/);
 });
 
+test("runBootstrap leaves missing authentication for later in non-interactive mode", async () => {
+  let authenticated = false;
+  const messages = [];
+
+  await runBootstrap(
+    { nonInteractive: true, skipInstall: true, skipSkills: true },
+    {
+      hasCredentials: () => false,
+      authenticate: () => {
+        authenticated = true;
+      },
+      log: (message) => messages.push(message),
+      logError: (message) => messages.push(message),
+    },
+  );
+
+  assert.equal(authenticated, false);
+  assert.match(messages.join("\n"), /Authentication not configured/);
+  assert.match(messages.join("\n"), /MRSCRAPER_API_KEY/);
+  assert.match(messages.join("\n"), /interactive terminal/);
+});
+
+test("runBootstrap leaves missing authentication for later with --yes", async () => {
+  let authenticated = false;
+
+  await runBootstrap(
+    { yes: true, skipInstall: true, skipSkills: true },
+    {
+      hasCredentials: () => false,
+      authenticate: () => {
+        authenticated = true;
+      },
+      log: () => {},
+      logError: () => {},
+    },
+  );
+
+  assert.equal(authenticated, false);
+});
+
 test("runBootstrap dry-run makes no changes and reports every phase", async () => {
   let executed = false;
   const messages = [];

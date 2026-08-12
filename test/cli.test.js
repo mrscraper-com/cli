@@ -34,6 +34,7 @@ function runCli(args, environment = {}) {
       {
         cwd: repositoryRoot,
         env: { ...process.env, ...environment },
+        timeout: 10_000,
       },
       (error, stdout, stderr) => {
         resolve({
@@ -45,6 +46,29 @@ function runCli(args, environment = {}) {
     );
   });
 }
+
+test("init never prompts for a missing API key when stdin is non-interactive", async (t) => {
+  const homeDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-home-"),
+  );
+  t.after(() => fs.rmSync(homeDirectory, { recursive: true, force: true }));
+
+  const result = await runCli(
+    ["init", "--skip-install", "--skip-skills"],
+    {
+      HOME: homeDirectory,
+      XDG_CONFIG_HOME: homeDirectory,
+      MRSCRAPER_API_KEY: "",
+      MRSCRAPER_API_TOKEN: "",
+    },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /Authentication not configured/);
+  assert.match(result.stdout, /interactive terminal/);
+  assert.doesNotMatch(result.stdout, /MrScraper API key:/);
+});
 
 test("init dry-run detects installed harnesses without changing the system", async (t) => {
   const homeDirectory = fs.mkdtempSync(
