@@ -75,7 +75,17 @@ test("focused skills have distinct commands and intent boundaries", () => {
   assert.match(skills["mrscraper-scrape"], /mrscraper scrape/);
   assert.match(skills["mrscraper-scrape"], /--prompt/);
   assert.match(skills["mrscraper-scrape"], /--schema/);
+  assert.match(skills["mrscraper-scrape"], /--output/);
   assert.match(skills["mrscraper-scrape"], /defined fields|requested fields/);
+  assert.match(
+    skills["mrscraper-scrape"],
+    /Treat a successfully written file as the finished artifact/,
+  );
+  assert.match(
+    skills["mrscraper-scrape"],
+    /single property, product,\nvehicle, or job listing detail page uses the default `general` agent/,
+  );
+  assert.match(skills["mrscraper-scrape"], /Post-process only when/);
   assert.match(
     skills["mrscraper-scrape"],
     /one-page listing took about 150 seconds/,

@@ -265,6 +265,256 @@ test("scrape includes a local JSON Schema in the AI extraction message", async (
   assert.match(requestBody.message, /\"price\"/);
 });
 
+test("scrape --output writes only extracted JSON and preserves stdout", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "nested", "castillo-caribe.json");
+  const extracted = {
+    mls: "402170",
+    name: "Castillo Caribe",
+    location: { district: "South Sound", island: "Grand Cayman" },
+  };
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        message: "Successful operation!",
+        data: {
+          id: "result-1",
+          scraperId: "scraper-1",
+          status: "Finished",
+          data: extracted,
+        },
+      }),
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/castillo-caribe",
+      "--prompt",
+      "Extract all available listing information",
+      "--output",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), extracted);
+  assert.match(result.stderr, /Wrote extracted JSON/);
+  const envelope = JSON.parse(result.stdout);
+  assert.equal(envelope.data.data.id, "result-1");
+  assert.deepEqual(envelope.data.data.data, extracted);
+});
+
+test("scrape --output decodes a JSON-encoded extraction once", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "listing.json");
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        data: {
+          status: "Finished",
+          data: JSON.stringify({ name: "Encoded listing" }),
+        },
+      }),
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listing",
+      "--prompt",
+      "Extract the listing",
+      "-o",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), {
+    name: "Encoded listing",
+  });
+});
+
+test("scrape --output supports a direct run-object API response", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "listing.json");
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        id: "result-1",
+        scraperId: "scraper-1",
+        status: "Finished",
+        data: { name: "Direct listing" },
+      }),
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listing",
+      "--prompt",
+      "Extract the listing",
+      "--output",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), {
+    name: "Direct listing",
+  });
+});
+
+test("scrape --output does not create a file without extracted data", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "missing", "listing.json");
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      '{"message":"Successful operation!","data":{"id":"result-1","status":"Finished"}}',
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listing",
+      "--prompt",
+      "Extract the listing",
+      "--output",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /no extracted data/);
+  assert.equal(fs.existsSync(outputPath), false);
+  assert.doesNotThrow(() => JSON.parse(result.stdout));
+});
+
+test("scrape --output does not create a file for an unfinished run", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "listing.json");
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      '{"message":"Still running","data":{"id":"result-1","status":"Running","data":{"name":"Partial"}}}',
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listing",
+      "--prompt",
+      "Extract the listing",
+      "--output",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /not finished \(status: Running\)/);
+  assert.equal(fs.existsSync(outputPath), false);
+});
+
+test("scrape --output does not create a file when the API fails", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "listing.json");
+  const server = http.createServer((_request, response) => {
+    response.writeHead(500, { "content-type": "application/json" });
+    response.end('{"message":"failed"}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listing",
+      "--prompt",
+      "Extract the listing",
+      "--output",
+      outputPath,
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 1);
+  assert.equal(fs.existsSync(outputPath), false);
+  assert.equal(JSON.parse(result.stdout).status_code, 500);
+});
+
+test("scrape --output requires structured extraction mode", async (t) => {
+  const outputRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-output-"),
+  );
+  t.after(() => fs.rmSync(outputRoot, { recursive: true, force: true }));
+  const outputPath = path.join(outputRoot, "listing.json");
+
+  const result = await runCli([
+    "scrape",
+    "https://target.example/listing",
+    "--output",
+    outputPath,
+  ]);
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /requires --prompt, --schema, or --agent/);
+  assert.equal(fs.existsSync(outputPath), false);
+});
+
 test("listing scrape warns agents while keeping stdout as JSON", async (t) => {
   let requestBody;
   const server = http.createServer(async (request, response) => {

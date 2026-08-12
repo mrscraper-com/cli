@@ -160,9 +160,15 @@ Automatic escalation is implemented by this CLI around the existing Web Unblocke
 Create an AI scraper with extraction instructions:
 
 ```bash
-mrscraper scrape https://example.com/products \
-  --prompt "Extract product name, price, and availability"
+mrscraper scrape https://example.com/product \
+  --prompt "Extract all available product information" \
+  --output .mrscraper/example-product.json
 ```
+
+`-o, --output <path>` creates parent directories and writes only the extracted
+payload as pretty JSON. The full API response envelope remains on stdout for
+backward compatibility. The output file is not created when the request fails,
+the run is unfinished, or the response has no extracted payload.
 
 Use a JSON Schema when the output contract must be explicit:
 
@@ -189,6 +195,7 @@ mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 | --- | --- |
 | `-p, --prompt <text>` | Extraction instructions. |
 | `--schema <path>` | JSON Schema file included in the extraction instructions. Not supported by the map agent. |
+| `-o, --output <path>` | Write only the extracted payload as pretty JSON. |
 | `-a, --agent <agent>` | Existing `general`, `listing`, or `map` mode. |
 | `--proxy-country <code>` | Proxy country supported by the AI scraper API. |
 | `--max-pages <n>` | Listing or map page limit. |
