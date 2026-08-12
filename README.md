@@ -56,6 +56,37 @@ After this branch is merged, the raw onboarding URL will be:
 https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
 ```
 
+### Codex plugin
+
+This repository is also a skills-only Codex plugin. The plugin and
+`mrscraper init` are alternative ways to install the same four skills in Codex;
+do not enable both copies at once. The plugin still shells out to the
+MrScraper CLI, so install and authenticate the CLI without reinstalling the
+skill pack:
+
+```bash
+npm install -g @mrscraper/cli@latest
+mrscraper login
+```
+
+Until MrScraper is available in the public Codex Plugin Directory, install it
+through a local marketplace:
+
+1. Clone this repository as `plugins/mrscraper-cli` inside a marketplace root.
+2. Copy [`examples/marketplace.json`](./examples/marketplace.json) to
+   `.agents/plugins/marketplace.json` in that marketplace root.
+3. Register the marketplace and install the plugin:
+
+   ```bash
+   codex plugin marketplace add /path/to/marketplace-root
+   codex plugin add mrscraper-cli@mrscraper-dev
+   ```
+
+4. Start a new Codex thread before testing the plugin.
+
+The plugin intentionally includes skills only. It does not install MCP,
+browser OAuth, templates, or another copy of the CLI.
+
 ### Bootstrap behavior
 
 `mrscraper init` performs only these steps:
