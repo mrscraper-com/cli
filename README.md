@@ -4,11 +4,13 @@
 
 Official command-line client for [MrScraper](https://app.mrscraper.com). It fetches page content, creates AI extraction scrapers, retrieves Google results, reruns saved scrapers, and reports account usage.
 
-Data commands write JSON to stdout; setup and authentication commands use
-human-readable output. Progress and deprecation notices use stderr, and failed
-API calls exit with a non-zero status. Sensitive response headers, API-token
-fields, signed query parameters, and credentials embedded in generated curl
-commands are redacted before output.
+Web-data commands write JSON to stdout; setup and authentication commands use
+human-readable output. `status` renders a dashboard in an interactive terminal
+and automatically switches to JSON when redirected or piped. Progress and
+deprecation notices use stderr, and failed API calls exit with a non-zero
+status. Sensitive response headers, API-token fields, signed query parameters,
+and credentials embedded in generated curl commands are redacted before
+output.
 
 ## Install
 
@@ -60,18 +62,57 @@ After this branch is merged, the raw onboarding URL will be:
 https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
 ```
 
-### Codex plugin
+### Native agent plugins
 
-This repository is also a skills-only Codex plugin. The plugin and
-`mrscraper init` are alternative ways to install the same four skills in Codex;
-do not enable both copies at once. The plugin still shells out to the
-MrScraper CLI, so install and authenticate the CLI without reinstalling the
-skill pack:
+This repository is a skills-only native plugin for Codex, Claude Code, and
+Cursor. Every plugin exposes the same four skills from [`skills/`](./skills), so
+the expected commands and output contracts stay aligned across agents. A native
+plugin and `mrscraper init` are alternative ways to install the skills into one
+agent; do not enable both copies in the same agent.
+
+The plugins shell out to the MrScraper CLI. Install and authenticate the CLI
+without reinstalling the skill pack:
 
 ```bash
 npm install -g @mrscraper/cli@latest
 mrscraper login
 ```
+
+#### Claude Code
+
+The repository contains both the Claude Code plugin manifest and its GitHub
+marketplace catalog. Install them directly from this repository:
+
+```bash
+claude plugin marketplace add mrscraper-com/cli
+claude plugin install mrscraper-cli@mrscraper
+```
+
+For local development, validate or load the checkout directly:
+
+```bash
+claude plugin validate /path/to/mrscraper-cli --strict
+claude --plugin-dir /path/to/mrscraper-cli
+```
+
+#### Cursor
+
+The repository also contains a Cursor plugin and marketplace manifest. Until it
+is accepted into the public Cursor Marketplace, expose a checkout through
+Cursor's local plugin directory and restart Cursor:
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -s /path/to/mrscraper-cli ~/.cursor/plugins/local/mrscraper-cli
+```
+
+Once published, install it inside Cursor with:
+
+```text
+/add-plugin mrscraper-cli
+```
+
+#### Codex
 
 Until MrScraper is available in the public Codex Plugin Directory, install it
 through a local marketplace:
@@ -88,7 +129,7 @@ through a local marketplace:
 
 4. Start a new Codex thread before testing the plugin.
 
-The plugin intentionally includes skills only. It does not install MCP,
+The native plugins intentionally include skills only. They do not install MCP,
 browser OAuth, templates, or another copy of the CLI.
 
 ### Bootstrap behavior
@@ -280,7 +321,14 @@ Show subscription and token usage:
 
 ```bash
 mrscraper status
+mrscraper status --json
 ```
+
+In a terminal, the default dashboard shows subscription health, account
+verification, a token-usage progress bar, rate limits, renewal state, and the
+subscription end date. Redirected output is JSON so scripts and agents can
+parse it reliably. Use `--pretty` or `--json` to select either format
+explicitly.
 
 Add analytics for a domain and UTC date range:
 
@@ -301,6 +349,9 @@ The analytics API requires a domain. Without `--domain`, `status` returns only a
 | `--to <date>` | `now` | ISO 8601 end time or `now`. |
 | `--action <action>` | — | Optional action filter. |
 | `--api-token-name <name>` | — | Optional API-token-name filter. |
+| `--json` | automatic | Always print machine-readable JSON. |
+| `--pretty` | automatic | Always render the account dashboard. |
+| `--no-color` | off | Disable ANSI color in the dashboard. |
 | `--token <key>` | — | Override the configured API key. |
 
 ## `rerun`

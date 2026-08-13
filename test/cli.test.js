@@ -184,6 +184,45 @@ test("status summarizes the account without exposing API tokens", async (t) => {
   assert.doesNotMatch(result.stdout, /atk_secret|sub_secret/);
 });
 
+test("status --pretty renders a human dashboard instead of bare JSON", async (t) => {
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        data: {
+          tokenLimit: 1000,
+          tokenUsage: 250,
+          stripeStatus: "active",
+          rateLimit: 30,
+          rateTtl: 60,
+          isAutoRenew: true,
+          user: {
+            name: "Ada",
+            email: "ada@example.com",
+            isVerified: true,
+          },
+        },
+      }),
+    );
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    ["status", "--pretty", "--no-color", "--token", "test"],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /MrScraper  ACCOUNT & USAGE/);
+  assert.match(result.stdout, /● ACTIVE/);
+  assert.match(result.stdout, /250 used\s+·\s+750 remaining/);
+  assert.match(result.stdout, /Tip: pass --json/);
+  assert.doesNotMatch(result.stdout, /^\s*\{/);
+  assert.doesNotMatch(result.stdout, /\x1b\[/);
+});
+
 test("status adds domain analytics with a UTC date range", async (t) => {
   let analyticsUrl;
   const server = http.createServer((request, response) => {

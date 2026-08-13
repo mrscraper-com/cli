@@ -114,26 +114,27 @@ create or schedule one.
 
 ## Review Usage and Domain Outcomes
 
-Use `status` without a domain for subscription and quota information. Add a
-domain and time range for stored MrScraper request outcomes:
+Use `status --json` without a domain for subscription and quota information.
+Add a domain and time range for stored MrScraper request outcomes:
 
 ```bash
-mrscraper status
-mrscraper status --domain example.com --from 7d
-mrscraper status --domain example.com \
+mrscraper status --json
+mrscraper status --json --domain example.com --from 7d
+mrscraper status --json --domain example.com \
   --from 2026-08-01T00:00:00Z \
   --to 2026-08-10T00:00:00Z
 ```
 
 Domain analytics are scrape request outcomes. They are not SEO, traffic,
-audience, or market analytics.
+audience, or market analytics. Interactive humans can omit `--json` to see the
+account dashboard; agents should request JSON explicitly.
 
 ## Run Without a Global Install
 
 Use the npm package directly for one-off commands:
 
 ```bash
-npx -y @mrscraper/cli@latest status
+npx -y @mrscraper/cli@latest status --json
 npx -y @mrscraper/cli@latest results --page-size 10
 ```
 
@@ -142,7 +143,9 @@ it intentionally installs the CLI and skills globally.
 
 ## Handle Shared Output Safely
 
-- Expect JSON on stdout for data commands. Progress and warnings go to stderr.
+- Expect JSON on stdout for data commands. Pass `status --json` explicitly
+  because an interactive terminal otherwise renders its human dashboard.
+  Progress and warnings go to stderr.
 - Check the process exit code. API failures exit nonzero and include `error`,
   `status_code`, and response `data` when available.
 - Save large web responses under `.mrscraper/`, inspect their size, and read

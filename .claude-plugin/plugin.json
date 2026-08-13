@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "mrscraper-cli",
+  "displayName": "MrScraper",
+  "version": "0.3.0",
+  "description": "Fetch pages, extract structured web data, and discover sources through Google with the MrScraper CLI.",
+  "author": {
+    "name": "MrScraper",
+    "url": "https://github.com/mrscraper-com"
+  },
+  "homepage": "https://app.mrscraper.com",
+  "repository": "https://github.com/mrscraper-com/cli",
+  "license": "MIT",
+  "keywords": [
+    "mrscraper",
+    "web-scraping",
+    "data-extraction",
+    "search",
+    "research"
+  ],
+  "skills": "./skills/"
+}
