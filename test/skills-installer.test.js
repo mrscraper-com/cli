@@ -22,15 +22,26 @@ test("detectInstalledHarnesses returns only harnesses present in the home direct
   const homeDirectory = temporaryHome(t);
   fs.mkdirSync(path.join(homeDirectory, ".codex"));
   fs.mkdirSync(path.join(homeDirectory, ".grok"));
+  fs.mkdirSync(path.join(homeDirectory, ".hermes"));
   fs.mkdirSync(path.join(homeDirectory, ".cursor"));
   fs.mkdirSync(path.join(homeDirectory, ".opencode"));
+  fs.mkdirSync(path.join(homeDirectory, ".openclaw"));
   fs.mkdirSync(path.join(homeDirectory, ".pi", "agent"), { recursive: true });
   fs.mkdirSync(path.join(homeDirectory, ".omp"));
   fs.writeFileSync(path.join(homeDirectory, ".claude"), "not a directory");
 
   assert.deepEqual(
     detectInstalledHarnesses(homeDirectory).map(({ name }) => name),
-    ["cursor", "codex", "grok", "opencode", "pi", "omp"],
+    [
+      "cursor",
+      "codex",
+      "grok",
+      "hermes",
+      "opencode",
+      "openclaw",
+      "pi",
+      "omp",
+    ],
   );
 });
 
@@ -44,6 +55,29 @@ test("Grok detection honors GROK_HOME", (t) => {
       ({ name }) => name,
     ),
     ["grok"],
+  );
+});
+
+test("Hermes detection honors HERMES_HOME", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const hermesHome = path.join(homeDirectory, "profiles", "work");
+  fs.mkdirSync(hermesHome, { recursive: true });
+
+  assert.deepEqual(
+    detectInstalledHarnesses(homeDirectory, { HERMES_HOME: hermesHome }).map(
+      ({ name }) => name,
+    ),
+    ["hermes"],
+  );
+});
+
+test("OpenClaw detection recognizes its current and legacy state directories", (t) => {
+  const homeDirectory = temporaryHome(t);
+  fs.mkdirSync(path.join(homeDirectory, ".clawdbot"));
+
+  assert.deepEqual(
+    detectInstalledHarnesses(homeDirectory).map(({ name }) => name),
+    ["openclaw"],
   );
 });
 
@@ -129,6 +163,38 @@ test("Grok installs through the upstream grok target", (t) => {
   assert.deepEqual(result.targets, ["grok"]);
   assert.equal(calls.length, 1);
   assert.match(calls[0].args.join(" "), /--agent grok/);
+});
+
+test("Hermes installs through the upstream hermes-agent target", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const calls = [];
+
+  const result = installMrscraperSkill({
+    agent: "hermes",
+    homeDirectory,
+    execute: (command, args) => calls.push({ command, args }),
+    log: () => {},
+  });
+
+  assert.deepEqual(result.targets, ["hermes"]);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].args.join(" "), /--agent hermes-agent/);
+});
+
+test("OpenClaw installs through the upstream openclaw target", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const calls = [];
+
+  const result = installMrscraperSkill({
+    agent: "openclaw",
+    homeDirectory,
+    execute: (command, args) => calls.push({ command, args }),
+    log: () => {},
+  });
+
+  assert.deepEqual(result.targets, ["openclaw"]);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].args.join(" "), /--agent openclaw/);
 });
 
 test("Oh My Pi installs through its supported standard-agent skills provider", (t) => {

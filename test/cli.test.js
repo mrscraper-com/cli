@@ -104,6 +104,24 @@ test("login --api-key and auth status use ~/.mrscraper/auth.json", async (t) => 
   assert.doesNotMatch(status.stdout, /test-api-key/);
 });
 
+test("login --no-browser never waits for secret input without a terminal", async (t) => {
+  const authHome = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-no-browser-"),
+  );
+  t.after(() => fs.rmSync(authHome, { recursive: true, force: true }));
+
+  const result = await runCli(["login", "--no-browser"], {
+    MRSCRAPER_HOME: authHome,
+    MRSCRAPER_API_KEY: "",
+    MRSCRAPER_API_TOKEN: "",
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /requires a terminal/);
+  assert.doesNotMatch(result.stdout, /MrScraper API key:/);
+  assert.equal(fs.existsSync(path.join(authHome, "auth.json")), false);
+});
+
 test("init dry-run detects installed harnesses without changing the system", async (t) => {
   const homeDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "mrscraper-cli-home-"),
@@ -123,9 +141,10 @@ test("init dry-run detects installed harnesses without changing the system", asy
   assert.match(result.stdout, /Skipping global CLI installation/);
   assert.match(result.stdout, /for Cursor, Codex, Grok Build: npx -y skills add/);
   assert.match(result.stdout, /--agent cursor --agent codex --agent grok --yes/);
-  assert.match(result.stdout, /register MrScraper MCP for Cursor/);
-  assert.match(result.stdout, /codex mcp add mrscraper/);
-  assert.match(result.stdout, /grok mcp add mrscraper/);
+  assert.match(result.stdout, /connect Cursor to MrScraper MCP/);
+  assert.match(result.stdout, /codex mcp add mrscraper --url/);
+  assert.match(result.stdout, /connect Grok Build to MrScraper MCP/);
+  assert.match(result.stdout, /mcp-remote@latest/);
 });
 
 test("setup skills can target one harness without requiring detection", async () => {
@@ -149,13 +168,68 @@ test("setup skills can target Grok without requiring detection", async () => {
   assert.match(result.stdout, /--agent grok --yes/);
 });
 
+test("setup skills can target Hermes without requiring detection", async () => {
+  const result = await runCli([
+    "setup",
+    "skills",
+    "--agent",
+    "hermes",
+    "--dry-run",
+  ]);
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /for Hermes Agent/);
+  assert.match(result.stdout, /--agent hermes-agent --yes/);
+});
+
 test("setup mcp can target one client without requiring detection", async () => {
   const result = await runCli(["setup", "mcp", "--agent", "cursor", "--dry-run"]);
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /Would register MrScraper MCP for Cursor/);
-  assert.match(result.stdout, /@mrscraper\/mcp@latest/);
+  assert.match(result.stdout, /Would connect Cursor to MrScraper MCP/);
+  assert.match(result.stdout, /https:\/\/mcp\.mrscraper\.com\/mcp/);
+});
+
+test("setup mcp supports local and custom-hosted alternatives", async () => {
+  const local = await runCli([
+    "setup",
+    "mcp",
+    "--agent",
+    "cursor",
+    "--local-mcp",
+    "--dry-run",
+  ]);
+  assert.equal(local.code, 0);
+  assert.match(local.stdout, /@mrscraper\/mcp@latest/);
+
+  const custom = await runCli([
+    "setup",
+    "mcp",
+    "--agent",
+    "cursor",
+    "--mcp-url",
+    "https://self-hosted.example/mcp",
+    "--dry-run",
+  ]);
+  assert.equal(custom.code, 0);
+  assert.match(custom.stdout, /https:\/\/self-hosted\.example\/mcp/);
+});
+
+test("setup mcp can target OpenClaw without requiring detection", async () => {
+  const result = await runCli([
+    "setup",
+    "mcp",
+    "--agent",
+    "openclaw",
+    "--dry-run",
+  ]);
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /connect OpenClaw to MrScraper MCP/);
+  assert.match(result.stdout, /openclaw mcp set mrscraper/);
 });
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {

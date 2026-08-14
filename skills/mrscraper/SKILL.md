@@ -15,25 +15,34 @@ request clearly belongs to fetch, scrape, or SERP.
 Run the bootstrap non-interactively from any directory:
 
 ```bash
-npx -y @mrscraper/cli@latest init --all --yes
+npx -y @mrscraper/cli@latest init --all --yes --skip-auth
 ```
 
 The bootstrap:
 
 - installs the same published `@mrscraper/cli` version globally;
-- reuses saved credentials or leaves authentication for the human to configure
-  later;
+- leaves authentication unchanged so the agent can handle login separately;
 - installs the four-skill MrScraper pack into supported agent harnesses already
   present on the machine; and
-- registers `@mrscraper/mcp` as a local stdio MCP server in those harnesses.
+- connects those harnesses to `https://mcp.mrscraper.com/mcp`.
 
-Always include `--yes` when an agent launches `init` to keep bootstrap
-non-interactive. The `-y` in `npx -y` approves package execution only; it does
-not authenticate the CLI. Without `--yes`, an interactive human is asked for
-an API key; agents must not use that interactive path. `--all` means all
-detected harnesses. It does not add agents that are not installed. Use
-`--agent codex --yes` or another value shown by `mrscraper init --help` to
-target one harness.
+Use the hosted MCP by default. Add `--local-mcp` only when the user explicitly
+wants to run `@mrscraper/mcp` locally; it uses the app-issued credential from
+`mrscraper login`. For a user-supplied deployment, pass `--mcp-url <url>`.
+
+Always include both `--yes` and `--skip-auth` when an agent launches `init`.
+The former keeps installation non-interactive; the latter makes the separate
+login step explicit. The `-y` in `npx -y` approves package execution only; it
+does not authenticate the CLI. Without these flags, interactive human use
+starts browser login when needed. `--all` means all detected harnesses. It does
+not add agents that are not installed. To target one harness, use one of these
+forms or another value shown by `mrscraper init --help`:
+
+```bash
+npx -y @mrscraper/cli@latest init --agent codex --yes --skip-auth
+npx -y @mrscraper/cli@latest init --agent hermes --yes --skip-auth
+npx -y @mrscraper/cli@latest init --agent openclaw --yes --skip-auth
+```
 
 Refresh the complete skill pack without reinstalling the CLI or authenticating:
 
@@ -50,19 +59,23 @@ session, run `mrscraper login` and tell the human to approve the browser request
 Keep the command running until approval completes; do not submit a duplicate.
 In a headless, remote, or unattended session, do not launch browser login—ask
 the human to run it locally or configure `MRSCRAPER_API_KEY`. Never ask them to
-paste a key into chat or wait for secret input. The bootstrap does not start
-OAuth, add project templates, or select a default web provider. The installed
-MCP becomes available after the client reloads or starts a new session; use the
-CLI in the current session when the MCP tools are not yet visible.
+paste a key into chat or wait for secret input. The agent-safe bootstrap above
+does not start browser login, add project templates, or select a default web
+provider. The installed MCP becomes available after the client reloads or
+starts a new session; use the CLI in the current session when the MCP tools are
+not yet visible. If the client reports that MrScraper MCP needs authentication,
+start that client's MCP OAuth flow and let the human approve it in the browser.
+Do not copy the CLI API key into MCP configuration.
 
 ## Authenticate
 
-MrScraper supports browser OAuth for interactive humans and API keys for CI or
-other non-interactive environments.
+MrScraper supports browser sign-in for interactive humans and explicit API
+keys for CI or other non-interactive environments.
 
 - For local interactive use, the agent may run `mrscraper login`; the human
-  approves in the opened browser and the CLI stores the resulting OAuth session.
-- Keep the login process alive while the human approves. It times out after five
+  approves in the opened browser, and the CLI exchanges the short-lived code
+  for a dedicated long-lived API key.
+- Keep the login process alive while the human approves. It times out after three
   minutes. If the browser cannot run on the same machine as the CLI, stop and
   use an API key instead.
 - For CI or containers, set `MRSCRAPER_API_KEY`.
@@ -74,12 +87,6 @@ mrscraper login
 mrscraper auth status --json
 mrscraper status
 ```
-
-OAuth and API-key credentials share `~/.mrscraper/auth.json`; treat it like a
-password. The CLI and local stdio MCP server both use this file. Do not read or
-print it. Do not ask the human to paste an API key into chat. Prefer a saved
-credential or environment variable over `--token`, which can expose a key in
-shell history.
 
 ## Route the Request
 
@@ -105,7 +112,7 @@ either fetch or scrape for the chosen pages.
 ## Run Core Web Commands
 
 Use the command that matches the requested outcome. Save artifacts under
-`./.mrscraper/` in the user's current project, never under `~/.mrscraper/`:
+`./.mrscraper/` in the user's current project:
 
 ```bash
 # Read page content
@@ -222,8 +229,7 @@ does not provide:
 
 - clicks, form entry, or authenticated browser-session interaction;
 - local PDF, DOCX, spreadsheet, or other file parsing;
-- recurring monitoring or notifications;
-- manual scraper creation or scheduling; or
-- an unauthenticated API tier.
+- recurring monitoring or notifications; or
+- manual scraper creation or scheduling;
 
 If the task requires one of these capabilities, explain the limitation.

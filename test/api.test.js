@@ -73,7 +73,7 @@ test("request removes sensitive response headers", async () => {
   assert.deepEqual(result.headers, { "content-type": "text/plain", "x-request-id": "request-1" });
 });
 
-test("API calls send OAuth access tokens only as bearer authorization", async () => {
+test("API calls send saved API keys through both compatibility headers", async () => {
   let capturedHeaders;
   globalThis.fetch = async (_url, init) => {
     capturedHeaders = init.headers;
@@ -81,13 +81,13 @@ test("API calls send OAuth access tokens only as bearer authorization", async ()
   };
 
   await fetchWithUnblockerApi({
-    token: { auth_type: "oauth", access_token: "oauth-secret" },
+    token: { auth_type: "api_key", api_key: "saved-secret" },
     url: "https://target.example",
     unblock: "never",
   });
 
-  assert.equal(capturedHeaders.Authorization, "Bearer oauth-secret");
-  assert.equal(capturedHeaders["x-api-token"], undefined);
+  assert.equal(capturedHeaders.Authorization, "Bearer saved-secret");
+  assert.equal(capturedHeaders["x-api-token"], "saved-secret");
 });
 
 test("response data redacts tokens in fields and generated curl commands", () => {

@@ -24,10 +24,14 @@ RUN mkdir -p \
   /root/.claude \
   /root/.codex \
   /root/.cursor \
+  /root/.grok \
+  /root/.hermes \
   /root/.opencode \
+  /root/.openclaw \
   /root/.pi/agent \
   /root/.omp
 RUN ln -s /bin/true /usr/local/bin/codex
+RUN ln -s /bin/true /usr/local/bin/openclaw
 RUN ln -s /bin/true /usr/local/bin/pi
 ENV MRSCRAPER_SKILL_SOURCE=/workspace
 ENV MRSCRAPER_CLI_PACKAGE_SPEC=/tmp/mrscraper-cli.tgz
@@ -40,13 +44,21 @@ RUN node scripts/verify-bootstrap.js
 RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
   test -f "/root/.agents/skills/$skill/SKILL.md"; \
   done
-# Claude Code and Pi receive harness-specific links to the universal skills.
+# Claude Code, Hermes, OpenClaw, and Pi receive harness-specific links.
 RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
   test -f "/root/.claude/skills/$skill/SKILL.md"; \
+  done
+RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+  test -f "/root/.hermes/skills/$skill/SKILL.md"; \
+  done
+RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+  test -f "/root/.openclaw/skills/$skill/SKILL.md"; \
   done
 RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
   test -f "/root/.pi/agent/skills/$skill/SKILL.md"; \
   done
 RUN mrscraper setup skills --agent claude-code
+RUN mrscraper setup skills --agent hermes --dry-run
+RUN mrscraper setup skills --agent openclaw --dry-run
 RUN mrscraper setup skills --agent omp --dry-run
 RUN mrscraper setup mcp --agent cursor --dry-run

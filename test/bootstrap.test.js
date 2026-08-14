@@ -141,7 +141,7 @@ test("runBootstrap leaves missing authentication for later with --yes", async ()
   assert.equal(authenticated, false);
 });
 
-test("runBootstrap asks for authentication only in interactive mode", async () => {
+test("runBootstrap starts authentication when interactive credentials are missing", async () => {
   let authenticated = false;
 
   await runBootstrap(
@@ -157,6 +157,55 @@ test("runBootstrap asks for authentication only in interactive mode", async () =
   );
 
   assert.equal(authenticated, true);
+});
+
+test("runBootstrap --skip-auth never starts login", async () => {
+  let authenticated = false;
+  const messages = [];
+
+  await runBootstrap(
+    {
+      skipAuth: true,
+      skipInstall: true,
+      skipSkills: true,
+      skipMcp: true,
+    },
+    {
+      authenticate: () => {
+        authenticated = true;
+      },
+      log: (message) => messages.push(message),
+      logError: () => {},
+    },
+  );
+
+  assert.equal(authenticated, false);
+  assert.match(messages.join("\n"), /run `mrscraper login` separately/);
+});
+
+test("runBootstrap dry-run reports browser login without starting it", async () => {
+  let authenticated = false;
+  const messages = [];
+
+  await runBootstrap(
+    {
+      dryRun: true,
+      skipInstall: true,
+      skipSkills: true,
+      skipMcp: true,
+    },
+    {
+      hasCredentials: () => false,
+      authenticate: () => {
+        authenticated = true;
+      },
+      log: (message) => messages.push(message),
+      logError: () => {},
+    },
+  );
+
+  assert.equal(authenticated, false);
+  assert.match(messages.join("\n"), /Would start MrScraper browser login/);
 });
 
 test("runBootstrap dry-run makes no changes and reports every phase", async () => {

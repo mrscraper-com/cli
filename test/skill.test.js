@@ -55,15 +55,23 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
 test("router owns onboarding and routes detailed web work to focused skills", () => {
   const router = skills.mrscraper;
 
-  assert.match(router, /npx -y @mrscraper\/cli@latest init --all --yes/);
-  assert.match(router, /Always include `--yes` when an agent launches `init`/);
-  assert.match(router, /package execution only; it does\nnot authenticate the CLI/);
+  assert.match(
+    router,
+    /npx -y @mrscraper\/cli@latest init --all --yes --skip-auth/,
+  );
+  assert.match(router, /Always include both `--yes` and `--skip-auth`/);
+  assert.match(router, /--agent hermes --yes --skip-auth/);
+  assert.match(router, /--agent openclaw --yes --skip-auth/);
+  assert.match(router, /package execution only; it\s+does not authenticate the CLI/);
   assert.match(router, /run `mrscraper login` and tell the human to approve/);
   assert.match(router, /headless, remote, or unattended session, do not launch/);
   assert.match(router, /mrscraper setup skills/);
   assert.match(router, /mrscraper setup mcp/);
-  assert.match(router, /local stdio MCP server/);
-  assert.match(router, /both use this file/);
+  assert.match(router, /https:\/\/mcp\.mrscraper\.com\/mcp/);
+  assert.match(router, /--local-mcp/);
+  assert.match(router, /--mcp-url <url>/);
+  assert.match(router, /start that client's MCP OAuth flow/);
+  assert.match(router, /Do not copy the CLI API key into MCP configuration/);
   assert.match(router, /\.\.\/mrscraper-fetch\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
@@ -71,7 +79,8 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /mrscraper fetch "https:\/\/example\.com\/page"/);
   assert.match(router, /mrscraper scrape "https:\/\/example\.com\/listing"/);
   assert.match(router, /mrscraper serp "example search query"/);
-  assert.match(router, /never under `~\/\.mrscraper\/`/);
+  assert.match(router, /Save artifacts under\s+`\.\/\.mrscraper\/`/);
+  assert.match(router, /project folder is unrelated to `~\/\.mrscraper\/auth\.json`/);
   assert.match(router, /^## Rerun and Inspect Saved Work$/m);
   assert.match(router, /^## Review Usage and Domain Outcomes$/m);
   assert.match(router, /^## Know the Limits$/m);
