@@ -61,6 +61,9 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /run `mrscraper login` and tell the human to approve/);
   assert.match(router, /headless, remote, or unattended session, do not launch/);
   assert.match(router, /mrscraper setup skills/);
+  assert.match(router, /mrscraper setup mcp/);
+  assert.match(router, /local stdio MCP server/);
+  assert.match(router, /both use this file/);
   assert.match(router, /\.\.\/mrscraper-fetch\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);

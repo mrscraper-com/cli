@@ -27,7 +27,7 @@
     ".": "./lib/index.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "bin": {
     "mrscraper": "bin/mrscraper.js"
@@ -46,6 +46,7 @@
   "dependencies": {
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
+    "jsonc-parser": "^3.3.1",
     "node-html-markdown": "^1.3.0",
     "node-html-parser": "^6.1.13",
     "prompts": "^2.4.2"

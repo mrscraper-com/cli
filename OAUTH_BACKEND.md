@@ -1,8 +1,14 @@
-# MrScraper CLI OAuth Backend Contract
+# MrScraper CLI and Local MCP OAuth Backend Contract
 
 This document defines the backend work required by the OAuth client implemented
 in `@mrscraper/cli`. Until these endpoints and resource-server changes are
 deployed, users must continue authenticating with an API key.
+
+`@mrscraper/mcp` reuses this same public client when it runs locally over
+stdio. It reads and refreshes the CLI's `~/.mrscraper/auth.json` under the same
+lock, so the backend does not need a second MCP-specific OAuth client or token
+format. Hosted HTTP MCP remains caller-authenticated and is a separate
+deployment boundary.
 
 ## Required OAuth client registration
 

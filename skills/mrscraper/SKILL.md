@@ -22,9 +22,10 @@ The bootstrap:
 
 - installs the same published `@mrscraper/cli` version globally;
 - reuses saved credentials or leaves authentication for the human to configure
-  later; and
+  later;
 - installs the four-skill MrScraper pack into supported agent harnesses already
-  present on the machine.
+  present on the machine; and
+- registers `@mrscraper/mcp` as a local stdio MCP server in those harnesses.
 
 Always include `--yes` when an agent launches `init` to keep bootstrap
 non-interactive. The `-y` in `npx -y` approves package execution only; it does
@@ -39,15 +40,20 @@ Refresh the complete skill pack without reinstalling the CLI or authenticating:
 ```bash
 mrscraper setup skills
 mrscraper setup skills --agent codex
+mrscraper setup mcp
+mrscraper setup mcp --agent codex
 ```
 
-When no credential is configured, let bootstrap finish. In a local interactive
+After bootstrap, run `mrscraper auth status --json`. If it reports
+`authenticated: false`, let bootstrap remain finished. In a local interactive
 session, run `mrscraper login` and tell the human to approve the browser request.
 Keep the command running until approval completes; do not submit a duplicate.
 In a headless, remote, or unattended session, do not launch browser login—ask
 the human to run it locally or configure `MRSCRAPER_API_KEY`. Never ask them to
 paste a key into chat or wait for secret input. The bootstrap does not start
-OAuth, configure MCP, add project templates, or select a default web provider.
+OAuth, add project templates, or select a default web provider. The installed
+MCP becomes available after the client reloads or starts a new session; use the
+CLI in the current session when the MCP tools are not yet visible.
 
 ## Authenticate
 
@@ -70,9 +76,10 @@ mrscraper status
 ```
 
 OAuth and API-key credentials share `~/.mrscraper/auth.json`; treat it like a
-password. Do not read or print that file. Do not ask the human to paste an API
-key into chat. Prefer a saved credential or environment variable over
-`--token`, which can expose a key in shell history.
+password. The CLI and local stdio MCP server both use this file. Do not read or
+print it. Do not ask the human to paste an API key into chat. Prefer a saved
+credential or environment variable over `--token`, which can expose a key in
+shell history.
 
 ## Route the Request
 
@@ -173,7 +180,7 @@ npx -y @mrscraper/cli@latest results --page-size 10
 ```
 
 Authentication requirements remain the same. Running `init` is not ephemeral;
-it intentionally installs the CLI and skills globally.
+it intentionally installs the CLI and skills globally and registers MCP.
 
 ## Handle Shared Output Safely
 
@@ -197,6 +204,9 @@ it intentionally installs the CLI and skills globally.
 - **Skill pack missing after bootstrap** — run
   `mrscraper setup skills --dry-run`, then pass `--agent <name>` if harness
   detection uses a nonstandard home directory.
+- **MCP tools missing after bootstrap** — run
+  `mrscraper setup mcp --agent <name> --dry-run`, apply it without `--dry-run`,
+  then restart the MCP client or open a new session.
 - **Page blocked or incomplete** — load `mrscraper-fetch` for its unblock
   escalation procedure.
 - **Extraction is incorrect** — load `mrscraper-scrape` and tighten the prompt

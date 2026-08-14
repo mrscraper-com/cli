@@ -123,6 +123,9 @@ test("init dry-run detects installed harnesses without changing the system", asy
   assert.match(result.stdout, /Skipping global CLI installation/);
   assert.match(result.stdout, /for Cursor, Codex, Grok Build: npx -y skills add/);
   assert.match(result.stdout, /--agent cursor --agent codex --agent grok --yes/);
+  assert.match(result.stdout, /register MrScraper MCP for Cursor/);
+  assert.match(result.stdout, /codex mcp add mrscraper/);
+  assert.match(result.stdout, /grok mcp add mrscraper/);
 });
 
 test("setup skills can target one harness without requiring detection", async () => {
@@ -144,6 +147,15 @@ test("setup skills can target Grok without requiring detection", async () => {
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /for Grok Build/);
   assert.match(result.stdout, /--agent grok --yes/);
+});
+
+test("setup mcp can target one client without requiring detection", async () => {
+  const result = await runCli(["setup", "mcp", "--agent", "cursor", "--dry-run"]);
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /Would register MrScraper MCP for Cursor/);
+  assert.match(result.stdout, /@mrscraper\/mcp@latest/);
 });
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {
