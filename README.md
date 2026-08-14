@@ -107,18 +107,21 @@ The CLI loads a `.env` file from the **current working directory** (if present) 
 `mrscraper login` starts a one-shot HTTP server on `127.0.0.1` with a random port and opens:
 
 ```
-https://app.mrscraper.com/auth/login?cli_redirect=<urlencoded http://127.0.0.1:PORT/callback>&state=<32-char hex nonce>
+https://app.mrscraper.com/auth/login?cli_redirect=<urlencoded http://127.0.0.1:PORT/callback>&state=<32-char hex nonce>&code_challenge=<base64url S256 challenge>&code_challenge_method=S256
 ```
 
-After the user authenticates, the web app must redirect (GET) to:
+After the user authenticates and authorizes the CLI, the web app requests a **short-lived single-use login code** bound to the challenge (`POST /api/v1/auth/cli/code`) and redirects (GET) to:
 
 ```
-http://127.0.0.1:PORT/callback?token=<API_TOKEN>&state=<same state>
+http://127.0.0.1:PORT/callback?code=<single-use code>&state=<same state>
 ```
 
-- Both params **must be in the query string** — a `#fragment` never reaches the CLI's local server and looks like a missing token.
+The CLI then exchanges the code together with its PKCE verifier — which never left the machine — via `POST /api/v1/auth/cli/exchange` with `{ "code": "...", "codeVerifier": "..." }` to obtain the API token, so the token itself never appears in any URL.
+
+- All params **must be in the query string** — a `#fragment` never reaches the CLI's local server.
 - If the user refuses: `http://127.0.0.1:PORT/callback?error=access_denied&state=<same state>`.
-- The web app must echo `state` unchanged (the CLI rejects mismatches) and must validate that `cli_redirect` matches `^http://127\.0\.0\.1:\d{1,5}/callback$` before redirecting — never redirect a token to any other host.
+- The web app must echo `state` unchanged (the CLI rejects mismatches) and must validate that `cli_redirect` matches `^http://127\.0\.0\.1:\d{1,5}/callback$` (port ≤ 65535) before redirecting — never redirect to any other host.
+- Legacy fallback: a `token=<API_TOKEN>` query param instead of `code` is still accepted by the CLI, but new web-app implementations must use the code exchange.
 
 Until the web app implements `cli_redirect`, the login page simply opens normally; the CLI times out after `--timeout` seconds (default 180) and falls back to the paste prompt.
 
@@ -322,6 +325,8 @@ mrscraper serp "https://www.google.com/search?q=iphone+17" --raw
 | `MRSCRAPER_API_KEY` | API key (preferred name). |
 | `MRSCRAPER_API_TOKEN` | Accepted alias for the same key. |
 | `MRSCRAPER_NO_BROWSER` | If set, `login`/`init` skip the browser flow and prompt for a pasted key. |
+| `MRSCRAPER_API_URL` | Override the API base URL (default `https://api.app.mrscraper.com/api/v1`) — for staging/testing. |
+| `MRSCRAPER_APP_URL` | Override the web app URL used by browser login (default `https://app.mrscraper.com`). |
 
 ## Typical workflow
 
