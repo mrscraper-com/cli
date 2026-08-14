@@ -108,4 +108,4 @@ bounded instead of repeatedly retrying an inaccessible target.
   do not create an unsupported interaction workflow.
 
 Keep `.mrscraper/` out of version control unless the user asks to commit the
-artifacts. Access only pages the user is authorized to retrieve.
+artifacts.

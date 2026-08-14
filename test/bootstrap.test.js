@@ -113,7 +113,7 @@ test("runBootstrap leaves missing authentication for later in non-interactive mo
   assert.equal(authenticated, false);
   assert.match(messages.join("\n"), /Authentication not configured/);
   assert.match(messages.join("\n"), /MRSCRAPER_API_KEY/);
-  assert.match(messages.join("\n"), /interactive terminal/);
+  assert.match(messages.join("\n"), /run `mrscraper login` explicitly/);
 });
 
 test("runBootstrap leaves missing authentication for later with --yes", async () => {
@@ -132,6 +132,24 @@ test("runBootstrap leaves missing authentication for later with --yes", async ()
   );
 
   assert.equal(authenticated, false);
+});
+
+test("runBootstrap asks for authentication only in interactive mode", async () => {
+  let authenticated = false;
+
+  await runBootstrap(
+    { skipInstall: true, skipSkills: true },
+    {
+      hasCredentials: () => false,
+      authenticate: () => {
+        authenticated = true;
+      },
+      log: () => {},
+      logError: () => {},
+    },
+  );
+
+  assert.equal(authenticated, true);
 });
 
 test("runBootstrap dry-run makes no changes and reports every phase", async () => {

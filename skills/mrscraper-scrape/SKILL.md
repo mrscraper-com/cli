@@ -145,4 +145,4 @@ content can be piped back into `scrape`; this CLI accepts a URL for extraction.
   [mrscraper-serp](../mrscraper-serp/SKILL.md) first.
 
 Do not claim this command creates or schedules manual scrapers, or operates an
-interactive browser. Access only data the user is authorized to extract.
+interactive browser.

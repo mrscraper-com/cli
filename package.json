@@ -36,6 +36,7 @@
     "bin",
     "lib",
     "package.json",
+    "OAUTH_BACKEND.md",
     "README.md"
   ],
   "scripts": {

@@ -4,7 +4,7 @@ description: |
   MrScraper CLI onboarding and routing guide. Use when an agent needs to install, authenticate, configure, or troubleshoot MrScraper; choose between its web-data commands; work with saved scraper reruns or stored results; check account usage; or handle a request that spans multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured field extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not invent browser interaction, local-file parsing, monitoring, scheduling, or manual-scraper creation commands; this CLI does not provide them.
 ---
 
-# MrScraper Router
+# MrScraper
 
 Use this skill for setup, command selection, shared operating rules, and the
 commands that do not have a focused skill. Load the focused skill whenever the
@@ -26,9 +26,10 @@ The bootstrap:
 - installs the four-skill MrScraper pack into supported agent harnesses already
   present on the machine.
 
-Always include `--yes` when an agent launches `init`. It prevents the CLI from
-waiting for an API-key response. The `-y` in `npx -y` or `pnpm dlx -y` approves
-package execution only; it does not answer CLI prompts. `--all` means all
+Always include `--yes` when an agent launches `init` to keep bootstrap
+non-interactive. The `-y` in `npx -y` approves package execution only; it does
+not authenticate the CLI. Without `--yes`, an interactive human is asked for
+an API key; agents must not use that interactive path. `--all` means all
 detected harnesses. It does not add agents that are not installed. Use
 `--agent codex --yes` or another value shown by `mrscraper init --help` to
 target one harness.
@@ -40,28 +41,38 @@ mrscraper setup skills
 mrscraper setup skills --agent codex
 ```
 
-When no key is already configured, let bootstrap finish and ask the human to
-set `MRSCRAPER_API_KEY` or run `mrscraper login` themselves in an interactive
-terminal. Do not run an interactive login on their behalf, ask them to paste a
-key into chat, or wait for secret input. The bootstrap does not configure MCP,
-project templates, browser OAuth, or a default web provider.
+When no credential is configured, let bootstrap finish. In a local interactive
+session, run `mrscraper login` and tell the human to approve the browser request.
+Keep the command running until approval completes; do not submit a duplicate.
+In a headless, remote, or unattended session, do not launch browser login—ask
+the human to run it locally or configure `MRSCRAPER_API_KEY`. Never ask them to
+paste a key into chat or wait for secret input. The bootstrap does not start
+OAuth, configure MCP, add project templates, or select a default web provider.
 
 ## Authenticate
 
-MrScraper requires an API key and has no browser OAuth or keyless CLI tier.
+MrScraper supports browser OAuth for interactive humans and API keys for CI or
+other non-interactive environments.
 
-- For interactive use, create or copy a key at
-  <https://app.mrscraper.com/api-tokens>, then enter it directly into
-  `mrscraper login` or the bootstrap prompt.
+- For local interactive use, the agent may run `mrscraper login`; the human
+  approves in the opened browser and the CLI stores the resulting OAuth session.
+- Keep the login process alive while the human approves. It times out after five
+  minutes. If the browser cannot run on the same machine as the CLI, stop and
+  use an API key instead.
 - For CI or containers, set `MRSCRAPER_API_KEY`.
+- To store an API key explicitly, the human can run
+  `mrscraper login --api-key <key>` outside the agent conversation.
 
 ```bash
 mrscraper login
+mrscraper auth status --json
 mrscraper status
 ```
 
-Do not ask the human to paste an API key into chat. Prefer a saved credential or
-environment variable over `--token`, which can expose a key in shell history.
+OAuth and API-key credentials share `~/.mrscraper/auth.json`; treat it like a
+password. Do not read or print that file. Do not ask the human to paste an API
+key into chat. Prefer a saved credential or environment variable over
+`--token`, which can expose a key in shell history.
 
 ## Route the Request
 
@@ -83,6 +94,29 @@ When “scrape this page” is ambiguous, decide from the requested output:
 
 For discovery-first work, run SERP, select only relevant URLs, and then load
 either fetch or scrape for the chosen pages.
+
+## Run Core Web Commands
+
+Use the command that matches the requested outcome. Save artifacts under
+`./.mrscraper/` in the user's current project, never under `~/.mrscraper/`:
+
+```bash
+# Read page content
+mkdir -p ./.mrscraper
+mrscraper fetch "https://example.com/page" > ./.mrscraper/page.json
+
+# Extract structured data, such as a product, property, or job listing
+mrscraper scrape "https://example.com/listing" \
+  --prompt "Extract all available listing information" \
+  --output ./.mrscraper/listing.json
+
+# Search Google when no target URL is known
+mrscraper serp "example search query" > ./.mrscraper/search.json
+```
+
+`fetch` and `serp` write JSON envelopes to stdout. `scrape --output` writes only
+the extracted payload. Check the exit code, then report the useful result and
+artifact path. Load the focused skill for detailed options and edge cases.
 
 ## Rerun and Inspect Saved Work
 
@@ -148,8 +182,9 @@ it intentionally installs the CLI and skills globally.
   Progress and warnings go to stderr.
 - Check the process exit code. API failures exit nonzero and include `error`,
   `status_code`, and response `data` when available.
-- Save large web responses under `.mrscraper/`, inspect their size, and read
-  them incrementally with `jq`, `head`, or targeted searches.
+- Save large web responses under the current project's `.mrscraper/`, inspect
+  their size, and read them incrementally with `jq`, `head`, or targeted
+  searches. This project folder is unrelated to `~/.mrscraper/auth.json`.
 - Quote URLs because `?` and `&` have shell meaning.
 - Keep `.mrscraper/` out of version control unless the user explicitly wants
   its artifacts committed.
@@ -157,8 +192,8 @@ it intentionally installs the CLI and skills globally.
 
 ## Troubleshoot Shared Failures
 
-- **Unauthorized or 401** — run `mrscraper login` again or verify
-  `MRSCRAPER_API_KEY`.
+- **Unauthorized or 401** — ask the human to run `mrscraper login` again, or
+  verify the automation's `MRSCRAPER_API_KEY` without exposing it.
 - **Skill pack missing after bootstrap** — run
   `mrscraper setup skills --dry-run`, then pass `--agent <name>` if harness
   detection uses a nonstandard home directory.
@@ -179,8 +214,6 @@ does not provide:
 - local PDF, DOCX, spreadsheet, or other file parsing;
 - recurring monitoring or notifications;
 - manual scraper creation or scheduling; or
-- a keyless API tier.
+- an unauthenticated API tier.
 
-If the task requires one of these capabilities, explain the limitation. Scrape
-only content the user is authorized to access, and respect applicable site
-terms, privacy rules, copyright, and computer-access laws.
+If the task requires one of these capabilities, explain the limitation.

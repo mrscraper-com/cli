@@ -57,12 +57,18 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
 
   assert.match(router, /npx -y @mrscraper\/cli@latest init --all --yes/);
   assert.match(router, /Always include `--yes` when an agent launches `init`/);
-  assert.match(router, /package execution only; it does not answer CLI prompts/);
-  assert.match(router, /Do not run an interactive login on their behalf/);
+  assert.match(router, /package execution only; it does\nnot authenticate the CLI/);
+  assert.match(router, /run `mrscraper login` and tell the human to approve/);
+  assert.match(router, /headless, remote, or unattended session, do not launch/);
   assert.match(router, /mrscraper setup skills/);
   assert.match(router, /\.\.\/mrscraper-fetch\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
+  assert.match(router, /^## Run Core Web Commands$/m);
+  assert.match(router, /mrscraper fetch "https:\/\/example\.com\/page"/);
+  assert.match(router, /mrscraper scrape "https:\/\/example\.com\/listing"/);
+  assert.match(router, /mrscraper serp "example search query"/);
+  assert.match(router, /never under `~\/\.mrscraper\/`/);
   assert.match(router, /^## Rerun and Inspect Saved Work$/m);
   assert.match(router, /^## Review Usage and Domain Outcomes$/m);
   assert.match(router, /^## Know the Limits$/m);
@@ -104,6 +110,7 @@ test("focused skills have distinct commands and intent boundaries", () => {
 test("skill pack documents only supported CLI command names", () => {
   const supportedCommands = new Set([
     "--version",
+    "auth",
     "fetch",
     "init",
     "login",

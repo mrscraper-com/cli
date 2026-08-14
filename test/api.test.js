@@ -73,6 +73,23 @@ test("request removes sensitive response headers", async () => {
   assert.deepEqual(result.headers, { "content-type": "text/plain", "x-request-id": "request-1" });
 });
 
+test("API calls send OAuth access tokens only as bearer authorization", async () => {
+  let capturedHeaders;
+  globalThis.fetch = async (_url, init) => {
+    capturedHeaders = init.headers;
+    return mockResponse("<html><h1>Available</h1></html>");
+  };
+
+  await fetchWithUnblockerApi({
+    token: { auth_type: "oauth", access_token: "oauth-secret" },
+    url: "https://target.example",
+    unblock: "never",
+  });
+
+  assert.equal(capturedHeaders.Authorization, "Bearer oauth-secret");
+  assert.equal(capturedHeaders["x-api-token"], undefined);
+});
+
 test("response data redacts tokens in fields and generated curl commands", () => {
   const sanitized = sanitizeResponseData({
     latestApiToken: "atk_fakefakefakefake",

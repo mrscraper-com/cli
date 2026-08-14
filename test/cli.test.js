@@ -47,7 +47,7 @@ function runCli(args, environment = {}) {
   });
 }
 
-test("init never prompts for a missing API key when stdin is non-interactive", async (t) => {
+test("init never starts authentication when stdin is non-interactive", async (t) => {
   const homeDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "mrscraper-cli-home-"),
   );
@@ -66,8 +66,42 @@ test("init never prompts for a missing API key when stdin is non-interactive", a
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /Authentication not configured/);
-  assert.match(result.stdout, /interactive terminal/);
+  assert.match(result.stdout, /run `mrscraper login` explicitly/);
   assert.doesNotMatch(result.stdout, /MrScraper API key:/);
+});
+
+test("login --api-key and auth status use ~/.mrscraper/auth.json", async (t) => {
+  const homeDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-cli-auth-"),
+  );
+  t.after(() => fs.rmSync(homeDirectory, { recursive: true, force: true }));
+  const authHome = path.join(homeDirectory, ".mrscraper");
+  const environment = {
+    MRSCRAPER_HOME: authHome,
+    MRSCRAPER_API_KEY: "",
+    MRSCRAPER_API_TOKEN: "",
+  };
+
+  const login = await runCli(["login", "--api-key", "test-api-key"], environment);
+  assert.equal(login.code, 0);
+  assert.equal(login.stderr, "");
+  assert.match(login.stdout, new RegExp(`${authHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\/auth\\.json`));
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(authHome, "auth.json"), "utf8")),
+    {
+      version: 1,
+      auth_type: "api_key",
+      api_key: "test-api-key",
+    },
+  );
+
+  const status = await runCli(["auth", "status", "--json"], environment);
+  assert.equal(status.code, 0);
+  assert.equal(status.stderr, "");
+  const payload = JSON.parse(status.stdout);
+  assert.equal(payload.authenticated, true);
+  assert.equal(payload.auth_type, "api_key");
+  assert.doesNotMatch(status.stdout, /test-api-key/);
 });
 
 test("init dry-run detects installed harnesses without changing the system", async (t) => {
@@ -77,6 +111,7 @@ test("init dry-run detects installed harnesses without changing the system", asy
   t.after(() => fs.rmSync(homeDirectory, { recursive: true, force: true }));
   fs.mkdirSync(path.join(homeDirectory, ".cursor"));
   fs.mkdirSync(path.join(homeDirectory, ".codex"));
+  fs.mkdirSync(path.join(homeDirectory, ".grok"));
 
   const result = await runCli(
     ["init", "--skip-install", "--skip-auth", "--all", "--dry-run"],
@@ -86,8 +121,8 @@ test("init dry-run detects installed harnesses without changing the system", asy
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /Skipping global CLI installation/);
-  assert.match(result.stdout, /for Cursor, Codex: npx -y skills add/);
-  assert.match(result.stdout, /--agent cursor --agent codex --yes/);
+  assert.match(result.stdout, /for Cursor, Codex, Grok Build: npx -y skills add/);
+  assert.match(result.stdout, /--agent cursor --agent codex --agent grok --yes/);
 });
 
 test("setup skills can target one harness without requiring detection", async () => {
@@ -100,6 +135,15 @@ test("setup skills can target one harness without requiring detection", async ()
     result.stdout,
     /--skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp/,
   );
+});
+
+test("setup skills can target Grok without requiring detection", async () => {
+  const result = await runCli(["setup", "skills", "--agent", "grok", "--dry-run"]);
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  assert.match(result.stdout, /for Grok Build/);
+  assert.match(result.stdout, /--agent grok --yes/);
 });
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {

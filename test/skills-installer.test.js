@@ -21,6 +21,7 @@ function temporaryHome(t) {
 test("detectInstalledHarnesses returns only harnesses present in the home directory", (t) => {
   const homeDirectory = temporaryHome(t);
   fs.mkdirSync(path.join(homeDirectory, ".codex"));
+  fs.mkdirSync(path.join(homeDirectory, ".grok"));
   fs.mkdirSync(path.join(homeDirectory, ".cursor"));
   fs.mkdirSync(path.join(homeDirectory, ".opencode"));
   fs.mkdirSync(path.join(homeDirectory, ".pi", "agent"), { recursive: true });
@@ -29,7 +30,20 @@ test("detectInstalledHarnesses returns only harnesses present in the home direct
 
   assert.deepEqual(
     detectInstalledHarnesses(homeDirectory).map(({ name }) => name),
-    ["cursor", "codex", "opencode", "pi", "omp"],
+    ["cursor", "codex", "grok", "opencode", "pi", "omp"],
+  );
+});
+
+test("Grok detection honors GROK_HOME", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const grokHome = path.join(homeDirectory, "custom-grok-home");
+  fs.mkdirSync(grokHome);
+
+  assert.deepEqual(
+    detectInstalledHarnesses(homeDirectory, { GROK_HOME: grokHome }).map(
+      ({ name }) => name,
+    ),
+    ["grok"],
   );
 });
 
@@ -99,6 +113,22 @@ test("an explicit supported agent installs even when its detection directory is 
   assert.deepEqual(result.targets, ["claude-code"]);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].args, buildSkillsInstallArgs("claude-code"));
+});
+
+test("Grok installs through the upstream grok target", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const calls = [];
+
+  const result = installMrscraperSkill({
+    agent: "grok",
+    homeDirectory,
+    execute: (command, args) => calls.push({ command, args }),
+    log: () => {},
+  });
+
+  assert.deepEqual(result.targets, ["grok"]);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].args.join(" "), /--agent grok/);
 });
 
 test("Oh My Pi installs through its supported standard-agent skills provider", (t) => {

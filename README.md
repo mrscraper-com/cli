@@ -24,9 +24,10 @@ into every supported agent harness detected on the machine:
 npx -y @mrscraper/cli@latest init --all --yes
 ```
 
-If no API key is configured, bootstrap continues without one. Set
-`MRSCRAPER_API_KEY` or run `mrscraper login` yourself in an interactive terminal
-before making web requests.
+If no credential is configured, bootstrap continues without one. Run
+`mrscraper login` for browser OAuth, or set `MRSCRAPER_API_KEY`, before making
+web requests. An agent may launch browser login in a local interactive session;
+the user still approves access in the browser.
 
 For a CLI-only installation:
 
@@ -62,89 +63,56 @@ After this branch is merged, the raw onboarding URL will be:
 https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
 ```
 
-### Native agent plugins
+### Install for one agent
 
-This repository is a skills-only native plugin for Codex, Claude Code, and
-Cursor. Every plugin exposes the same four skills from [`skills/`](./skills), so
-the expected commands and output contracts stay aligned across agents. A native
-plugin and `mrscraper init` are alternative ways to install the skills into one
-agent; do not enable both copies in the same agent.
-
-The plugins shell out to the MrScraper CLI. Install and authenticate the CLI
-without reinstalling the skill pack:
+Use the same `npx` bootstrap for a specific agent. In an interactive terminal,
+it securely asks for an API key and stores it in `~/.mrscraper/auth.json`:
 
 ```bash
-npm install -g @mrscraper/cli@latest
-mrscraper login
+# Claude Code
+npx -y @mrscraper/cli@latest init --agent claude-code
+
+# Cursor
+npx -y @mrscraper/cli@latest init --agent cursor
+
+# Codex
+npx -y @mrscraper/cli@latest init --agent codex
+
+# Grok Build
+npx -y @mrscraper/cli@latest init --agent grok
+
+# OpenCode
+npx -y @mrscraper/cli@latest init --agent opencode
+
+# Pi
+npx -y @mrscraper/cli@latest init --agent pi
+
+# Oh My Pi
+npx -y @mrscraper/cli@latest init --agent omp
 ```
 
-#### Claude Code
-
-The repository contains both the Claude Code plugin manifest and its GitHub
-marketplace catalog. Install them directly from this repository:
-
-```bash
-claude plugin marketplace add mrscraper-com/cli
-claude plugin install mrscraper-cli@mrscraper
-```
-
-For local development, validate or load the checkout directly:
-
-```bash
-claude plugin validate /path/to/mrscraper-cli --strict
-claude --plugin-dir /path/to/mrscraper-cli
-```
-
-#### Cursor
-
-The repository also contains a Cursor plugin and marketplace manifest. Until it
-is accepted into the public Cursor Marketplace, expose a checkout through
-Cursor's local plugin directory and restart Cursor:
-
-```bash
-mkdir -p ~/.cursor/plugins/local
-ln -s /path/to/mrscraper-cli ~/.cursor/plugins/local/mrscraper-cli
-```
-
-Once published, install it inside Cursor with:
-
-```text
-/add-plugin mrscraper-cli
-```
-
-#### Codex
-
-Until MrScraper is available in the public Codex Plugin Directory, install it
-through a local marketplace:
-
-1. Clone this repository as `plugins/mrscraper-cli` inside a marketplace root.
-2. Copy [`examples/marketplace.json`](./examples/marketplace.json) to
-   `.agents/plugins/marketplace.json` in that marketplace root.
-3. Register the marketplace and install the plugin:
-
-   ```bash
-   codex plugin marketplace add /path/to/marketplace-root
-   codex plugin add mrscraper-cli@mrscraper-dev
-   ```
-
-4. Start a new Codex thread before testing the plugin.
-
-The native plugins intentionally include skills only. They do not install MCP,
-browser OAuth, templates, or another copy of the CLI.
+Press Enter without a key to skip authentication and run `mrscraper login`
+later. A local agent may launch that command, keep it running, and wait for the
+user to approve in the browser. Add `--yes` for unattended agents or automation
+so bootstrap never waits for input. Native plugin marketplace installation is
+intentionally not documented yet; the `npx` bootstrap already provides the
+CLI-backed skill pack.
 
 ### Bootstrap behavior
 
 `mrscraper init` performs only these steps:
 
 1. installs its current version globally with npm;
-2. reuses an existing API key, or leaves authentication for later when running
-   non-interactively or with `--yes`; and
+2. reuses saved OAuth/API-key credentials, saves an explicitly supplied
+   `--api-key`, securely asks an interactive human for a key, or leaves
+   authentication for later with `--yes`; and
 3. detects supported harnesses and targets them in one `npx skills add` call.
 
 The skill sources stay in this GitHub repository; they are not bundled in the
 npm package. The `skills` installer controls the harness-specific global skill
-location. Detection currently covers the six verified harnesses: Claude Code,
-Cursor, Codex, OpenCode, Pi, and Oh My Pi. OpenCode is recognized at its XDG
+location. Detection currently covers the seven verified harnesses: Claude Code,
+Cursor, Codex, Grok Build, OpenCode, Pi, and Oh My Pi. Grok Build is recognized
+at `GROK_HOME` or `~/.grok`. OpenCode is recognized at its XDG
 configuration location, `~/.config/opencode`, or `~/.opencode`. OMP is installed
 through the standard `~/.agents/skills` provider it supports because the
 upstream `skills` installer does not currently expose an `omp` target.
@@ -157,32 +125,66 @@ mrscraper init --all --yes
 mrscraper init --all --yes --dry-run
 mrscraper setup skills
 mrscraper setup skills --agent codex
+mrscraper setup skills --agent grok
 ```
 
 `--all` installs only into detected harnesses. `setup skills` refreshes the
 complete pack without reinstalling the CLI or changing authentication. The
-bootstrap does not install MCP configuration, templates, browser OAuth, or
-default provider settings. `--yes` prevents prompting; when no credential
+bootstrap does not install MCP configuration, templates, or default provider
+settings, and it never starts browser login implicitly. When no credential
 already exists, authenticate later with `mrscraper login`. Package-runner flags
-such as `npx -y` or `pnpm dlx -y` approve package execution only and do not
-answer prompts from the CLI itself.
+such as `npx -y` approve package execution only; they do not authenticate the
+CLI.
 
 ## Authentication
 
-Get an API key from [app.mrscraper.com/api-tokens](https://app.mrscraper.com/api-tokens), then use one of these methods:
+Browser OAuth is the interactive default:
 
 ```bash
 mrscraper login
+mrscraper auth status
+```
+
+The CLI opens the MrScraper authorization page, receives a one-time code on an
+ephemeral `127.0.0.1` callback, exchanges it with PKCE, and refreshes the saved
+session automatically. Use `mrscraper login --no-open` to print the URL without
+launching a browser. An agent may launch `mrscraper login` when the user and
+browser are on the same machine, but the user must approve the request.
+
+API keys remain supported for CI and other non-interactive environments:
+
+```bash
+mrscraper login --api-key "your-key"
 export MRSCRAPER_API_KEY="your-key"
 mrscraper fetch https://example.com --token "your-key"
 ```
 
-Authentication precedence is `--token`, `MRSCRAPER_API_KEY`, `MRSCRAPER_API_TOKEN`, then the saved credentials file. `mrscraper logout` removes the saved key.
+Get API keys from
+[app.mrscraper.com/api-tokens](https://app.mrscraper.com/api-tokens). Avoid
+putting secrets directly in shell history; environment variables are preferred
+for automation.
+
+Both authentication methods use `~/.mrscraper/auth.json` with directory mode
+`0700` and file mode `0600`. Set `MRSCRAPER_HOME` to override the directory.
+The previous `~/.config/mrscraper/credentials.json` API key is migrated on first
+use. Treat `auth.json` like a password: never commit, print, or share it.
+
+Authentication precedence is `--token`, `MRSCRAPER_API_KEY`,
+`MRSCRAPER_API_TOKEN`, then `~/.mrscraper/auth.json`. OAuth access tokens are
+sent only as `Authorization: Bearer`; API keys retain the legacy
+`x-api-token` compatibility header. `mrscraper logout` attempts OAuth revocation
+and always removes local credentials.
+
+The backend endpoints and security behavior required by this client are
+specified in [`OAUTH_BACKEND.md`](./OAUTH_BACKEND.md).
 
 ## Command Summary
 
 ```text
-init    bootstrap the CLI, credentials, and detected agent skill pack
+init    bootstrap the CLI and detected agent skill pack
+login   authenticate with browser OAuth or explicitly save an API key
+auth    inspect the active local authentication method
+logout  revoke OAuth when possible and remove local credentials
 setup   install or refresh the agent skill pack
 fetch   return page content without a prompt
 scrape  extract requested data using a prompt or schema
@@ -230,7 +232,7 @@ mrscraper fetch URL --wait-for '.products' --homepage
 | `--token-cap <n>` | — | Maximum token usage across retries. |
 | `--timeout <seconds>` | `30` | Page-load timeout. |
 | `--format <format>` | `markdown` | `markdown`, `html`, or `json`. |
-| `--token <key>` | — | Override the configured API key. |
+| `--token <key>` | — | Override configured authentication with an API key. |
 
 Automatic escalation is implemented by this CLI around the existing Web Unblocker endpoint. It can detect common challenge pages, but no client-side detector can identify every site-specific block.
 
@@ -282,7 +284,7 @@ mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 | `--limit <n>` | Map result limit. |
 | `--include-patterns <regex>` | Map URL inclusion regex. |
 | `--exclude-patterns <regex>` | Map URL exclusion regex. |
-| `--token <key>` | Override the configured API key. |
+| `--token <key>` | Override configured authentication with an API key. |
 
 The AI scraper endpoint does not accept browser rendering, selector waits, homepage navigation, retry caps, or token caps. Those options are therefore limited to `fetch`; structured scrape supports the endpoint's existing `--proxy-country` field.
 
@@ -313,7 +315,7 @@ mrscraper serp "iphone 17" --format html --render-js
 | `--render-js` | off | Wait for JavaScript, including AI Overview. |
 | `--raw` | off | Backward-compatible alias for `--format html`. |
 | `--timeout <seconds>` | `120` | Request timeout. |
-| `--token <key>` | — | Override the configured API key. |
+| `--token <key>` | — | Override configured authentication with an API key. |
 
 ## `status`
 
@@ -352,7 +354,7 @@ The analytics API requires a domain. Without `--domain`, `status` returns only a
 | `--json` | automatic | Always print machine-readable JSON. |
 | `--pretty` | automatic | Always render the account dashboard. |
 | `--no-color` | off | Disable ANSI color in the dashboard. |
-| `--token <key>` | — | Override the configured API key. |
+| `--token <key>` | — | Override configured authentication with an API key. |
 
 ## `rerun`
 
@@ -410,10 +412,6 @@ docker build --file test/bootstrap.Dockerfile .
 ```
 
 For local integration tests, API hosts may be overridden with `MRSCRAPER_API_BASE_URL`, `MRSCRAPER_FETCH_BASE_URL`, and `MRSCRAPER_SYNC_BASE_URL`.
-
-## Compliance
-
-Scrape only content you are authorized to access. Review the target site's terms and applicable privacy, copyright, and computer-access laws before collecting or reusing data, especially from authenticated pages.
 
 ## License
 
