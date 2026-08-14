@@ -74,12 +74,13 @@ node bin/mrscraper.js --help
 
 ## Authentication
 
-To get MrScraper API key, visit https://app.mrscraper.com/api-tokens
+The easiest way to log in is `mrscraper login` — it opens your browser at https://app.mrscraper.com/auth/login and saves the API key automatically. If the browser flow isn't available (headless, SSH, CI, timeout), it falls back to prompting you to paste a key from https://app.mrscraper.com/api-tokens.
 Prefer storing the key on disk or in the environment instead of pasting it into chats.
 
 | Method | What to do |
 |--------|------------|
-| Interactive file | `mrscraper login` or `mrscraper init` |
+| Browser login | `mrscraper login` or `mrscraper init` |
+| Paste a key | `mrscraper login --no-browser` |
 | CI or scripts | `mrscraper login --api-key YOUR_KEY` |
 | Shell | `export MRSCRAPER_API_KEY=YOUR_KEY` (also accepts `MRSCRAPER_API_TOKEN`) |
 | Per command | Pass `--token YOUR_KEY` on any command that calls the API |
@@ -88,14 +89,38 @@ Prefer storing the key on disk or in the environment instead of pasting it into 
 
 **Credential file location**
 
-| OS | Directory |
+`login` saves to `~/.mrscraper/auth.json` (all platforms, file mode 600). The JSON file contains `{"api_key": "..."}`.
+
+For backward compatibility the CLI still reads the legacy location if `auth.json` does not exist:
+
+| OS | Legacy file (read-only fallback) |
 |----|-----------|
 | macOS / Linux | `$XDG_CONFIG_HOME/mrscraper/credentials.json` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/mrscraper/credentials.json` |
 | Windows | `%LOCALAPPDATA%\mrscraper\credentials.json`, or `%APPDATA%\mrscraper\credentials.json` if `LOCALAPPDATA` is unset |
 
-The JSON file contains `{"api_key": "..."}`. `logout` deletes this file.
+`logout` deletes both files.
 
 The CLI loads a `.env` file from the **current working directory** (if present) via `dotenv`, so `MRSCRAPER_API_KEY` can live in project `.env` files.
+
+### Browser login contract (web app)
+
+`mrscraper login` starts a one-shot HTTP server on `127.0.0.1` with a random port and opens:
+
+```
+https://app.mrscraper.com/auth/login?cli_redirect=<urlencoded http://127.0.0.1:PORT/callback>&state=<32-char hex nonce>
+```
+
+After the user authenticates, the web app must redirect (GET) to:
+
+```
+http://127.0.0.1:PORT/callback?token=<API_TOKEN>&state=<same state>
+```
+
+- Both params **must be in the query string** — a `#fragment` never reaches the CLI's local server and looks like a missing token.
+- If the user refuses: `http://127.0.0.1:PORT/callback?error=access_denied&state=<same state>`.
+- The web app must echo `state` unchanged (the CLI rejects mismatches) and must validate that `cli_redirect` matches `^http://127\.0\.0\.1:\d{1,5}/callback$` before redirecting — never redirect a token to any other host.
+
+Until the web app implements `cli_redirect`, the login page simply opens normally; the CLI times out after `--timeout` seconds (default 180) and falls back to the paste prompt.
 
 ## Global options
 
@@ -112,15 +137,21 @@ Running `mrscraper` with no subcommand prints the same help.
 
 ### `login`
 
-Save your API key to the [credential file](#authentication). Prompts for the key when stdin is a TTY and `--api-key` is not set.
+Log in via your browser and save the API key to the [credential file](#authentication). Opens https://app.mrscraper.com/auth/login and waits for the token on a local callback. Falls back to a paste prompt when the browser flow isn't available (no TTY, SSH session, no display on Linux, `--no-browser`, `MRSCRAPER_NO_BROWSER` set, or the callback times out). Received keys are verified against the API before saving (a network failure downgrades this to a warning).
+
+If you're already logged in, `login` verifies the saved key and asks before replacing it (an invalid saved key skips the question and logs in again). Use `--force` to skip the confirmation; `--api-key` always overwrites.
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--api-key <key>` | No | Provide the key non-interactively (for CI or scripts). |
+| `--api-key <key>` | No | Provide the key non-interactively (for CI or scripts); skips the browser entirely. |
 | `--token <key>` | No | Deprecated alias for `--api-key` on this command only. |
+| `--no-browser` | No | Skip the browser flow and paste an API key instead. |
+| `--timeout <seconds>` | No | Seconds to wait for the browser callback (default 180). |
+| `--force` | No | Log in again without asking, even if an API key is already saved. |
 
 ```bash
 mrscraper login
+mrscraper login --no-browser
 mrscraper login --api-key "$MRSCRAPER_API_KEY"
 ```
 
@@ -128,11 +159,14 @@ mrscraper login --api-key "$MRSCRAPER_API_KEY"
 
 ### `init`
 
-Same storage as `login`, but prints a short welcome line first. Useful for “first run” discovery in agents or docs.
+Same login flow and storage as `login`, but prints a short welcome line first. Useful for “first run” discovery in agents or docs.
 
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--api-key <key>` | No | Same as `login --api-key`. |
+| `--no-browser` | No | Same as `login --no-browser`. |
+| `--timeout <seconds>` | No | Same as `login --timeout`. |
+| `--force` | No | Same as `login --force`. |
 
 ```bash
 mrscraper init
@@ -143,7 +177,7 @@ mrscraper init --api-key "$MRSCRAPER_API_KEY"
 
 ### `logout`
 
-Deletes the saved credential file if it exists. No options.
+Deletes the saved credential files (`~/.mrscraper/auth.json` and the legacy credentials file) if they exist. No options.
 
 ```bash
 mrscraper logout
@@ -287,6 +321,7 @@ mrscraper serp "https://www.google.com/search?q=iphone+17" --raw
 |----------|-------------|
 | `MRSCRAPER_API_KEY` | API key (preferred name). |
 | `MRSCRAPER_API_TOKEN` | Accepted alias for the same key. |
+| `MRSCRAPER_NO_BROWSER` | If set, `login`/`init` skip the browser flow and prompt for a pasted key. |
 
 ## Typical workflow
 
