@@ -4,14 +4,11 @@
 
 Official command-line client for [MrScraper](https://app.mrscraper.com). It fetches page content, creates AI extraction scrapers, retrieves Google results, reruns saved scrapers, and reports account usage.
 
-Web-data commands write a CLI-created JSON response envelope to stdout:
-`status_code`, the backend body in `data`, and non-sensitive response `headers`.
-The envelope is not the backend response body itself. `status` is intentionally
-different: it combines account and optional analytics responses into a
-CLI-composed summary, and renders that summary as a dashboard in an interactive
-terminal. Progress uses stderr, and failed API calls exit non-zero. Known
-credential metadata and generated curl credentials are redacted, while fetched
-HTML and scraper-run `data` remain unchanged.
+Web-data commands return a consistent JSON envelope containing `status_code`,
+the response in `data`, and non-sensitive response `headers`. The `status`
+command combines account and optional analytics information into a concise
+summary and renders a dashboard in an interactive terminal. Progress uses
+stderr, and failed API calls exit non-zero.
 
 ## Install
 
@@ -61,14 +58,14 @@ installer:
 
 - [`mrscraper`](./skills/mrscraper/SKILL.md) — onboarding, authentication,
   routing, shared output rules, saved runs, status, troubleshooting, and limits;
-- [`mrscraper-fetch`](./skills/mrscraper-fetch/SKILL.md) — endpoint HTML and
-  explicit browser-rendering controls;
+- [`mrscraper-fetch`](./skills/mrscraper-fetch/SKILL.md) — page HTML and browser
+  rendering controls;
 - [`mrscraper-scrape`](./skills/mrscraper-scrape/SKILL.md) — prompt-based
   extraction, optional schema prompt guidance, and AI modes; and
 - [`mrscraper-serp`](./skills/mrscraper-serp/SKILL.md) — query-first Google
   discovery and handoff to fetch or scrape.
 
-After this branch is merged, the raw onboarding URL will be:
+Raw onboarding URL:
 
 ```text
 https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
@@ -128,9 +125,7 @@ npx -y @mrscraper/cli@latest init --agent omp
 A local agent should append `--yes --skip-auth`, then run `mrscraper login`
 separately and wait for the user to approve in the browser. For a headless host,
 use `--skip-auth` and provide `MRSCRAPER_API_KEY`, or run
-`mrscraper login --no-browser` in a human-controlled terminal. Native plugin
-marketplace installation is intentionally not documented yet; the `npx`
-bootstrap already provides the CLI and skills.
+`mrscraper login --no-browser` in a human-controlled terminal.
 
 ### What `init` does
 
@@ -213,8 +208,8 @@ login   use browser sign-in or explicitly save an API key
 auth    inspect local credential configuration without contacting the API
 logout  remove local credentials
 setup   install or refresh the skill pack
-fetch   call the HTML fetch endpoint once with explicit API parameters
-scrape  call the AI scraper endpoint with explicit agent inputs
+fetch   fetch page HTML with optional browser rendering
+scrape  extract structured data or map site URLs
 serp    return Google search results
 status  return account usage and optional domain analytics
 rerun   rerun an existing AI or manual scraper
@@ -222,23 +217,21 @@ results list stored runs
 result  retrieve one stored run
 ```
 
-The planned top-level `agent` and `manual` command groups are not included in this release. Existing agent modes and manual reruns remain available through `scrape --agent` and `rerun --type manual`.
-
 ## `fetch`
 
-Call `GET https://api.mrscraper.com/` once and preserve its HTML response in the
-CLI envelope's `data` field:
+`fetch` is the CLI interface to MrScraper's
+[Web Unblocker](https://docs.mrscraper.com/docs/features/unblocker). It retrieves
+page HTML through `GET https://api.mrscraper.com/`. The response is available
+in the CLI envelope's `data` field:
 
 ```bash
 mrscraper fetch https://example.com
 
-# Extract only the unchanged HTML body
+# Extract the HTML body
 mrscraper fetch https://example.com | jq -r '.data'
 ```
 
-Enable the backend's browser rendering explicitly for JavaScript-dependent
-pages. The CLI does not inspect block pages, escalate automatically, or make a
-second request:
+Enable browser rendering for JavaScript-dependent pages:
 
 ```bash
 mrscraper fetch URL --browser-rendering
@@ -249,23 +242,30 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | CLI option | API query field | Default sent | Behavior |
 | --- | --- | --- | --- |
 | `<url>` | `url` | required | Target page URL. |
-| `--browser-rendering` | `browserRendering` | `false` | Execute page JavaScript in the backend browser. |
+| `--browser-rendering` | `browserRendering` | `false` | Load the page in a browser and execute JavaScript. |
 | `--geo-code <code>` | `geoCode` | omitted | Route through the requested ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | `waitForSelector` | omitted | Wait for a CSS selector; the CLI requires explicit `--browser-rendering`. |
 | `--home-page` | `homePage` | `false` | Visit the site's root before the target page. |
-| `--block-resources` | `blockResources` | `false` | Ask the backend to block non-essential resources. |
-| `--max-retries <n>` | `maxRetries` | `3` | Backend retry limit. The CLI does not add retry requests. |
-| `--token-cap <n>` | `tokenCap` | omitted | Backend retry token budget. |
-| `--timeout <seconds>` | `timeout` | `30` | Backend page-load timeout; the CLI transport timeout is this value plus 30 seconds. |
+| `--block-resources` | `blockResources` | `false` | Block non-essential browser resources when supported by the selected proxy. |
+| `--max-retries <n>` | `maxRetries` | `3` | Set the maximum retry attempts after a failed request. Zero is accepted. |
+| `--token-cap <n>` | `tokenCap` | omitted | Limit the running plan-token total used to decide whether another retry may run. The initial request always runs. |
+| `--timeout <seconds>` | `timeout` | `30` | Set the page-load timeout. The command allows another 30 seconds to receive the response. |
 | `--token <key>` | authentication header | configured credential | Override authentication for this command. |
 
-There is no fetch `--format` option. Fetch does not convert HTML to Markdown or
-construct a page-document JSON representation.
+Start with the default request. Add browser rendering for JavaScript-driven
+content, a selector wait for delayed elements, geographic routing for localized
+content, or homepage navigation when the target site requires it. Unblocker
+usage is calculated from runtime and bandwidth: one plan token per 30 seconds
+and one plan token per 0.2 MB, rounded up per component. Resource blocking can
+reduce bandwidth for text-focused pages. Use `--max-retries` and `--token-cap`
+to balance recovery from temporary failures with usage. See the
+[Token Plan](https://docs.mrscraper.com/docs/getting-started/api-token) for the
+complete calculation.
 
 ## `scrape`
 
-Call `POST /api/v1/scrapers-ai`. General and listing agents require an explicit
-prompt; map rejects prompts rather than silently discarding them:
+Call `POST /api/v1/scrapers-ai`. The default `general` agent and the `listing`
+agent require an extraction prompt:
 
 ```bash
 mrscraper scrape https://example.com/product \
@@ -273,15 +273,13 @@ mrscraper scrape https://example.com/product \
   --output .mrscraper/example-product.json
 ```
 
-`-o, --output <path>` creates parent directories and writes only the extracted
-payload as pretty JSON. The full API response envelope remains on stdout for
-backward compatibility. The output file is not created when the request fails,
-the run is unfinished, or the response has no extracted payload.
+`-o, --output <path>` creates parent directories and writes the extracted
+`data.data.data` value as pretty JSON. The complete response remains on stdout.
+The file is created after a completed extraction returns data.
 
-`--schema-prompt` is an explicitly local convenience. The CLI validates that
-the file contains a JSON object and appends it to `message` as best-effort
-instructions. The API receives no `schema` field and does not validate the
-returned data against it:
+`--schema-prompt` reads a local JSON Schema object and adds it to the extraction
+instructions as best-effort shape guidance. Validate the saved result
+separately when strict schema compliance is required:
 
 ```bash
 mrscraper scrape https://example.com/products \
@@ -300,20 +298,19 @@ mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 | Option | Description |
 | --- | --- |
 | `-p, --prompt <text>` | Extraction instructions. |
-| `--schema-prompt <path>` | CLI-only best-effort JSON Schema text appended to `message`; general/listing only. |
-| `-o, --output <path>` | CLI-only file write of the documented `data.data.data` value as pretty JSON. |
-| `-a, --agent <agent>` | API `agent`; defaults visibly to `general`. |
+| `--schema-prompt <path>` | Best-effort JSON Schema guidance added to `message`; general/listing only. |
+| `-o, --output <path>` | Write `data.data.data` as pretty JSON. |
+| `-a, --agent <agent>` | Select `general`, `listing`, or `map`; defaults to `general`. |
 | `--proxy-country <code>` | API `proxyCountry`; general/listing only. |
-| `--max-pages <n>` | API `maxPages`; listing/map only. Omitted when not supplied so the backend owns its default. |
+| `--max-pages <n>` | API `maxPages`; listing/map only. The service default applies when omitted. |
 | `--max-depth <n>` | API `maxDepth`; map only and omitted when not supplied. |
 | `--limit <n>` | API `limit`; map only and omitted when not supplied. |
 | `--include-patterns <regex>` | API `includePatterns`; map only. |
 | `--exclude-patterns <regex>` | API `excludePatterns`; map only. |
 | `--token <key>` | Override configured authentication with an API key. |
 
-Promptless general/listing use fails and directs the caller to supply `--prompt`.
-Map rejects `--prompt`, `--schema-prompt`, and `--proxy-country`. General and
-listing reject map-only controls. The CLI never silently drops these inputs.
+Use crawl limits and URL patterns with the map agent. Prompts, schema guidance,
+and proxy country selection apply to general and listing.
 
 ## `serp`
 
@@ -333,13 +330,12 @@ mrscraper serp "iphone 17" --format html --render-js
 | `--page <n>` | — | Result page number. |
 | `--format <format>` | `json` | Parsed `json` or raw-page `html`. |
 | `--render-js` | off | Wait for JavaScript, including AI Overview. |
-| `--raw` | off | Deprecated CLI-only alias that makes the request send `format=html`. |
-| `--client-timeout <seconds>` | `120` | CLI HTTP timeout; not included in the API body. |
+| `--raw` | off | Deprecated alias for `--format html`. |
+| `--client-timeout <seconds>` | `120` | Set the command's HTTP request deadline. |
 | `--token <key>` | — | Override configured authentication with an API key. |
 
-Unlike fetch, SERP `--format` is a real backend parameter. A complete Google
-search URL is parsed locally into the API's `query`, `region`, `language`, and
-`page` fields before one request is sent.
+A complete Google search URL is parsed into the request's `query`, `region`,
+`language`, and `page` fields.
 
 ## `status`
 
@@ -354,11 +350,10 @@ In a terminal, the default dashboard shows subscription health, account
 verification, a token-usage progress bar, rate limits, renewal state, and the
 subscription end date. Redirected output is JSON so scripts and agents can
 parse it reliably. Use `--pretty` or `--json` to select either format
-explicitly. Neither form is a raw backend response: the CLI reads
-`/subscription-accounts`, removes credential and billing metadata, renames
-fields, and calculates `token_remaining` and `usage_percent`. JSON output is
-labeled with `kind: "mrscraper-cli-status-summary"` and lists its source
-endpoints.
+explicitly. The CLI reads `/subscription-accounts`, removes credential and
+billing metadata, and calculates `token_remaining` and `usage_percent`. JSON
+output is labeled with `kind: "mrscraper-cli-status-summary"` and lists its
+source endpoints.
 
 Add analytics for a domain and UTC date range:
 
@@ -382,7 +377,7 @@ request is made.
 | `--to <date>` | `now` | ISO 8601 end time or `now`. |
 | `--action <action>` | — | Optional action filter. |
 | `--api-token-name <name>` | — | Optional API-token-name filter. |
-| `--json` | automatic | Print the CLI-composed summary as JSON, not raw endpoint bodies. |
+| `--json` | automatic | Print the account summary as JSON. |
 | `--pretty` | automatic | Always render the account dashboard. |
 | `--no-color` | off | Disable ANSI color in the dashboard. |
 | `--token <key>` | — | Override configured authentication with an API key. |
@@ -408,8 +403,8 @@ mrscraper rerun "https://a.example,https://b.example" \
 Single reruns require `--scraper-id`. Bulk reruns require `--bulk` and `--id`,
 and split `<target>` on commas or newlines. The single AI endpoint receives
 `--max-depth` (`2`), `--max-pages` (`50`), `--limit` (`1000`), and the include
-and exclude patterns (empty strings) as visible CLI defaults. Those AI controls
-are rejected for manual and bulk endpoints instead of being silently ignored.
+and exclude patterns (empty strings) as defaults. These crawl controls apply
+only to single AI reruns.
 
 ## `results` and `result`
 
@@ -425,7 +420,7 @@ Use these commands to inspect work created by `scrape` or `rerun`.
 ## Programmatic API
 
 The package exports credential, direct request, status, SERP, and scraper
-helpers. `fetchContentApi` is the one-request fetch helper used by the CLI:
+helpers. `fetchContentApi` is the fetch helper used by the CLI:
 
 ```js
 import {
@@ -437,8 +432,7 @@ import {
 ```
 
 The positional `fetchHtmlApi(token, url, timeout, geoCode, blockResources)`
-compatibility export also makes one fetch request and now follows the backend's
-30-second/no-geo defaults.
+compatibility export uses a 30-second timeout and no default geography.
 
 ## Development
 

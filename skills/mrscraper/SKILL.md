@@ -1,225 +1,309 @@
 ---
 name: mrscraper
 description: |
-  MrScraper CLI onboarding and routing guide. Use when an agent needs to install, authenticate, configure, or troubleshoot MrScraper; choose between its web-data commands; work with saved scraper reruns or stored results; check account usage; or handle a request that spans multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured field extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not invent browser interaction, local-file parsing, monitoring, scheduling, or manual-scraper creation commands; this CLI does not provide them.
+  Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
 ---
 
-# MrScraper
+# MrScraper CLI
 
-Use this skill for setup, command selection, shared operating rules, and the
-commands that do not have a focused skill. Load the focused skill whenever the
-request clearly belongs to fetch, scrape, or SERP.
+Use this skill for setup, authentication, command selection, shared output
+handling, saved reruns, stored results, account status, and troubleshooting.
+Load the focused fetch, scrape, or SERP skill for those workflows.
 
-## Bootstrap MrScraper
+## Step 1 — Verify or Install MrScraper
 
-Run the bootstrap non-interactively from any directory:
+Check whether the CLI is available:
+
+```bash
+command -v mrscraper && mrscraper --version
+```
+
+When an agent performs first-time setup, install the CLI and all four skills
+without starting an interactive authentication step:
 
 ```bash
 npx -y @mrscraper/cli@latest init --all --yes --skip-auth
 ```
 
-The bootstrap:
+The flags have separate purposes:
 
-- installs the same published `@mrscraper/cli` version globally;
-- leaves authentication unchanged so the agent can handle login separately;
-- installs the four-skill MrScraper pack into supported agent harnesses already
-  present on the machine.
+- `npx -y` approves npm package execution.
+- `--yes` keeps bootstrap non-interactive.
+- `--skip-auth` leaves login for the next step.
+- `--all` installs skills for supported harnesses detected on the machine.
 
-Always include both `--yes` and `--skip-auth` when an agent launches `init`.
-The former keeps installation non-interactive; the latter makes the separate
-login step explicit. The `-y` in `npx -y` approves package execution only; it
-does not authenticate the CLI. Without these flags, interactive human use
-starts browser login when needed. `--all` means all detected harnesses. It does
-not add agents that are not installed. To target one harness, use one of these
-forms or another value shown by `mrscraper init --help`:
+### Bootstrap parameters
+
+| Parameter | Default | Use |
+| --- | --- | --- |
+| `--api-key <key>` | omitted | Save a supplied API key during bootstrap. Agents should use `--skip-auth` and handle login separately. |
+| `--all` | detected harnesses | Install skills for every supported harness found on the machine. |
+| `--agent <id>` | omitted | Install skills for one supported harness. |
+| `-y, --yes` | off | Keep bootstrap non-interactive. |
+| `--skip-install` | off | Skip global CLI installation. |
+| `--skip-auth` | off | Leave authentication for a separate login step. |
+| `--skip-skills` | off | Skip skill-pack installation. |
+| `--dry-run` | off | Print planned actions without changing the system. |
+
+To target one harness, use its MrScraper ID:
+
+| Harness | ID |
+| --- | --- |
+| Claude Code | `claude-code` |
+| Cursor | `cursor` |
+| Codex | `codex` |
+| Grok Build | `grok` |
+| Hermes Agent | `hermes` |
+| OpenCode | `opencode` |
+| OpenClaw | `openclaw` |
+| Pi | `pi` |
+| Oh My Pi | `omp` |
 
 ```bash
 npx -y @mrscraper/cli@latest init --agent codex --yes --skip-auth
-npx -y @mrscraper/cli@latest init --agent hermes --yes --skip-auth
-npx -y @mrscraper/cli@latest init --agent openclaw --yes --skip-auth
 ```
 
-Refresh the complete skill pack without reinstalling the CLI or authenticating:
+Refresh the skill pack without reinstalling the CLI:
 
 ```bash
 mrscraper setup skills
 mrscraper setup skills --agent codex
+mrscraper setup skills --dry-run
 ```
 
-MrScraper also offers MCP, but it is not installed by this bootstrap. Configure
-its hosted endpoint separately with a bearer API key only when the user asks.
+`setup skills` accepts `--all` for detected harnesses, `--agent <id>` for one
+harness, and `--dry-run` to preview the installation.
 
-After bootstrap, run `mrscraper auth status --json`. If it reports
-`credential_configured: false`, let bootstrap remain finished. In a local interactive
-session, run `mrscraper login` and tell the human to approve the browser request.
-Keep the command running until approval completes; do not submit a duplicate.
-In a headless, remote, or unattended session, do not launch browser login—ask
-the human to run it locally or configure `MRSCRAPER_API_KEY`. Never ask them to
-paste a key into chat or wait for secret input. The agent-safe bootstrap above
-does not start browser login, install MCP, add project templates, or select a
-default web provider.
+The bootstrap installs the CLI and skills. MCP is available separately at
+`https://mcp.mrscraper.com/mcp` and uses bearer API-key configuration.
 
-## Authenticate
+## Step 2 — Authenticate
 
-MrScraper supports browser sign-in for interactive humans and explicit API
-keys for CI or other non-interactive environments.
+Inspect the available credential:
 
-- For local interactive use, the agent may run `mrscraper login`; the human
-  approves in the opened browser, and the CLI exchanges the short-lived code
-  for a dedicated long-lived API key.
-- Keep the login process alive while the human approves. It times out after three
-  minutes. If the browser cannot run on the same machine as the CLI, stop and
-  use an API key instead.
-- For CI or containers, set `MRSCRAPER_API_KEY`.
-- To store an API key explicitly, the human can run
-  `mrscraper login --api-key <key>` outside the agent conversation.
+```bash
+mrscraper auth status --json
+```
+
+A configured credential reports `credential_configured: true`. This command
+reads local configuration.
+
+For a local interactive session:
 
 ```bash
 mrscraper login
-mrscraper auth status --json
-mrscraper status
 ```
 
-## Route the Request
+Keep the command running while the user approves the browser request. Browser
+login waits up to three minutes and stores the resulting API key under
+`~/.mrscraper/auth.json`, or under `MRSCRAPER_HOME` when configured.
 
-- **Known URL; need readable page content, HTML, or a page document** → load
-  [mrscraper-fetch](../mrscraper-fetch/SKILL.md).
-- **Known URL; need defined fields, records, listings, or structured JSON** →
-  load [mrscraper-scrape](../mrscraper-scrape/SKILL.md).
-- **No target URL; need to find pages through Google** → load
-  [mrscraper-serp](../mrscraper-serp/SKILL.md).
-- **Need to rerun a saved AI/manual scraper or inspect stored results** → use
-  `rerun`, `results`, or `result` below.
-- **Need subscription quota or MrScraper request outcomes for a domain** → use
-  `status` below.
-
-When “scrape this page” is ambiguous, decide from the requested output:
-
-- content to read, summarize, cite, or archive means `fetch`;
-- selected fields, repeated records, or a JSON contract means `scrape`.
-
-For discovery-first work, run SERP, select only relevant URLs, and then load
-either fetch or scrape for the chosen pages.
-
-## Run Core Web Commands
-
-Use the command that matches the requested outcome. Save artifacts under
-`./.mrscraper/` in the user's current project:
+For CI, containers, or headless automation, use `MRSCRAPER_API_KEY`. A human
+can also store a key outside the agent conversation:
 
 ```bash
-# Read page content
+mrscraper login --api-key "<key>"
+```
+
+### Login parameters
+
+| Parameter | Default | Use |
+| --- | --- | --- |
+| `--api-key <key>` | omitted | Save an API key instead of opening browser login. |
+| `--token <key>` | omitted | Deprecated alias for login's `--api-key`. |
+| `--no-browser` | off | Prompt an interactive human for an API key. |
+| `--no-open` | off | Print the browser URL while keeping the callback listener active. |
+| `--timeout <seconds>` | `180` | Set the browser callback wait time. |
+
+Credential precedence for API commands is:
+
+1. Command option `--token`;
+2. Environment variable `MRSCRAPER_API_KEY`;
+3. Environment variable `MRSCRAPER_API_TOKEN`; and
+4. Saved credential `~/.mrscraper/auth.json`.
+
+Never ask the user to paste an API key into chat, print credentials, or commit
+credential files. Use `mrscraper logout` to remove saved local credentials.
+
+## Step 3 — Route the Request
+
+| User outcome | Command or skill |
+| --- | --- |
+| Read, summarize, cite, inspect, or archive a known URL, including a protected or JavaScript-driven page | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
+| Extract fields, listings, records, tables, or site URLs from a known URL | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
+| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) |
+| Run an existing AI or manual scraper on new URLs | `mrscraper rerun` |
+| List or retrieve stored results | `mrscraper results` or `mrscraper result` |
+| Check account usage or domain request outcomes | `mrscraper status` |
+
+When “scrape this page” is ambiguous, choose from the requested output:
+
+- Page content for reading or summarization → fetch;
+- Selected fields, records, or JSON → scrape;
+- Relevant URLs from a topic or query → SERP.
+
+For discovery-first work, run SERP, select the relevant URLs, and then load the
+fetch or scrape skill for those pages.
+
+## Step 4 — Handle Output and Artifacts
+
+Data commands print JSON to stdout. A typical response is:
+
+```json
+{
+  "status_code": 200,
+  "data": {},
+  "headers": {}
+}
+```
+
+API failures exit nonzero and add `error`. Progress and diagnostics use
+stderr. Request `status --json` explicitly because an interactive terminal
+otherwise displays the account dashboard.
+
+Save substantial artifacts under the current project's `./.mrscraper/`
+folder:
+
+```bash
 mkdir -p ./.mrscraper
 mrscraper fetch "https://example.com/page" > ./.mrscraper/page.json
-
-# Extract structured data, such as a product, property, or job listing
 mrscraper scrape "https://example.com/listing" \
   --prompt "Extract all available listing information" \
   --output ./.mrscraper/listing.json
-
-# Search Google when no target URL is known
 mrscraper serp "example search query" > ./.mrscraper/search.json
 ```
 
-`fetch` and `serp` write CLI-created JSON envelopes to stdout. Fetch preserves
-the endpoint HTML in `.data`; it does not convert formats. `scrape --output`
-writes the documented extracted payload. Check the exit code, then report the
-useful result and artifact path. Load the focused skill for parameter details.
+The project artifact folder `./.mrscraper/` is separate from the credential
+folder `~/.mrscraper/`. Keep project artifacts out of version control unless
+the user asks to commit them.
 
-## Rerun and Inspect Saved Work
+## Step 5 — Rerun Saved Scrapers
 
-Reuse an existing scraper instead of recreating its extraction logic:
+Choose a rerun mode:
+
+| Mode | Required ID | URL input | Crawl controls |
+| --- | --- | --- | --- |
+| Single AI | `--scraper-id` | One URL | Supported |
+| Single manual | `--scraper-id` | One URL | Not used |
+| Bulk AI | `--bulk --id` | Comma- or newline-separated URLs | Not used |
+| Bulk manual | `--bulk --id` | Comma- or newline-separated URLs | Not used |
+
+Examples:
 
 ```bash
 mrscraper rerun "https://example.com/product" \
-  --type ai --scraper-id SCRAPER_UUID
+  --type ai \
+  --scraper-id SCRAPER_UUID
 
 mrscraper rerun "https://example.com/product" \
-  --type manual --scraper-id SCRAPER_UUID
+  --type manual \
+  --scraper-id SCRAPER_UUID
 
 mrscraper rerun "https://a.example,https://b.example" \
-  --bulk --type manual --id SCRAPER_UUID
+  --bulk \
+  --type manual \
+  --id SCRAPER_UUID
 ```
 
-Single reruns require `--scraper-id`. Bulk reruns require `--bulk` and `--id`.
+Single AI crawl controls and defaults:
 
-Find or retrieve stored results:
+| Parameter | Default | Use |
+| --- | --- | --- |
+| `--max-depth <n>` | `2` | Map crawl depth. |
+| `--max-pages <n>` | `50` | Maximum pages. |
+| `--limit <n>` | `1000` | Maximum results. |
+| `--include-patterns <regex>` | `""` | Include matching URLs. |
+| `--exclude-patterns <regex>` | `""` | Exclude matching URLs. |
+| `--token <key>` | configured credential | Override authentication. |
+
+Use a saved manual scraper only after it has been created in MrScraper.
+
+## Step 6 — Inspect Stored Results
+
+List result rows:
 
 ```bash
-mrscraper results --page-size 20 --sort-field updatedAt --sort-order DESC
-mrscraper results --search example.com --page 2
-mrscraper result RESULT_UUID
+mrscraper results --page-size 20 --page 1
+mrscraper results --search example.com
+mrscraper results --sort-field updatedAt --sort-order desc
 ```
 
-The CLI can run a manual scraper created elsewhere in MrScraper, but cannot
-create or schedule one.
+### Results parameters
 
-## Review Usage and Domain Outcomes
+| Parameter | Default | Use |
+| --- | --- | --- |
+| `--sort-field <field>` | `updatedAt` | Field used to sort rows. |
+| `--sort-order <asc\|desc>` | `desc` | Sort direction. |
+| `--page-size <n>` | `10` | Rows per page. |
+| `--page <n>` | `1` | 1-based page number. |
+| `--search <query>` | omitted | Search filter. |
+| `--date-range-column <column>` | omitted | Column used by the time range. |
+| `--start-at <iso>` | omitted | Inclusive range start. |
+| `--end-at <iso>` | omitted | Inclusive range end. |
+| `--token <key>` | configured credential | Override authentication. |
 
-Use `status --json` without a domain for subscription and quota information.
-Add a domain and time range for stored MrScraper request outcomes:
+Retrieve one row by positional ID or `--id`:
+
+```bash
+mrscraper result RESULT_UUID
+mrscraper result --id RESULT_UUID
+```
+
+## Step 7 — Review Account Usage
+
+Request machine-readable account status:
 
 ```bash
 mrscraper status --json
-mrscraper status --json --domain example.com --from 7d
-mrscraper status --json --domain example.com \
-  --from 2026-08-01T00:00:00Z \
-  --to 2026-08-10T00:00:00Z
 ```
 
-Domain analytics are scrape request outcomes. They are not SEO, traffic,
-audience, or market analytics. Interactive humans can omit `--json` to see the
-account dashboard; agents should request JSON explicitly.
-
-## Run Without a Global Install
-
-Use the npm package directly for one-off commands:
+Add domain request outcomes and a time range:
 
 ```bash
-npx -y @mrscraper/cli@latest status --json
-npx -y @mrscraper/cli@latest results --page-size 10
+mrscraper status --json --domain example.com --from 7d --to now
 ```
 
-Authentication requirements remain the same. Running `init` is not ephemeral;
-it intentionally installs the CLI and skills globally.
+### Status parameters
 
-## Handle Shared Output Safely
+| Parameter | Default | Use |
+| --- | --- | --- |
+| `--domain <domain-or-url>` | omitted | Add request outcomes for a hostname. |
+| `--from <date-or-duration>` | `24h` | ISO start or duration such as `30m`, `24h`, or `7d`. |
+| `--to <date>` | `now` | ISO end time or `now`. |
+| `--action <action>` | empty string | Filter outcomes by action. Used with `--domain`. |
+| `--api-token-name <name>` | empty string | Filter outcomes by API token name. Used with `--domain`. |
+| `--json` | automatic when piped | Print JSON. Agents should include it. |
+| `--pretty` | automatic in a terminal | Print the account dashboard. |
+| `--no-color` | off | Disable dashboard color. |
+| `--token <key>` | configured credential | Override authentication. |
 
-- Expect JSON on stdout for data commands. Pass `status --json` explicitly
-  because an interactive terminal otherwise renders its human dashboard.
-  Progress and warnings go to stderr.
-- Check the process exit code. API failures exit nonzero and include `error`,
-  `status_code`, and response `data` when available.
-- Save large web responses under the current project's `.mrscraper/`, inspect
-  their size, and read them incrementally with `jq`, `head`, or targeted
-  searches. This project folder is unrelated to `~/.mrscraper/auth.json`.
-- Quote URLs because `?` and `&` have shell meaning.
-- Keep `.mrscraper/` out of version control unless the user explicitly wants
-  its artifacts committed.
-- Never print credentials, commit credential files, or publish account output.
+Domain outcomes describe MrScraper requests. They are not traffic, audience,
+SEO, or market analytics.
 
-## Troubleshoot Shared Failures
+## Step 8 — Troubleshoot
 
-- **Unauthorized or 401** — ask the human to run `mrscraper login` again, or
-  verify the automation's `MRSCRAPER_API_KEY` without exposing it.
-- **Skill pack missing after bootstrap** — run
-  `mrscraper setup skills --dry-run`, then pass `--agent <name>` if harness
-  detection uses a nonstandard home directory.
-- **Page blocked or incomplete** — load `mrscraper-fetch` for its unblock
-  escalation procedure.
-- **Extraction is incorrect** — load `mrscraper-scrape` and tighten the prompt
-  or schema.
-- **Search results are wrong or incomplete** — load `mrscraper-serp` and review
-  its query and locale guidance.
-- **Unknown option** — run `mrscraper <command> --help` instead of guessing.
+- **Unauthorized or 401** — run `mrscraper login` in a local interactive
+  session or verify `MRSCRAPER_API_KEY` in automation.
+- **CLI missing** — run the agent-safe `npx ... init` command from Step 1.
+- **Skills missing** — run `mrscraper setup skills --dry-run`, then target the
+  current harness with `--agent <id>`.
+- **Page blocked or incomplete** — load
+  [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with the page-loading
+  options appropriate to the target.
+- **Extraction is incomplete** — load
+  [mrscraper-scrape](../mrscraper-scrape/SKILL.md) and improve the prompt,
+  agent choice, or limits.
+- **Search results are weak** — load
+  [mrscraper-serp](../mrscraper-serp/SKILL.md) and refine the query, locale, or
+  page.
+- **Unknown option** — run `mrscraper <command> --help`.
 
-## Know the Limits
+## Limits
 
-Do not claim that an extraction mode is an interactive browser agent. The CLI
-does not provide:
+Use another tool for:
 
-- clicks, form entry, or authenticated browser-session interaction;
-- local PDF, DOCX, spreadsheet, or other file parsing;
-- recurring monitoring or notifications; or
-- manual scraper creation or scheduling;
+- Clicking controls, completing forms, or authenticated browser sessions;
+- Parsing local PDFs, documents, spreadsheets, or other files;
+- Recurring monitoring, notifications, or scheduling.
 
-If the task requires one of these capabilities, explain the limitation.
+Explain the boundary and continue with any supported portion of the task.

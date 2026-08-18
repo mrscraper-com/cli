@@ -1,64 +1,69 @@
 ---
 name: mrscraper-scrape
 description: |
-  Extract structured data from a known URL with the MrScraper CLI's general or listing AI agent, or discover site URLs with its map agent. Use when the user requests specific fields, product or property details, repeated records, paginated listings, tables as JSON, or bounded site mapping. General and listing require an explicit prompt; map rejects prompts. Optional schema-prompt guidance is CLI-only and is not backend validation. Do not use merely to read a page; use mrscraper-fetch. Do not use for query-first discovery; use mrscraper-serp.
+  Extract structured data from a known URL with the MrScraper CLI using the general, listing, or map agent. Use for requested fields, product or property details, repeated records, paginated listings, tables as JSON, or bounded site URL discovery. General handles one-page extraction, listing handles repeated or paginated records, and map discovers URLs. JSON Schema files can provide best-effort output-shape guidance. Use mrscraper-fetch to read page content and mrscraper-serp when no target URL is known.
 ---
 
 # Extract Structured Data with MrScraper
 
-Use `scrape` when the result should contain requested fields or records. For
-installation, authentication, or routing, use [mrscraper](../mrscraper/SKILL.md).
+Use `scrape` when the user wants defined fields, records, or site URLs from a
+known page or website. Use [mrscraper](../mrscraper/SKILL.md) for installation,
+authentication, saved runs, account status, or command routing.
 
-## Produce the Requested Artifact
+The command sends `POST https://api.app.mrscraper.com/api/v1/scrapers-ai`.
 
-For a detail page, use the default `general` agent with an explicit prompt:
+## Step 1 — Choose an Agent
+
+| Agent | Use it for | Required input | Available controls |
+| --- | --- | --- | --- |
+| `general` | One detail page or one extraction task | `--prompt` | `--proxy-country`, `--schema-prompt`, `--output` |
+| `listing` | Repeated records or paginated listings | `--prompt` | `--proxy-country`, `--max-pages`, `--schema-prompt`, `--output` |
+| `map` | Discovering URLs across a site | URL only | `--max-depth`, `--max-pages`, `--limit`, include/exclude patterns, `--output` |
+
+The default agent is `general`. For map, omit `--prompt`,
+`--schema-prompt`, and `--proxy-country`. For general and listing, omit the
+map-only crawl controls.
+
+## Step 2 — Define the Extraction
+
+Write a prompt that names the fields or records the user needs and preserves
+source values. Do not ask the model to infer unavailable values.
+
+For a detail page:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper scrape "<url>" \
-  --prompt "Extract all available listing information. Preserve source values and do not infer missing fields." \
-  --output ./.mrscraper/<site>-<page-slug>.json
+mrscraper scrape "https://example.com/product" \
+  --prompt "Extract name, price, availability, description, and image URLs. Preserve source values and omit unavailable fields." \
+  --output ./.mrscraper/example-product.json
 ```
 
-`--output` is a CLI-only file operation. It writes the documented
-`data.data.data` response value as pretty JSON without renaming, normalizing, or
-decoding it. The full CLI response envelope remains on stdout. Treat a
-successfully written file as the finished artifact.
-
-Do not fetch first or manually reconstruct the returned JSON. Post-process only
-when the user requests a different schema, filter, merge, normalization, CSV,
-table, or another deliverable.
-
-## Choose the API Agent
-
-General and listing require `--prompt`; promptless use fails rather than routing
-to fetch:
+For repeated records or pagination:
 
 ```bash
-# One detail page or one general extraction task
-mrscraper scrape "https://example.com/product" \
-  --agent general --prompt "Extract the product details"
-
-# Repeated records or pagination
 mrscraper scrape "https://example.com/products" \
-  --agent listing --prompt "Extract every product" --max-pages 5
+  --agent listing \
+  --prompt "Extract every product's name, price, availability, and URL" \
+  --max-pages 5 \
+  --output ./.mrscraper/example-products.json
 ```
 
-Use map only for URL discovery. Map rejects `--prompt`, `--schema-prompt`, and
-`--proxy-country` instead of silently dropping them:
+For site URL discovery:
 
 ```bash
 mrscraper scrape "https://example.com" \
-  --agent map --max-depth 2 --max-pages 50 --limit 1000
+  --agent map \
+  --max-depth 2 \
+  --max-pages 50 \
+  --limit 1000 \
+  --include-patterns "/products/" \
+  --output ./.mrscraper/example-product-urls.json
 ```
 
-The CLI sends only map limits and patterns the caller supplies. Omitted values
-remain omitted so the backend owns its defaults.
+## Step 3 — Add Shape Guidance When Useful
 
-## Use Schema Text Honestly
-
-When best-effort field guidance is useful, append a local JSON Schema to the
-prompt:
+Use `--schema-prompt` to add a local JSON Schema object to the extraction
+instructions:
 
 ```bash
 mrscraper scrape "https://example.com/product" \
@@ -67,39 +72,62 @@ mrscraper scrape "https://example.com/product" \
   --output ./.mrscraper/product.json
 ```
 
-`--schema-prompt` validates only that the local file contains a JSON object,
-then appends it to the natural-language `message`. The API receives no `schema`
-field and does not validate its output against that schema. Verify the returned
-data yourself when strict downstream validation is required.
+This option checks that the file contains a JSON object and adds it to the
+prompt as best-effort shape guidance. Validate the saved result separately when
+strict schema compliance is required.
 
-## Respect Parameter Boundaries
+## Step 4 — Set Parameters
 
-- `--agent` maps to API `agent` and visibly defaults to `general`.
-- `--prompt` maps to API `message`; it is required for general/listing and
-  rejected for map.
-- `--proxy-country` maps to `proxyCountry` for general/listing only.
-- `--max-pages` maps to `maxPages` for listing/map only.
-- `--max-depth`, `--limit`, `--include-patterns`, and `--exclude-patterns` are
-  map-only API fields.
-- `--schema-prompt` and `--output` are explicitly CLI-only.
-- Fetch browser parameters are not accepted by `scrape`.
+| CLI parameter | Default | Request mapping | Use |
+| --- | --- | --- | --- |
+| `<url>` | required | Body `url` | Target page or site. |
+| `-a, --agent <agent>` | `general` | Body `agent` | Select `general`, `listing`, or `map`. |
+| `-p, --prompt <text>` | required for general/listing | Body `message` | Describe the fields or records to extract. |
+| `--proxy-country <code>` | omitted | Body `proxyCountry` | Route general/listing through a country. |
+| `--max-pages <n>` | service default | Body `maxPages` | Bound listing or map pages. |
+| `--max-depth <n>` | service default | Body `maxDepth` | Bound map crawl depth. |
+| `--limit <n>` | service default | Body `limit` | Bound map results. |
+| `--include-patterns <regex>` | omitted | Body `includePatterns` | Restrict map results to matching URLs. |
+| `--exclude-patterns <regex>` | omitted | Body `excludePatterns` | Exclude matching URLs from map results. |
+| `--schema-prompt <path>` | omitted | Added to body `message` | Provide best-effort JSON shape guidance for general/listing. |
+| `-o, --output <path>` | omitted | Output file | Write the extracted `data.data.data` value as pretty JSON. |
+| `--token <key>` | configured credential | Request headers | Override authentication for this command. |
 
-## Treat Listing as Long-Running
+Choose the smallest practical limits. When a limit is omitted, the service
+default applies.
 
-Listing mode is synchronous and can take several minutes. Choose the smallest
-practical `--max-pages`, tell the user before starting, allow a long execution
-timeout, and keep waiting on the original process. The CLI writes progress to
-stderr as `Listing still running...` without corrupting stdout JSON. Do not
-respond to silence by submitting a duplicate request merely because no final
-JSON has appeared yet.
+## Step 5 — Wait for Completion
 
-## Handle Failures
+General and map usually finish quickly. Listing is synchronous and can take
+several minutes.
 
-- Check the exit code and confirm the requested output file exists.
-- If no file is written, inspect the stdout envelope; do not create replacement
-  data containing invented or null fields.
+Before starting a listing run:
+
+1. Tell the user it may take several minutes;
+2. Set an execution timeout appropriate for the selected page count;
+3. Keep waiting on the original process; and
+4. Watch stderr for `Listing still running...` progress.
+
+Do not submit a duplicate listing request because stdout is temporarily quiet.
+
+## Step 6 — Use the Output
+
+Stdout contains the complete response envelope. When `--output` is supplied,
+the command creates parent directories and writes the extracted
+`data.data.data` value as pretty JSON.
+
+Treat a successfully written output file as the extraction artifact. Report its
+path and summarize the requested result. Post-process only when the user asks
+for filtering, merging, normalization, CSV, a table, or another deliverable.
+
+## Step 7 — Handle Failures
+
+- Check the exit code before trusting stdout or an output file.
+- If the output file is absent, inspect `error`, `status_code`, and `data`
+  in the response envelope.
 - Tighten the prompt when fields are missing or grouped incorrectly.
-- Validate locally when strict schema compliance matters.
-- Use fetch for page HTML and SERP when no target URL is known.
-
-Keep `./.mrscraper/` out of version control unless the user asks to commit it.
+- Validate locally when downstream code requires a strict schema.
+- Use [mrscraper-fetch](../mrscraper-fetch/SKILL.md) for page reading and
+  [mrscraper-serp](../mrscraper-serp/SKILL.md) when discovery must happen first.
+- Never invent replacement fields or fill missing values with unsupported
+  assumptions.
