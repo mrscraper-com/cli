@@ -141,10 +141,7 @@ test("init dry-run detects installed harnesses without changing the system", asy
   assert.match(result.stdout, /Skipping global CLI installation/);
   assert.match(result.stdout, /for Cursor, Codex, Grok Build: npx -y skills add/);
   assert.match(result.stdout, /--agent cursor --agent codex --agent grok --yes/);
-  assert.match(result.stdout, /connect Cursor to MrScraper MCP/);
-  assert.match(result.stdout, /codex mcp add mrscraper --url/);
-  assert.match(result.stdout, /connect Grok Build to MrScraper MCP/);
-  assert.match(result.stdout, /mcp-remote@latest/);
+  assert.doesNotMatch(result.stdout, /MCP/i);
 });
 
 test("setup skills can target one harness without requiring detection", async () => {
@@ -181,55 +178,6 @@ test("setup skills can target Hermes without requiring detection", async () => {
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /for Hermes Agent/);
   assert.match(result.stdout, /--agent hermes-agent --yes/);
-});
-
-test("setup mcp can target one client without requiring detection", async () => {
-  const result = await runCli(["setup", "mcp", "--agent", "cursor", "--dry-run"]);
-
-  assert.equal(result.code, 0);
-  assert.equal(result.stderr, "");
-  assert.match(result.stdout, /Would connect Cursor to MrScraper MCP/);
-  assert.match(result.stdout, /https:\/\/mcp\.mrscraper\.com\/mcp/);
-});
-
-test("setup mcp supports local and custom-hosted alternatives", async () => {
-  const local = await runCli([
-    "setup",
-    "mcp",
-    "--agent",
-    "cursor",
-    "--local-mcp",
-    "--dry-run",
-  ]);
-  assert.equal(local.code, 0);
-  assert.match(local.stdout, /@mrscraper\/mcp@latest/);
-
-  const custom = await runCli([
-    "setup",
-    "mcp",
-    "--agent",
-    "cursor",
-    "--mcp-url",
-    "https://self-hosted.example/mcp",
-    "--dry-run",
-  ]);
-  assert.equal(custom.code, 0);
-  assert.match(custom.stdout, /https:\/\/self-hosted\.example\/mcp/);
-});
-
-test("setup mcp can target OpenClaw without requiring detection", async () => {
-  const result = await runCli([
-    "setup",
-    "mcp",
-    "--agent",
-    "openclaw",
-    "--dry-run",
-  ]);
-
-  assert.equal(result.code, 0);
-  assert.equal(result.stderr, "");
-  assert.match(result.stdout, /connect OpenClaw to MrScraper MCP/);
-  assert.match(result.stdout, /openclaw mcp set mrscraper/);
 });
 
 test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {

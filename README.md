@@ -16,17 +16,15 @@ output.
 
 Requires Node.js 20 or newer.
 
-One interactive command installs the CLI globally, copies the MrScraper skill
-pack, and connects every supported agent harness detected on the machine to the
-hosted MrScraper MCP endpoint:
+One interactive command installs the CLI globally and copies all four
+MrScraper skills into every supported agent harness detected on the machine:
 
 ```bash
 npx -y @mrscraper/cli@latest init --all
 ```
 
 If no credential exists, this human-facing command starts browser sign-in. An
-existing `~/.mrscraper/auth.json` or `MRSCRAPER_API_KEY` is reused for the CLI.
-Credentials are never copied into an MCP client config.
+existing `~/.mrscraper/auth.json` or `MRSCRAPER_API_KEY` is reused by the CLI.
 
 Agents use the non-interactive form so setup never waits for secret input, then
 launch browser login only when authentication is still missing:
@@ -80,16 +78,17 @@ Copyable AI setup prompt:
 ```text
 Install MrScraper for this coding agent. Detect the client from the environment,
 then run `npx -y @mrscraper/cli@latest init --agent <client> --yes --skip-auth`
-yourself. This installs the CLI, all four MrScraper skills, and the hosted MCP
-connection without waiting for authentication. Never ask me to paste an API
-key into chat. Check `mrscraper auth status --json`; if unauthenticated and this
-is a local interactive session, run `mrscraper login`, keep it running, and let
-me approve the browser request. In a headless session, tell me to configure
-MRSCRAPER_API_KEY instead. If the agent client reports that the hosted MCP needs
-authentication, start its MCP OAuth flow and let me approve that browser
-request too. Start a new client session if the newly registered MCP tools are
-not visible, then report which MrScraper skills and MCP tools are available.
+yourself. This installs the CLI and all four MrScraper skills without waiting
+for authentication. Never ask me to paste an API key into chat. Check
+`mrscraper auth status --json`; if unauthenticated and this is a local
+interactive session, run `mrscraper login`, keep it running, and let me approve
+the browser request. In a headless session, tell me to configure
+MRSCRAPER_API_KEY instead. Then confirm the CLI works and report which
+MrScraper skills were installed.
 ```
+
+MrScraper also offers an optional hosted MCP server. It uses a separate bearer
+API key connection; see [Hosted MCP](#hosted-mcp-optional).
 
 ### Install for one agent
 
@@ -130,16 +129,15 @@ separately and wait for the user to approve in the browser. For a headless host,
 use `--skip-auth` and provide `MRSCRAPER_API_KEY`, or run
 `mrscraper login --no-browser` in a human-controlled terminal. Native plugin
 marketplace installation is intentionally not documented yet; the `npx`
-bootstrap already provides the CLI, skills, and MCP integration.
+bootstrap already provides the CLI and skills.
 
 ### What `init` does
 
-`mrscraper init` sets up everything an agent needs:
+`mrscraper init` sets up the CLI workflow:
 
 1. Installs the MrScraper CLI.
-2. Installs all four MrScraper skills.
-3. Connects the agent to `https://mcp.mrscraper.com/mcp`.
-4. Reuses existing authentication or starts browser login when needed.
+2. Reuses existing authentication or starts browser login when needed.
+3. Installs all four MrScraper skills.
 
 It supports Claude Code, Cursor, Codex, Grok Build, Hermes Agent, OpenCode,
 OpenClaw, Pi, and Oh My Pi. Agent-specific setup is handled automatically.
@@ -151,34 +149,33 @@ mrscraper init --agent codex --yes --skip-auth
 mrscraper init --agent hermes --yes --skip-auth
 mrscraper init --agent openclaw --yes --skip-auth
 mrscraper init --all --yes --skip-auth
-mrscraper init --all --local-mcp
-mrscraper init --all --mcp-url https://your-host.example/mcp
 mrscraper init --all --yes --skip-auth --dry-run
 mrscraper setup skills
 mrscraper setup skills --agent codex
 mrscraper setup skills --agent grok
-mrscraper setup mcp
-mrscraper setup mcp --agent codex
 ```
 
 `--all` installs only into detected harnesses. `setup skills` refreshes the
-complete pack; `setup mcp` refreshes only MCP registration. Neither command
-changes authentication. The bootstrap does not add templates or default
-provider settings. Interactive `init` starts browser login when no credential
-exists; non-interactive input, `--yes`, or `--skip-auth` leaves it for an
-explicit `mrscraper login`. Package-runner flags such as `npx -y` approve
-package execution only; they do not authenticate the CLI.
+complete pack without changing authentication. The bootstrap does not install
+MCP, add templates, or select default provider settings. Interactive `init`
+starts browser login when no credential exists; non-interactive input, `--yes`,
+or `--skip-auth` leaves it for an explicit `mrscraper login`. Package-runner
+flags such as `npx -y` approve package execution only; they do not authenticate
+the CLI.
 
-## MCP hosting
+## Hosted MCP (optional)
 
-By default, setup connects the agent to the hosted MCP server at
-`https://mcp.mrscraper.com/mcp`, where the user authorizes their MrScraper
-account.
+MCP setup is separate from the CLI and skill bootstrap.
+[Create an API key](https://app.mrscraper.com/api-tokens), then configure your
+MCP client to send it as a bearer token:
 
-Users can instead add `--local-mcp` to run `@mrscraper/mcp` locally. It uses the
-app-issued credential created by `mrscraper login`. For a separately deployed
-MCP server, pass `--mcp-url https://your-host.example/mcp`; that deployment can
-delegate account authorization to the MrScraper app.
+```text
+URL: https://mcp.mrscraper.com/mcp
+Authorization: Bearer <MRSCRAPER_API_KEY>
+```
+
+To run the server yourself, see
+[`@mrscraper/mcp`](https://github.com/mrscraper-com/mrscraper-mcp).
 
 ## Authentication
 
@@ -210,11 +207,11 @@ for automation.
 ## Command Summary
 
 ```text
-init    bootstrap the CLI, detected agent skill pack, and MCP integration
+init    bootstrap the CLI and detected agent skill pack
 login   use browser sign-in or explicitly save an API key
 auth    inspect the active local authentication method
 logout  remove local credentials
-setup   install or refresh skills and MCP registration
+setup   install or refresh the skill pack
 fetch   return page content without a prompt
 scrape  extract requested data using a prompt or schema
 serp    return Google search results
@@ -433,8 +430,8 @@ npm test
 node bin/mrscraper.js --help
 ```
 
-Run the complete package, skill, and MCP bootstrap smoke test inside Docker so
-global npm and agent-directory writes stay out of the host environment:
+Run the package and skill bootstrap smoke test inside Docker so global npm and
+agent-directory writes stay out of the host environment:
 
 ```bash
 docker build --file test/bootstrap.Dockerfile .

@@ -48,7 +48,7 @@ test("installGlobalCli accepts a sandbox package spec override", () => {
   });
 });
 
-test("runBootstrap executes install, authentication, skill, and MCP phases", async () => {
+test("runBootstrap executes install, authentication, and skill phases", async () => {
   const calls = [];
   const messages = [];
 
@@ -59,7 +59,6 @@ test("runBootstrap executes install, authentication, skill, and MCP phases", asy
       hasCredentials: () => true,
       authenticate: (apiKey) => calls.push(["auth", apiKey]),
       installSkill: (options) => calls.push(["skill", options.agent]),
-      installMcp: (options) => calls.push(["mcp", options.agent]),
       log: (message) => messages.push(message),
       logError: (message) => messages.push(message),
     },
@@ -70,7 +69,6 @@ test("runBootstrap executes install, authentication, skill, and MCP phases", asy
     ["cli", undefined],
     ["auth", "secret-key"],
     ["skill", "codex"],
-    ["mcp", "codex"],
   ]);
   assert.doesNotMatch(messages.join("\n"), /secret-key/);
   assert.match(messages.join("\n"), /setup is complete/);
@@ -81,7 +79,7 @@ test("runBootstrap reuses existing credentials and --yes never prompts", async (
   const messages = [];
 
   await runBootstrap(
-    { yes: true, skipInstall: true, skipSkills: true, skipMcp: true },
+    { yes: true, skipInstall: true, skipSkills: true },
     {
       hasCredentials: () => true,
       authenticate: () => {
@@ -105,7 +103,6 @@ test("runBootstrap leaves missing authentication for later in non-interactive mo
       nonInteractive: true,
       skipInstall: true,
       skipSkills: true,
-      skipMcp: true,
     },
     {
       hasCredentials: () => false,
@@ -127,7 +124,7 @@ test("runBootstrap leaves missing authentication for later with --yes", async ()
   let authenticated = false;
 
   await runBootstrap(
-    { yes: true, skipInstall: true, skipSkills: true, skipMcp: true },
+    { yes: true, skipInstall: true, skipSkills: true },
     {
       hasCredentials: () => false,
       authenticate: () => {
@@ -145,7 +142,7 @@ test("runBootstrap starts authentication when interactive credentials are missin
   let authenticated = false;
 
   await runBootstrap(
-    { skipInstall: true, skipSkills: true, skipMcp: true },
+    { skipInstall: true, skipSkills: true },
     {
       hasCredentials: () => false,
       authenticate: () => {
@@ -168,7 +165,6 @@ test("runBootstrap --skip-auth never starts login", async () => {
       skipAuth: true,
       skipInstall: true,
       skipSkills: true,
-      skipMcp: true,
     },
     {
       authenticate: () => {
@@ -192,7 +188,6 @@ test("runBootstrap dry-run reports browser login without starting it", async () 
       dryRun: true,
       skipInstall: true,
       skipSkills: true,
-      skipMcp: true,
     },
     {
       hasCredentials: () => false,
@@ -225,9 +220,6 @@ test("runBootstrap dry-run makes no changes and reports every phase", async () =
       installSkill: ({ dryRun }) => {
         assert.equal(dryRun, true);
       },
-      installMcp: ({ dryRun }) => {
-        assert.equal(dryRun, true);
-      },
       log: (message) => messages.push(message),
       logError: (message) => messages.push(message),
     },
@@ -240,7 +232,6 @@ test("runBootstrap dry-run makes no changes and reports every phase", async () =
 
 test("runBootstrap attempts later phases and fails overall when one phase fails", async () => {
   let skillAttempted = false;
-  let mcpAttempted = false;
   const errors = [];
 
   await assert.rejects(
@@ -253,9 +244,6 @@ test("runBootstrap attempts later phases and fails overall when one phase fails"
         installSkill: () => {
           skillAttempted = true;
         },
-        installMcp: () => {
-          mcpAttempted = true;
-        },
         log: () => {},
         logError: (message) => errors.push(message),
       },
@@ -264,6 +252,5 @@ test("runBootstrap attempts later phases and fails overall when one phase fails"
   );
 
   assert.equal(skillAttempted, true);
-  assert.equal(mcpAttempted, true);
   assert.match(errors.join("\n"), /Global CLI installation failed: permission denied/);
 });

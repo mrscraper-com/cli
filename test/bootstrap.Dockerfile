@@ -39,7 +39,6 @@ ENV MRSCRAPER_CLI_PACKAGE_SPEC=/tmp/mrscraper-cli.tgz
 # Run the checkout directly; init then globally installs the tarball above.
 RUN node bin/mrscraper.js init --skip-auth --all
 RUN mrscraper --version
-RUN node scripts/verify-bootstrap.js
 # Cursor, Codex, OpenCode, and OMP read the universal skills directly.
 RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
   test -f "/root/.agents/skills/$skill/SKILL.md"; \
@@ -61,4 +60,3 @@ RUN mrscraper setup skills --agent claude-code
 RUN mrscraper setup skills --agent hermes --dry-run
 RUN mrscraper setup skills --agent openclaw --dry-run
 RUN mrscraper setup skills --agent omp --dry-run
-RUN mrscraper setup mcp --agent cursor --dry-run

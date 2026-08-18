@@ -23,12 +23,7 @@ The bootstrap:
 - installs the same published `@mrscraper/cli` version globally;
 - leaves authentication unchanged so the agent can handle login separately;
 - installs the four-skill MrScraper pack into supported agent harnesses already
-  present on the machine; and
-- connects those harnesses to `https://mcp.mrscraper.com/mcp`.
-
-Use the hosted MCP by default. Add `--local-mcp` only when the user explicitly
-wants to run `@mrscraper/mcp` locally; it uses the app-issued credential from
-`mrscraper login`. For a user-supplied deployment, pass `--mcp-url <url>`.
+  present on the machine.
 
 Always include both `--yes` and `--skip-auth` when an agent launches `init`.
 The former keeps installation non-interactive; the latter makes the separate
@@ -49,9 +44,10 @@ Refresh the complete skill pack without reinstalling the CLI or authenticating:
 ```bash
 mrscraper setup skills
 mrscraper setup skills --agent codex
-mrscraper setup mcp
-mrscraper setup mcp --agent codex
 ```
+
+MrScraper also offers MCP, but it is not installed by this bootstrap. Configure
+its hosted endpoint separately with a bearer API key only when the user asks.
 
 After bootstrap, run `mrscraper auth status --json`. If it reports
 `authenticated: false`, let bootstrap remain finished. In a local interactive
@@ -60,12 +56,8 @@ Keep the command running until approval completes; do not submit a duplicate.
 In a headless, remote, or unattended session, do not launch browser login—ask
 the human to run it locally or configure `MRSCRAPER_API_KEY`. Never ask them to
 paste a key into chat or wait for secret input. The agent-safe bootstrap above
-does not start browser login, add project templates, or select a default web
-provider. The installed MCP becomes available after the client reloads or
-starts a new session; use the CLI in the current session when the MCP tools are
-not yet visible. If the client reports that MrScraper MCP needs authentication,
-start that client's MCP OAuth flow and let the human approve it in the browser.
-Do not copy the CLI API key into MCP configuration.
+does not start browser login, install MCP, add project templates, or select a
+default web provider.
 
 ## Authenticate
 
@@ -187,7 +179,7 @@ npx -y @mrscraper/cli@latest results --page-size 10
 ```
 
 Authentication requirements remain the same. Running `init` is not ephemeral;
-it intentionally installs the CLI and skills globally and registers MCP.
+it intentionally installs the CLI and skills globally.
 
 ## Handle Shared Output Safely
 
@@ -211,9 +203,6 @@ it intentionally installs the CLI and skills globally and registers MCP.
 - **Skill pack missing after bootstrap** — run
   `mrscraper setup skills --dry-run`, then pass `--agent <name>` if harness
   detection uses a nonstandard home directory.
-- **MCP tools missing after bootstrap** — run
-  `mrscraper setup mcp --agent <name> --dry-run`, apply it without `--dry-run`,
-  then restart the MCP client or open a new session.
 - **Page blocked or incomplete** — load `mrscraper-fetch` for its unblock
   escalation procedure.
 - **Extraction is incorrect** — load `mrscraper-scrape` and tighten the prompt

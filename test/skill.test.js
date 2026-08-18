@@ -66,12 +66,10 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /run `mrscraper login` and tell the human to approve/);
   assert.match(router, /headless, remote, or unattended session, do not launch/);
   assert.match(router, /mrscraper setup skills/);
-  assert.match(router, /mrscraper setup mcp/);
-  assert.match(router, /https:\/\/mcp\.mrscraper\.com\/mcp/);
-  assert.match(router, /--local-mcp/);
-  assert.match(router, /--mcp-url <url>/);
-  assert.match(router, /start that client's MCP OAuth flow/);
-  assert.match(router, /Do not copy the CLI API key into MCP configuration/);
+  assert.match(router, /also offers MCP/);
+  assert.match(router, /not installed by this bootstrap/);
+  assert.match(router, /separately with a bearer API key/);
+  assert.doesNotMatch(router, /mrscraper setup mcp|--local-mcp|--mcp-url/);
   assert.match(router, /\.\.\/mrscraper-fetch\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
