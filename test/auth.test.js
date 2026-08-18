@@ -235,7 +235,7 @@ test("auth status exposes metadata but never credentials", (t) => {
 
   const status = authStatus(options);
   assert.deepEqual(status, {
-    authenticated: true,
+    credential_configured: true,
     auth_type: "api_key",
     path: authPath(options),
   });
@@ -250,9 +250,20 @@ test("auth status reports an environment override without exposing it", (t) => {
   });
 
   assert.deepEqual(status, {
-    authenticated: true,
+    credential_configured: true,
     auth_type: "api_key",
     source: "MRSCRAPER_API_KEY",
   });
   assert.doesNotMatch(JSON.stringify(status), /environment-secret/);
+});
+
+test("auth status reports credential presence without claiming API verification", (t) => {
+  const homeDirectory = temporaryHome(t);
+  const status = authStatus({ homeDirectory, environment: {} });
+
+  assert.deepEqual(status, {
+    credential_configured: false,
+    path: authPath({ homeDirectory, environment: {} }),
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(status, "authenticated"), false);
 });

@@ -54,8 +54,10 @@ mrscraper serp "what is web scraping" --render-js \
   > .mrscraper/search-rendered.json
 ```
 
-`--raw` is a deprecated alias for `--format html`; prefer the explicit format.
-Increase `--timeout <seconds>` only when rendering genuinely needs more time.
+`--format` and `--render-js` are real SERP API body fields. `--raw` is a
+deprecated CLI alias that sends `format=html`. Increase the CLI-only
+`--client-timeout <seconds>` only when the HTTP request genuinely needs more
+time; it is not sent in the API body.
 
 ## Continue with Selected Results
 

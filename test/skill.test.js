@@ -82,32 +82,39 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /^## Rerun and Inspect Saved Work$/m);
   assert.match(router, /^## Review Usage and Domain Outcomes$/m);
   assert.match(router, /^## Know the Limits$/m);
-  assert.doesNotMatch(router, /--unblock|--schema|--region/);
+  assert.doesNotMatch(router, /--unblock|--schema\b|--region/);
   assert.doesNotMatch(router, /\bPath [A-F]\b|^## Get Credentials$/m);
 });
 
 test("focused skills have distinct commands and intent boundaries", () => {
   assert.match(skills["mrscraper-fetch"], /mrscraper fetch/);
-  assert.match(skills["mrscraper-fetch"], /--unblock always/);
+  assert.match(skills["mrscraper-fetch"], /--browser-rendering/);
+  assert.match(skills["mrscraper-fetch"], /makes one `GET/);
+  assert.doesNotMatch(
+    skills["mrscraper-fetch"],
+    /mrscraper fetch[^\n]*(?:--format|--unblock)/,
+  );
   assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
 
   assert.match(skills["mrscraper-scrape"], /mrscraper scrape/);
   assert.match(skills["mrscraper-scrape"], /--prompt/);
-  assert.match(skills["mrscraper-scrape"], /--schema/);
+  assert.match(skills["mrscraper-scrape"], /--schema-prompt/);
+  assert.match(skills["mrscraper-scrape"], /receives no `schema`/);
+  assert.match(skills["mrscraper-scrape"], /Map rejects `--prompt`/);
   assert.match(skills["mrscraper-scrape"], /--output/);
   assert.match(skills["mrscraper-scrape"], /defined fields|requested fields/);
   assert.match(
     skills["mrscraper-scrape"],
-    /Treat a successfully written file as the finished artifact/,
+    /Treat a\s+successfully written file as the finished artifact/,
   );
   assert.match(
     skills["mrscraper-scrape"],
-    /single property, product,\nvehicle, or job listing detail page uses the default `general` agent/,
+    /For a detail page, use the default `general` agent/,
   );
-  assert.match(skills["mrscraper-scrape"], /Post-process only when/);
+  assert.match(skills["mrscraper-scrape"], /Post-process only\s+when/);
   assert.match(
     skills["mrscraper-scrape"],
-    /one-page listing took about 150 seconds/,
+    /can take several minutes/,
   );
   assert.match(skills["mrscraper-scrape"], /Listing still running\.\.\./);
   assert.match(skills["mrscraper-scrape"], /submitting a duplicate/);

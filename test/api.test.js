@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   FETCH_HTML_BASE_URL,
   SYNC_SCRAPER_BASE_URL,
-  fetchWithUnblockerApi,
+  fetchContentApi,
   googleSerpSyncApi,
   normalizeSerpInput,
   request,
@@ -80,10 +80,9 @@ test("API calls send saved API keys through both compatibility headers", async (
     return mockResponse("<html><h1>Available</h1></html>");
   };
 
-  await fetchWithUnblockerApi({
+  await fetchContentApi({
     token: { auth_type: "api_key", api_key: "saved-secret" },
     url: "https://target.example",
-    unblock: "never",
   });
 
   assert.equal(capturedHeaders.Authorization, "Bearer saved-secret");
@@ -104,79 +103,61 @@ test("response data redacts tokens in fields and generated curl commands", () =>
   assert.match(sanitized.curl, /REDACTED/);
 });
 
-test("auto unblock escalates a challenge page to browser rendering", async () => {
+test("response redaction preserves extracted data exactly", () => {
+  const extracted = {
+    token: "a legitimate scraped field",
+    password: "a product named Password",
+    example: "Authorization: Bearer documentation-example",
+  };
+  const sanitized = sanitizeResponseData({
+    message: "ok",
+    data: {
+      id: "run-1",
+      scraperId: "scraper-1",
+      status: "Finished",
+      data: extracted,
+      curl: "curl -H 'x-api-token: atk_fakefakefakefake'",
+    },
+  });
+
+  assert.deepEqual(sanitized.data.data, extracted);
+  assert.match(sanitized.data.curl, /REDACTED/);
+});
+
+test("fetch sends one request with the documented query parameters", async () => {
   const calls = [];
   globalThis.fetch = async (url) => {
     calls.push(new URL(url));
-    if (calls.length === 1) {
-      return mockResponse("<html><div class='cf-chl-widget'>Checking your browser</div></html>");
-    }
-    return mockResponse("<html><h1>Available</h1></html>");
+    return mockResponse(
+      "<html><p>Authorization: Bearer documentation-example</p></html>",
+    );
   };
 
-  const result = await fetchWithUnblockerApi({
+  const result = await fetchContentApi({
     token: "test-token",
     url: "https://target.example",
-    unblock: "auto",
+    browserRendering: true,
     timeout: 30,
+    geoCode: "ID",
+    waitForSelector: ".ready",
+    homePage: true,
+    blockResources: true,
     maxRetries: 2,
+    tokenCap: 50,
   });
 
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.equal(calls[0].origin, new URL(FETCH_HTML_BASE_URL).origin);
-  assert.equal(calls[0].searchParams.get("browserRendering"), "false");
-  assert.equal(calls[0].searchParams.get("maxRetries"), "0");
-  assert.equal(calls[1].searchParams.get("browserRendering"), "true");
-  assert.equal(calls[1].searchParams.get("maxRetries"), "2");
-  assert.deepEqual(result.unblocker, {
-    requested: "auto",
-    browser_rendering: true,
-    escalated: true,
-    attempts: 2,
-  });
-  assert.match(result.data, /Available/);
-});
-
-test("auto unblock escalates retryable structured service failures", async () => {
-  let calls = 0;
-  globalThis.fetch = async () => {
-    calls += 1;
-    if (calls === 1) {
-      return mockResponse(
-        '{"detail":"Failed to open URL (ERR1). Please try again."}',
-        500,
-        "application/json",
-      );
-    }
-    return mockResponse("<html><h1>Rendered</h1></html>");
-  };
-
-  const result = await fetchWithUnblockerApi({
-    token: "test-token",
-    url: "https://target.example",
-    unblock: "auto",
-  });
-  assert.equal(calls, 2);
-  assert.equal(result.status_code, 200);
-  assert.equal(result.unblocker.escalated, true);
-});
-
-test("never mode rejects selector waiting before making a request", async () => {
-  let called = false;
-  globalThis.fetch = async () => {
-    called = true;
-    return mockResponse("");
-  };
-  await assert.rejects(
-    fetchWithUnblockerApi({
-      token: "test-token",
-      url: "https://target.example",
-      unblock: "never",
-      waitForSelector: ".ready",
-    }),
-    /wait-for requires browser rendering/,
-  );
-  assert.equal(called, false);
+  assert.equal(calls[0].searchParams.get("url"), "https://target.example");
+  assert.equal(calls[0].searchParams.get("timeout"), "30");
+  assert.equal(calls[0].searchParams.get("geoCode"), "ID");
+  assert.equal(calls[0].searchParams.get("browserRendering"), "true");
+  assert.equal(calls[0].searchParams.get("waitForSelector"), ".ready");
+  assert.equal(calls[0].searchParams.get("homePage"), "true");
+  assert.equal(calls[0].searchParams.get("blockResources"), "true");
+  assert.equal(calls[0].searchParams.get("maxRetries"), "2");
+  assert.equal(calls[0].searchParams.get("tokenCap"), "50");
+  assert.match(result.data, /Authorization: Bearer documentation-example/);
 });
 
 test("SERP accepts a plain query and sends the documented v2 payload", async () => {
@@ -244,6 +225,6 @@ test("SERP omits optional fields when only a query is provided", async () => {
 test("the public package entry point imports successfully", async () => {
   const exports = await import("../lib/index.js");
   assert.equal(exports.SYNC_SCRAPER_BASE_URL, SYNC_SCRAPER_BASE_URL);
-  assert.equal(typeof exports.fetchWithUnblockerApi, "function");
+  assert.equal(typeof exports.fetchContentApi, "function");
   assert.equal(typeof exports.getSubscriptionAccountApi, "function");
 });

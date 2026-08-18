@@ -1,111 +1,87 @@
 ---
 name: mrscraper-fetch
 description: |
-  Fetch and read content from a known URL with the MrScraper CLI, returning Markdown, HTML, or a page-document JSON payload with automatic unblocking and browser rendering when needed. Use when the user provides a URL and wants its page content to read, summarize, cite, inspect, or archive, or when a direct request encounters a challenge page, 403, 429, missing dynamic content, or geo-sensitive response. Do not use for requested fields or structured records; use mrscraper-scrape. Do not use for query-first discovery; use mrscraper-serp.
+  Fetch unchanged HTML from a known URL with one MrScraper CLI request, optionally sending the API's browserRendering, geoCode, selector-wait, homepage, resource-blocking, retry, token-cap, and timeout parameters. Use when the user provides a URL and wants page content to read, summarize, cite, inspect, or archive, including JavaScript-rendered or geo-sensitive pages. Do not use for requested fields or structured records; use mrscraper-scrape. Do not use for query-first discovery; use mrscraper-serp.
 ---
 
-# Fetch Page Content with MrScraper
+# Fetch Page HTML with MrScraper
 
-Use `fetch` when a target URL is already known and the output should be the page
-itself rather than selected fields. For installation, authentication, or
-cross-command routing, use [mrscraper](../mrscraper/SKILL.md).
+Use `fetch` for a known URL when the page itself is needed. For installation,
+authentication, or command routing, use [mrscraper](../mrscraper/SKILL.md).
 
-## Fetch a Page
-
-Create a local output directory when the result should persist:
+## Fetch Once
 
 ```bash
-mkdir -p .mrscraper
-mrscraper fetch "https://example.com" > .mrscraper/example.json
+mkdir -p ./.mrscraper
+mrscraper fetch "https://example.com" > ./.mrscraper/example-fetch.json
 ```
 
-Markdown is the default. The CLI writes a JSON envelope to stdout; extract the
-formatted page from `.data`:
+The command makes one `GET https://api.mrscraper.com/` request. Stdout is a
+CLI-created JSON envelope; `.data` is the endpoint's unchanged HTML:
 
 ```bash
 mrscraper fetch "https://example.com" | jq -r '.data'
 ```
 
-Choose another representation only when required:
+Do not expect Markdown or page-document JSON. Fetch has no `--format` option and
+does not locally parse or convert HTML.
+
+## Send Browser Controls Explicitly
+
+Use the backend's browser renderer only when JavaScript or dynamic content is
+required:
 
 ```bash
-mrscraper fetch "https://example.com" \
-  --format html > .mrscraper/example-html.json
-
-mrscraper fetch "https://example.com" \
-  --format json > .mrscraper/example-document.json
+mrscraper fetch "https://example.com" --browser-rendering
 ```
 
-- `markdown` returns readable content for reasoning and summarization.
-- `html` returns page HTML.
-- `json` returns MrScraper's page-document representation.
-
-## Escalate Unblocking Progressively
-
-Start with the default `auto` policy. It attempts the lower-cost path and
-escalates when MrScraper detects a likely block:
-
-```bash
-mrscraper fetch "https://example.com" --unblock auto
-```
-
-Force browser rendering when the response is a challenge page, blocked,
-incomplete, or dependent on client-side rendering:
-
-```bash
-mrscraper fetch "https://example.com" --unblock always
-```
-
-Wait for a dynamic element when browser rendering starts before the required
-content appears:
+Wait for a CSS selector only with explicit browser rendering:
 
 ```bash
 mrscraper fetch "https://example.com/products" \
-  --unblock always --wait-for ".product-card"
+  --browser-rendering \
+  --wait-for-selector ".product-card"
 ```
 
-Treat `--wait-for` as a CSS selector, not a duration.
+The CLI does not detect block pages or escalate automatically. If a direct
+request is blocked or incomplete, inspect that result, then make one explicit
+browser-rendered retry. Do not blind-retry.
 
-Add only the controls the target requires:
+Add only API parameters the target requires:
 
 ```bash
 # Route through Indonesia
-mrscraper fetch "https://example.com" --unblock always --geo ID
+mrscraper fetch "https://example.com" --browser-rendering --geo-code ID
 
 # Establish site cookies from the home page first
 mrscraper fetch "https://example.com/product" \
-  --unblock always --homepage
+  --browser-rendering --home-page
 
-# Reduce non-essential browser traffic and keep retry work bounded
+# Bound backend retries and token use
 mrscraper fetch "https://example.com" \
-  --unblock always --block-resources --retries 3 --token-cap 10000
+  --browser-rendering --block-resources --max-retries 3 --token-cap 10000
 ```
 
-Use `--timeout <seconds>` for a genuinely slow page. Keep retries and token caps
-bounded instead of repeatedly retrying an inaccessible target.
+Parameter mapping is direct:
 
-## Choose the Correct Boundary
+- `--browser-rendering` → `browserRendering=true`
+- `--geo-code` → `geoCode`
+- `--wait-for-selector` → `waitForSelector`
+- `--home-page` → `homePage=true`
+- `--block-resources` → `blockResources=true`
+- `--max-retries` → `maxRetries`
+- `--token-cap` → `tokenCap`
+- `--timeout` → the API page-load `timeout`; the CLI transport allows 30 extra seconds
 
-- Use `fetch` for page content to read, summarize, cite, compare, or archive.
-- Use [mrscraper-scrape](../mrscraper-scrape/SKILL.md) when the user requests
-  particular fields, repeated records, listings, or an explicit JSON shape.
-- Use [mrscraper-serp](../mrscraper-serp/SKILL.md) when no target URL is known.
-- Do not claim that browser rendering supports clicks, form entry, login, or an
+## Handle Results
+
+- Preserve the JSON envelope when diagnostics or response headers matter.
+- Extract `.data` when only HTML is needed.
+- Check the exit code before trusting the body.
+- Treat `--wait-for-selector` as a CSS selector, not a duration.
+- Do not claim browser rendering supports clicks, forms, login, or an
   interactive session.
+- Use [mrscraper-scrape](../mrscraper-scrape/SKILL.md) for requested fields or
+  records and [mrscraper-serp](../mrscraper-serp/SKILL.md) for discovery.
 
-## Handle Results and Failures
-
-- Quote every URL because query parameters contain shell metacharacters.
-- Keep JSON on stdout intact; send extracted Markdown to a separate file or
-  pipe `.data` through `jq`.
-- Check the exit code before trusting output.
-- For 401, authenticate through the `mrscraper` router skill.
-- For 403, 429, a challenge page, or incomplete content, use
-  `--unblock always` before adding geo, homepage, or selector controls.
-- For missing dynamic content, combine `--unblock always` with the narrowest
-  stable CSS selector.
-- For repeated failures, stop and report the target and attempted escalation;
-  do not create an unsupported interaction workflow.
-
-Keep `.mrscraper/` out of version control unless the user asks to commit the
-artifacts.
+Keep `./.mrscraper/` out of version control unless the user asks to commit it.

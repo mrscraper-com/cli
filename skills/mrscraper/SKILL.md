@@ -50,7 +50,7 @@ MrScraper also offers MCP, but it is not installed by this bootstrap. Configure
 its hosted endpoint separately with a bearer API key only when the user asks.
 
 After bootstrap, run `mrscraper auth status --json`. If it reports
-`authenticated: false`, let bootstrap remain finished. In a local interactive
+`credential_configured: false`, let bootstrap remain finished. In a local interactive
 session, run `mrscraper login` and tell the human to approve the browser request.
 Keep the command running until approval completes; do not submit a duplicate.
 In a headless, remote, or unattended session, do not launch browser login—ask
@@ -120,9 +120,10 @@ mrscraper scrape "https://example.com/listing" \
 mrscraper serp "example search query" > ./.mrscraper/search.json
 ```
 
-`fetch` and `serp` write JSON envelopes to stdout. `scrape --output` writes only
-the extracted payload. Check the exit code, then report the useful result and
-artifact path. Load the focused skill for detailed options and edge cases.
+`fetch` and `serp` write CLI-created JSON envelopes to stdout. Fetch preserves
+the endpoint HTML in `.data`; it does not convert formats. `scrape --output`
+writes the documented extracted payload. Check the exit code, then report the
+useful result and artifact path. Load the focused skill for parameter details.
 
 ## Rerun and Inspect Saved Work
 

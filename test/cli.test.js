@@ -99,7 +99,7 @@ test("login --api-key and auth status use ~/.mrscraper/auth.json", async (t) => 
   assert.equal(status.code, 0);
   assert.equal(status.stderr, "");
   const payload = JSON.parse(status.stdout);
-  assert.equal(payload.authenticated, true);
+  assert.equal(payload.credential_configured, true);
   assert.equal(payload.auth_type, "api_key");
   assert.doesNotMatch(status.stdout, /test-api-key/);
 });
@@ -180,7 +180,7 @@ test("setup skills can target Hermes without requiring detection", async () => {
   assert.match(result.stdout, /--agent hermes-agent --yes/);
 });
 
-test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t) => {
+test("fetch makes one request and preserves the endpoint HTML in its CLI envelope", async (t) => {
   let requestUrl;
   const server = http.createServer((request, response) => {
     requestUrl = new URL(request.url, "http://localhost");
@@ -191,16 +191,51 @@ test("fetch prints only JSON to stdout and converts HTML to Markdown", async (t)
   t.after(() => close(server));
 
   const result = await runCli(
-    ["fetch", "https://target.example", "--token", "test", "--unblock", "never"],
+    [
+      "fetch",
+      "https://target.example",
+      "--token",
+      "test",
+      "--browser-rendering",
+      "--geo-code",
+      "ID",
+      "--wait-for-selector",
+      ".ready",
+      "--home-page",
+      "--block-resources",
+      "--max-retries",
+      "2",
+      "--token-cap",
+      "50",
+    ],
     { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
   );
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
   const output = JSON.parse(result.stdout);
-  assert.equal(output.format, "markdown");
-  assert.match(output.data, /# Fetched/);
-  assert.equal(requestUrl.searchParams.get("browserRendering"), "false");
+  assert.equal(output.data, "<html><body><h1>Fetched</h1><p>Page</p></body></html>");
+  assert.equal(requestUrl.searchParams.get("browserRendering"), "true");
+  assert.equal(requestUrl.searchParams.get("geoCode"), "ID");
+  assert.equal(requestUrl.searchParams.get("waitForSelector"), ".ready");
+  assert.equal(requestUrl.searchParams.get("homePage"), "true");
+  assert.equal(requestUrl.searchParams.get("blockResources"), "true");
+  assert.equal(requestUrl.searchParams.get("maxRetries"), "2");
+  assert.equal(requestUrl.searchParams.get("tokenCap"), "50");
+});
+
+test("fetch requires explicit browser rendering for selector waits", async () => {
+  const result = await runCli([
+    "fetch",
+    "https://target.example",
+    "--token",
+    "test",
+    "--wait-for-selector",
+    ".ready",
+  ]);
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /requires --browser-rendering/);
 });
 
 test("API failures produce JSON and a non-zero exit code", async (t) => {
@@ -212,7 +247,7 @@ test("API failures produce JSON and a non-zero exit code", async (t) => {
   t.after(() => close(server));
 
   const result = await runCli(
-    ["fetch", "https://target.example", "--token", "test", "--unblock", "never"],
+    ["fetch", "https://target.example", "--token", "test"],
     { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
   );
 
@@ -257,6 +292,8 @@ test("status summarizes the account without exposing API tokens", async (t) => {
 
   assert.equal(result.code, 0);
   const output = JSON.parse(result.stdout);
+  assert.equal(output.kind, "mrscraper-cli-status-summary");
+  assert.deepEqual(output.source_endpoints, ["/subscription-accounts"]);
   assert.equal(output.data.account.token_remaining, 80);
   assert.equal(output.data.account.subscription_status, "active");
   assert.doesNotMatch(result.stdout, /atk_secret|sub_secret/);
@@ -347,31 +384,27 @@ test("status adds domain analytics with a UTC date range", async (t) => {
   assert.equal(analyticsUrl.searchParams.get("action"), "");
   assert.equal(analyticsUrl.searchParams.get("apiTokenName"), "");
   const output = JSON.parse(result.stdout);
+  assert.deepEqual(output.source_endpoints, [
+    "/subscription-accounts",
+    "/analytic/statuses",
+  ]);
   assert.equal(output.data.analytics.countAll, 5);
   assert.equal(output.data.analytics.successRate, 80);
 });
 
-test("promptless scrape remains an HTML-compatible fetch alias", async (t) => {
-  const server = http.createServer((_request, response) => {
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end("<html><body>Legacy fetch</body></html>");
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
+test("promptless general scrape is rejected instead of routing to fetch", async () => {
+  const result = await runCli([
+    "scrape",
+    "https://target.example",
+    "--token",
+    "test",
+  ]);
 
-  const result = await runCli(
-    ["scrape", "https://target.example", "--token", "test", "--unblock", "never"],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 0);
-  assert.match(result.stderr, /deprecated/);
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.format, "html");
-  assert.match(output.data, /Legacy fetch/);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /--prompt is required for general and listing/);
 });
 
-test("scrape includes a local JSON Schema in the AI extraction message", async (t) => {
+test("scrape labels schema prompt guidance and sends it only inside message", async (t) => {
   let requestBody;
   const server = http.createServer(async (request, response) => {
     assert.equal(request.url, "/api/v1/scrapers-ai");
@@ -391,7 +424,7 @@ test("scrape includes a local JSON Schema in the AI extraction message", async (
       "https://target.example",
       "--prompt",
       "Extract the product",
-      "--schema",
+      "--schema-prompt",
       schemaPath,
       "--token",
       "test",
@@ -403,7 +436,9 @@ test("scrape includes a local JSON Schema in the AI extraction message", async (
   assert.equal(requestBody.agent, "general");
   assert.match(requestBody.message, /Extract the product/);
   assert.match(requestBody.message, /JSON Schema/);
+  assert.match(requestBody.message, /does not validate this schema/);
   assert.match(requestBody.message, /\"price\"/);
+  assert.equal(requestBody.schema, undefined);
 });
 
 test("scrape --output writes only extracted JSON and preserves stdout", async (t) => {
@@ -456,7 +491,7 @@ test("scrape --output writes only extracted JSON and preserves stdout", async (t
   assert.deepEqual(envelope.data.data.data, extracted);
 });
 
-test("scrape --output decodes a JSON-encoded extraction once", async (t) => {
+test("scrape --output preserves a JSON-encoded extraction as the backend string", async (t) => {
   const outputRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "mrscraper-cli-output-"),
   );
@@ -491,12 +526,13 @@ test("scrape --output decodes a JSON-encoded extraction once", async (t) => {
   );
 
   assert.equal(result.code, 0);
-  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), {
-    name: "Encoded listing",
-  });
+  assert.equal(
+    JSON.parse(fs.readFileSync(outputPath, "utf8")),
+    JSON.stringify({ name: "Encoded listing" }),
+  );
 });
 
-test("scrape --output supports a direct run-object API response", async (t) => {
+test("scrape --output rejects undocumented direct run response shapes", async (t) => {
   const outputRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "mrscraper-cli-output-"),
   );
@@ -530,10 +566,9 @@ test("scrape --output supports a direct run-object API response", async (t) => {
     { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
   );
 
-  assert.equal(result.code, 0);
-  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), {
-    name: "Direct listing",
-  });
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /documented data\.data run object/);
+  assert.equal(fs.existsSync(outputPath), false);
 });
 
 test("scrape --output does not create a file without extracted data", async (t) => {
@@ -637,7 +672,7 @@ test("scrape --output does not create a file when the API fails", async (t) => {
   assert.equal(JSON.parse(result.stdout).status_code, 500);
 });
 
-test("scrape --output requires structured extraction mode", async (t) => {
+test("scrape --output does not replace the required extraction prompt", async (t) => {
   const outputRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "mrscraper-cli-output-"),
   );
@@ -652,7 +687,7 @@ test("scrape --output requires structured extraction mode", async (t) => {
   ]);
 
   assert.equal(result.code, 1);
-  assert.match(result.stderr, /requires --prompt, --schema, or --agent/);
+  assert.match(result.stderr, /--prompt is required for general and listing/);
   assert.equal(fs.existsSync(outputPath), false);
 });
 
@@ -691,4 +726,135 @@ test("listing scrape warns agents while keeping stdout as JSON", async (t) => {
   assert.match(result.stderr, /max-pages=2/);
   assert.equal(requestBody.agent, "listing");
   assert.equal(requestBody.maxPages, 2);
+});
+
+test("listing omits maxPages when the user does not supply it", async (t) => {
+  let requestBody;
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful operation!","data":{"id":"listing-1"}}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example/listings",
+      "--agent",
+      "listing",
+      "--prompt",
+      "Extract every listing",
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(requestBody.maxPages, undefined);
+  assert.match(result.stderr, /max-pages=backend default/);
+});
+
+test("map rejects prompt instead of silently discarding it", async () => {
+  const result = await runCli([
+    "scrape",
+    "https://target.example",
+    "--agent",
+    "map",
+    "--prompt",
+    "Find product URLs",
+    "--token",
+    "test",
+  ]);
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /--prompt is not accepted by the map agent/);
+});
+
+test("map sends only explicitly supplied map parameters", async (t) => {
+  let requestBody;
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful operation!","data":{"id":"map-1"}}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example",
+      "--agent",
+      "map",
+      "--max-depth",
+      "2",
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.deepEqual(requestBody, {
+    url: "https://target.example",
+    agent: "map",
+    maxDepth: 2,
+  });
+});
+
+test("rerun rejects endpoint-specific options instead of silently ignoring them", async () => {
+  const bulkResult = await runCli([
+    "rerun",
+    "https://a.example,https://b.example",
+    "--bulk",
+    "--type",
+    "ai",
+    "--id",
+    "scraper-1",
+    "--max-pages",
+    "2",
+    "--token",
+    "test",
+  ]);
+  assert.equal(bulkResult.code, 1);
+  assert.match(bulkResult.stderr, /--max-pages is not accepted by bulk rerun endpoints/);
+
+  const manualResult = await runCli([
+    "rerun",
+    "https://a.example",
+    "--type",
+    "manual",
+    "--scraper-id",
+    "scraper-1",
+    "--max-depth",
+    "2",
+    "--token",
+    "test",
+  ]);
+  assert.equal(manualResult.code, 1);
+  assert.match(manualResult.stderr, /--max-depth is only accepted by single AI reruns/);
+});
+
+test("command help distinguishes API parameters from removed client transformations", async () => {
+  const fetchHelp = await runCli(["fetch", "--help"]);
+  assert.equal(fetchHelp.code, 0);
+  assert.doesNotMatch(fetchHelp.stdout, /--format|--unblock/);
+  assert.match(fetchHelp.stdout, /--browser-rendering/);
+
+  const scrapeHelp = await runCli(["scrape", "--help"]);
+  assert.equal(scrapeHelp.code, 0);
+  assert.match(scrapeHelp.stdout, /--schema-prompt/);
+  assert.doesNotMatch(scrapeHelp.stdout, /--format|--unblock/);
+
+  const serpHelp = await runCli(["serp", "--help"]);
+  assert.equal(serpHelp.code, 0);
+  assert.match(serpHelp.stdout, /--format/);
+  assert.match(serpHelp.stdout, /--client-timeout/);
 });
