@@ -202,7 +202,16 @@ when the user wants a repeatable version of an earlier scrape.
 The `scraperId` makes the configuration reusable, but it does not guarantee
 identical extracted values when the source page or model behavior changes.
 
-Choose a rerun mode:
+Choose the scraper type and target count independently:
+
+1. Use `--type ai` for a saved AI scraper created by `mrscraper scrape`.
+2. Use `--type manual` for a saved step-based workflow created in the
+   MrScraper dashboard. Do not try to create a manual scraper with this CLI.
+3. Omit `--bulk` for one URL. Add `--bulk` to apply the same saved
+   configuration to a comma- or newline-separated URL list in one request.
+
+Do not treat manual as meaning single or bulk as meaning manual. Both scraper
+types support single and bulk reruns:
 
 | Mode | Required ID | URL input | Crawl controls |
 | --- | --- | --- | --- |
@@ -210,6 +219,11 @@ Choose a rerun mode:
 | Single manual | `--scraper-id` | One URL | Not used |
 | Bulk AI | `--bulk --id` | Comma- or newline-separated URLs | Not used |
 | Bulk manual | `--bulk --id` | Comma- or newline-separated URLs | Not used |
+
+Treat a bulk rerun as one asynchronous backend job, not as repeated local
+single-URL calls. Read `data.data.bulkResultId` from the submission response,
+then call `mrscraper result --id <bulk-result-uuid>` until the stored result is
+finished. Do not present the initial running response as completed data.
 
 Examples:
 
@@ -239,7 +253,8 @@ Single AI crawl controls and defaults:
 | `--exclude-patterns <regex>` | `""` | Exclude matching URLs. |
 | `--token <key>` | configured credential | Override authentication. |
 
-Use a saved manual scraper only after it has been created in MrScraper.
+Use a saved manual scraper only after it has been created in the MrScraper
+dashboard.
 
 ## Step 6 — Inspect Stored Results
 

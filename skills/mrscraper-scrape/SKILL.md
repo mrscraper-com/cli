@@ -142,6 +142,11 @@ Prefer `rerun` over recreating the scrape definition when the user wants a
 repeatable extraction. Explain that this reproduces the saved configuration,
 not necessarily identical values when the page or model behavior changes.
 
+Use `rerun` also for existing dashboard-built manual workflows and
+asynchronous bulk jobs across multiple target URLs. Follow the full rerun
+workflow in [mrscraper](../mrscraper/SKILL.md) for mode selection and result
+tracking.
+
 ## Step 8 — Handle Failures
 
 - Check the exit code before trusting stdout or an output file.

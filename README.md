@@ -339,6 +339,10 @@ response when the scraper UUID will be needed later. Reproducible means the
 saved configuration can be reused; page changes and model behavior can still
 change the returned data.
 
+`rerun` also supports dashboard-built manual workflows and asynchronous bulk
+jobs across multiple target URLs. See the full [`rerun`](#rerun) section below
+for the available modes and result-tracking workflow.
+
 | Option | Description |
 | --- | --- |
 | `-p, --prompt <text>` | Extraction instructions. |
@@ -427,6 +431,26 @@ request is made.
 | `--token <key>` | — | Override configured authentication with an API key. |
 
 ## `rerun`
+
+`--type` and `--bulk` answer two separate questions:
+
+- Use `--type ai` for a saved AI scraper created by `mrscraper scrape`.
+- Use `--type manual` for a saved step-based workflow created in the MrScraper
+  dashboard. The CLI can run that workflow but does not create it.
+- Omit `--bulk` to run the saved scraper on one URL. Add `--bulk` to apply the
+  same scraper configuration to a comma- or newline-separated URL list in one
+  bulk request.
+
+Manual reruns can be single or bulk, and bulk reruns can use either an AI or a
+manual scraper.
+
+Bulk mode submits one asynchronous backend job; the CLI does not call the
+single-URL endpoint repeatedly. Save `data.data.bulkResultId` from the response
+and inspect it until completion:
+
+```bash
+mrscraper result --id BULK_RESULT_UUID
+```
 
 The CLI selects one of four endpoints from `--type` and `--bulk`:
 
