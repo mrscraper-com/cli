@@ -1,6 +1,6 @@
 {
   "name": "mrscraper-cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MrScraper web fetching, structured extraction, Google search, and saved-run workflows for Codex.",
   "author": {
     "name": "MrScraper",

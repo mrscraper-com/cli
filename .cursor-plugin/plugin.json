@@ -1,7 +1,7 @@
 {
   "name": "mrscraper-cli",
   "displayName": "MrScraper",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Fetch pages, extract structured web data, and discover sources through Google with the MrScraper CLI.",
   "author": {
     "name": "MrScraper"
