@@ -315,6 +315,30 @@ mrscraper scrape URL --agent listing --prompt "Extract products" --max-pages 5
 mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 ```
 
+### Reproduce a scrape with `rerun`
+
+Every successful `scrape` creates a saved AI scraper configuration by default.
+The complete stdout response contains its UUID at `data.data.scraperId`. Keep
+that UUID to run the same saved extraction configuration against the original
+URL or a new URL without rebuilding the prompt and agent settings:
+
+```bash
+mrscraper scrape "https://example.com/product" \
+  --prompt "Extract the product name, price, and availability" \
+  --output .mrscraper/product.json \
+  > .mrscraper/product-run.json
+
+SCRAPER_UUID=$(jq -r '.data.data.scraperId' .mrscraper/product-run.json)
+mrscraper rerun "https://example.com/product-2" \
+  --type ai \
+  --scraper-id "$SCRAPER_UUID"
+```
+
+The `--output` file contains only the extracted value, so retain the stdout
+response when the scraper UUID will be needed later. Reproducible means the
+saved configuration can be reused; page changes and model behavior can still
+change the returned data.
+
 | Option | Description |
 | --- | --- |
 | `-p, --prompt <text>` | Extraction instructions. |

@@ -146,7 +146,7 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 | Read, summarize, cite, inspect, or archive a known URL, including a protected or JavaScript-driven page | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
 | Extract fields, listings, records, tables, or site URLs from a known URL | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
 | Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) |
-| Run an existing AI or manual scraper on new URLs | `mrscraper rerun` |
+| Reproduce a prior scrape or run an existing AI/manual scraper on new URLs | `mrscraper rerun` |
 | List or retrieve stored results | `mrscraper results` or `mrscraper result` |
 | Check account usage or domain request outcomes | `mrscraper status` |
 
@@ -192,6 +192,15 @@ folder `~/.mrscraper/`. Keep project artifacts out of version control unless
 the user asks to commit them.
 
 ## Step 5 — Rerun Saved Scrapers
+
+A successful `mrscraper scrape` creates a saved AI scraper configuration by
+default. Read its UUID from `data.data.scraperId` in the stdout response and
+use `rerun --type ai --scraper-id <uuid>` to apply the same saved extraction
+configuration to the same or another URL. Prefer this over rebuilding a prompt
+when the user wants a repeatable version of an earlier scrape.
+
+The `scraperId` makes the configuration reusable, but it does not guarantee
+identical extracted values when the source page or model behavior changes.
 
 Choose a rerun mode:
 

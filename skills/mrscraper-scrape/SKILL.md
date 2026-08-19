@@ -120,7 +120,29 @@ Treat a successfully written output file as the extraction artifact. Report its
 path and summarize the requested result. Post-process only when the user asks
 for filtering, merging, normalization, CSV, a table, or another deliverable.
 
-## Step 7 — Handle Failures
+## Step 7 — Preserve the Reproducible Scraper
+
+Every successful `scrape` creates a saved AI scraper configuration by default.
+Read `data.data.scraperId` from the complete stdout response and retain it when
+the extraction may need to run again. The `--output` file contains only
+`data.data.data`, so it does not preserve the scraper UUID.
+
+In the result handoff, tell the user that the scraper is reusable and report
+the `scraperId` when it is available.
+
+Reuse the saved prompt and agent configuration on the same or another URL:
+
+```bash
+mrscraper rerun "https://example.com/another-product" \
+  --type ai \
+  --scraper-id SCRAPER_UUID
+```
+
+Prefer `rerun` over recreating the scrape definition when the user wants a
+repeatable extraction. Explain that this reproduces the saved configuration,
+not necessarily identical values when the page or model behavior changes.
+
+## Step 8 — Handle Failures
 
 - Check the exit code before trusting stdout or an output file.
 - If the output file is absent, inspect `error`, `status_code`, and `data`
