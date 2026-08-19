@@ -1,0 +1,20 @@
+{
+  "name": "mrscraper-dev",
+  "interface": {
+    "displayName": "MrScraper (local dev)"
+  },
+  "plugins": [
+    {
+      "name": "mrscraper-cli",
+      "source": {
+        "source": "local",
+        "path": "./plugins/mrscraper-cli"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

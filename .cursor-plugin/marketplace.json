@@ -1,0 +1,16 @@
+{
+  "name": "mrscraper",
+  "owner": {
+    "name": "MrScraper"
+  },
+  "metadata": {
+    "description": "Official MrScraper plugins for Cursor."
+  },
+  "plugins": [
+    {
+      "name": "mrscraper-cli",
+      "source": ".",
+      "description": "Fetch pages, extract structured web data, and discover sources through Google with the MrScraper CLI."
+    }
+  ]
+}

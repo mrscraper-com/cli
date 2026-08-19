@@ -1,0 +1,37 @@
+{
+  "name": "mrscraper-cli",
+  "version": "0.3.0",
+  "description": "MrScraper web fetching, structured extraction, Google search, and saved-run workflows for Codex.",
+  "author": {
+    "name": "MrScraper",
+    "url": "https://github.com/mrscraper-com"
+  },
+  "homepage": "https://app.mrscraper.com",
+  "repository": "https://github.com/mrscraper-com/cli",
+  "license": "MIT",
+  "keywords": [
+    "mrscraper",
+    "web-scraping",
+    "data-extraction",
+    "search",
+    "research"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "MrScraper",
+    "shortDescription": "Fetch pages and extract web data with MrScraper",
+    "longDescription": "Skills-only Codex plugin for fetching readable page content, extracting structured JSON, discovering pages through Google, and working with saved MrScraper runs. Requires the MrScraper CLI and an API key.",
+    "developerName": "MrScraper",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://app.mrscraper.com",
+    "defaultPrompt": [
+      "Get all listing information from this URL and save the extracted JSON.",
+      "Fetch this page as readable Markdown and summarize it.",
+      "Search Google for this topic and return the most relevant sources."
+    ]
+  }
+}
