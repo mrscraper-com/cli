@@ -88,7 +88,9 @@ mrscraper auth status --json
 A configured credential reports `credential_configured: true`. This command
 reads local configuration.
 
-For a local interactive session:
+A `credential_configured: false` result means the CLI is not authenticated. On
+a local interactive machine, start browser login so the CLI can be used right
+away:
 
 ```bash
 mrscraper login
@@ -104,6 +106,18 @@ can also store a key outside the agent conversation:
 ```bash
 mrscraper login --api-key "<key>"
 ```
+
+After credentials are configured, verify end-to-end access with one small
+scrape:
+
+```bash
+mrscraper scrape "https://example.com" \
+  --prompt "Extract the page title"
+```
+
+Treat a successful command as confirmation that the CLI can authenticate and
+reach the service. If it fails, report the error and do not claim setup is
+complete.
 
 ### Login parameters
 
