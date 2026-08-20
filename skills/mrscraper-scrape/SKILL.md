@@ -1,7 +1,6 @@
 ---
 name: mrscraper-scrape
-description: |
-  Extract structured data from an authorized public URL with the MrScraper CLI using the general, listing, or map agent. The general and listing modes use an LLM to read page HTML and produce structured output, so prefer mrscraper-fetch when the current agent can work directly from the HTML more quickly or flexibly. Use scrape for defined fields, repeated records, paginated listings, schema-shaped JSON, reusable extraction configurations, or bounded site URL discovery. Use mrscraper-serp when no target URL is known.
+description: Extract structured data from an authorized public URL with the MrScraper CLI using the general, listing, or map agent. The general and listing modes use an LLM to read page HTML and produce structured output, so prefer mrscraper-fetch when the current agent can work directly from the HTML more quickly or flexibly. Use scrape for defined fields, repeated records, paginated listings, schema-shaped JSON, reusable extraction configurations, or bounded site URL discovery. Use mrscraper-serp when no target URL is known.
 ---
 
 # Extract Structured Data with MrScraper

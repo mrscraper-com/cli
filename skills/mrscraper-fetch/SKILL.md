@@ -1,7 +1,6 @@
 ---
 name: mrscraper-fetch
-description: |
-  Fetch HTML from a known public URL with MrScraper, with optional browser rendering, locale routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user wants to read, summarize, cite, inspect, archive, or flexibly analyze a page that they are authorized to access. Use mrscraper-scrape for backend LLM extraction of defined fields or structured records, and mrscraper-serp when no target URL is known. Do not use fetch to bypass authentication, paywalls, CAPTCHAs, access controls, or site restrictions.
+description: Fetch HTML from a known public URL with MrScraper, with optional browser rendering, locale routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user wants to read, summarize, cite, inspect, archive, or flexibly analyze a page that they are authorized to access. Use mrscraper-scrape for backend LLM extraction of defined fields or structured records, and mrscraper-serp when no target URL is known. Do not use fetch to bypass authentication, paywalls, CAPTCHAs, access controls, or site restrictions.
 ---
 
 # Fetch Page Content with MrScraper

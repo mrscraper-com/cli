@@ -1,7 +1,6 @@
 ---
 name: mrscraper
-description: |
-  Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading and flexible agent-led analysis to mrscraper-fetch, defined structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
+description: Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading and flexible agent-led analysis to mrscraper-fetch, defined structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
 ---
 
 # MrScraper CLI

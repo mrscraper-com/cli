@@ -42,7 +42,17 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
     const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/);
     assert.ok(frontmatter, `${name} must start with YAML frontmatter`);
     assert.match(frontmatter[1], new RegExp(`^name: ${name}$`, "m"));
-    assert.match(frontmatter[1], /^description: \|$/m);
+    assert.match(frontmatter[1], /^description: \S.*\S[.!?]$/m);
+    const metadataValues = Object.fromEntries(
+      [...frontmatter[1].matchAll(/^(name|description): (.+)$/gm)].map(
+        ([, key, value]) => [key, value],
+      ),
+    );
+    for (const [key, value] of Object.entries(metadataValues)) {
+      const normalized = value.normalize("NFKC").trim().replace(/\s+/gu, " ");
+      assert.equal(value, normalized, `${name} ${key} must be normalized`);
+    }
+    assert.deepEqual(Object.keys(metadataValues).sort(), ["description", "name"]);
     assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
     assert.doesNotMatch(skill, /\bTODO\b/);
     assert.doesNotMatch(
