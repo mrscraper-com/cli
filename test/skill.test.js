@@ -42,7 +42,17 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
     const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/);
     assert.ok(frontmatter, `${name} must start with YAML frontmatter`);
     assert.match(frontmatter[1], new RegExp(`^name: ${name}$`, "m"));
-    assert.match(frontmatter[1], /^description: \|$/m);
+    assert.match(frontmatter[1], /^description: \S.*\S[.!?]$/m);
+    const metadataValues = Object.fromEntries(
+      [...frontmatter[1].matchAll(/^(name|description): (.+)$/gm)].map(
+        ([, key, value]) => [key, value],
+      ),
+    );
+    for (const [key, value] of Object.entries(metadataValues)) {
+      const normalized = value.normalize("NFKC").trim().replace(/\s+/gu, " ");
+      assert.equal(value, normalized, `${name} ${key} must be normalized`);
+    }
+    assert.deepEqual(Object.keys(metadataValues).sort(), ["description", "name"]);
     assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
     assert.doesNotMatch(skill, /\bTODO\b/);
     assert.doesNotMatch(
@@ -134,6 +144,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
     /mrscraper fetch[^\n]*(?:--format|--unblock)/,
   );
   assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
+  assert.match(skills["mrscraper-fetch"], /authorized to access/);
+  assert.doesNotMatch(skills["mrscraper-fetch"], /protected pages/i);
   assert.match(skills["mrscraper-fetch"], /^## Step 5 — Deliver the Result$/m);
 
   assert.match(skills["mrscraper-scrape"], /mrscraper scrape/);
@@ -154,6 +166,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
     assert.match(skills["mrscraper-scrape"], new RegExp(option));
   }
   assert.match(skills["mrscraper-scrape"], /defined fields|fields or records/);
+  assert.match(skills["mrscraper-scrape"], /asks an LLM/);
+  assert.match(skills["mrscraper-scrape"], /Prefer\s+\[mrscraper-fetch\]/);
   assert.match(
     skills["mrscraper-scrape"],
     /Treat a successfully written output file as the extraction artifact/,

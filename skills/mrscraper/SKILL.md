@@ -1,7 +1,6 @@
 ---
 name: mrscraper
-description: |
-  Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
+description: Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading and flexible agent-led analysis to mrscraper-fetch, defined structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
 ---
 
 # MrScraper CLI
@@ -108,11 +107,10 @@ mrscraper login --api-key "<key>"
 ```
 
 After credentials are configured, verify end-to-end access with one small
-scrape:
+fetch:
 
 ```bash
-mrscraper scrape "https://example.com" \
-  --prompt "Extract the page title"
+mrscraper fetch "https://example.com"
 ```
 
 Treat a successful command as confirmation that the CLI can authenticate and
@@ -143,8 +141,8 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Read, summarize, cite, inspect, or archive a known URL, including a protected or JavaScript-driven page | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
-| Extract fields, listings, records, tables, or site URLs from a known URL | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
+| Read, summarize, cite, inspect, archive, or flexibly analyze a known public URL | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
+| Ask MrScraper's extraction LLM for defined fields, listings, records, tables, or site URLs | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
 | Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) |
 | Reproduce a prior scrape or run an existing AI/manual scraper on new URLs | `mrscraper rerun` |
 | List or retrieve stored results | `mrscraper results` or `mrscraper result` |
@@ -152,9 +150,20 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 When “scrape this page” is ambiguous, choose from the requested output:
 
-- Page content for reading or summarization → fetch;
-- Selected fields, records, or JSON → scrape;
+- Page content, reading, summarization, or analysis the current agent can do
+  from HTML → fetch;
+- Defined fields, repeated records, schema-shaped JSON, or a reusable saved
+  extraction → scrape;
 - Relevant URLs from a topic or query → SERP.
+
+`mrscraper scrape` retrieves page content and uses an extraction LLM to
+interpret it. That adds model-processing time and commits the result to the
+extraction prompt. Prefer `fetch` when the current agent can inspect the HTML
+and perform the requested analysis or transformation itself: it is usually
+faster, preserves the source content, and leaves more flexibility for follow-up
+questions. Use `scrape` when the user benefits from backend structured
+extraction, listing pagination, map discovery, schema guidance, or a reusable
+saved scraper.
 
 For discovery-first work, run SERP, select the relevant URLs, and then load the
 fetch or scrape skill for those pages.
@@ -325,8 +334,8 @@ SEO, or market analytics.
 - **CLI missing** — run the agent-safe `npx ... init` command from Step 1.
 - **Skills missing** — run `mrscraper setup skills --dry-run`, then target the
   current harness with `--agent <id>`.
-- **Page blocked or incomplete** — load
-  [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with the page-loading
+- **Page blocked or incomplete or missing dynamic content** — load
+  [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with page-loading
   options appropriate to the target.
 - **Extraction is incomplete** — load
   [mrscraper-scrape](../mrscraper-scrape/SKILL.md) and improve the prompt,

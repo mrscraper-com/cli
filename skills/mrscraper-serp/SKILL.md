@@ -1,7 +1,6 @@
 ---
 name: mrscraper-serp
-description: |
-  Discover pages through Google with the MrScraper CLI using a search query or Google search URL. Use when the user starts with a topic, product, company, or question but has no target URL; asks to search Google or inspect a result page; or needs relevant URLs before page reading or structured extraction. Supports country, language, pagination, JSON or HTML output, JavaScript rendering, and command timeouts. Use mrscraper-fetch or mrscraper-scrape once a target URL is known.
+description: Discover public pages through Google with the MrScraper CLI using a search query or Google search URL. Use when the user starts with a topic, product, company, or question but has no target URL; asks to search Google or inspect a result page; or needs relevant URLs before page reading or structured extraction. Supports country, language, pagination, JSON or HTML output, JavaScript rendering, and command timeouts. Use mrscraper-fetch for flexible agent-led work from page HTML or mrscraper-scrape for defined structured extraction once a target URL is known.
 ---
 
 # Discover Pages with MrScraper SERP
@@ -102,7 +101,7 @@ Progress and diagnostics appear on stderr.
 Select only URLs relevant to the user's goal, then:
 
 - Load [mrscraper-fetch](../mrscraper-fetch/SKILL.md) to read, summarize, cite,
-  inspect, or archive selected pages; or
+  inspect, archive, or flexibly analyze selected pages; or
 - Load [mrscraper-scrape](../mrscraper-scrape/SKILL.md) to extract requested
   fields or repeated records.
 
