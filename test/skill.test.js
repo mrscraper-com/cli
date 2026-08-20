@@ -134,6 +134,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
     /mrscraper fetch[^\n]*(?:--format|--unblock)/,
   );
   assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
+  assert.match(skills["mrscraper-fetch"], /authorized to access/);
+  assert.doesNotMatch(skills["mrscraper-fetch"], /protected pages/i);
   assert.match(skills["mrscraper-fetch"], /^## Step 5 — Deliver the Result$/m);
 
   assert.match(skills["mrscraper-scrape"], /mrscraper scrape/);
@@ -154,6 +156,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
     assert.match(skills["mrscraper-scrape"], new RegExp(option));
   }
   assert.match(skills["mrscraper-scrape"], /defined fields|fields or records/);
+  assert.match(skills["mrscraper-scrape"], /asks an LLM/);
+  assert.match(skills["mrscraper-scrape"], /Prefer\s+\[mrscraper-fetch\]/);
   assert.match(
     skills["mrscraper-scrape"],
     /Treat a successfully written output file as the extraction artifact/,

@@ -1,7 +1,7 @@
 ---
 name: mrscraper-scrape
 description: |
-  Extract structured data from a known URL with the MrScraper CLI using the general, listing, or map agent. Use for requested fields, product or property details, repeated records, paginated listings, tables as JSON, or bounded site URL discovery. General handles one-page extraction, listing handles repeated or paginated records, and map discovers URLs. JSON Schema files can provide best-effort output-shape guidance. Use mrscraper-fetch to read page content and mrscraper-serp when no target URL is known.
+  Extract structured data from an authorized public URL with the MrScraper CLI using the general, listing, or map agent. The general and listing modes use an LLM to read page HTML and produce structured output, so prefer mrscraper-fetch when the current agent can work directly from the HTML more quickly or flexibly. Use scrape for defined fields, repeated records, paginated listings, schema-shaped JSON, reusable extraction configurations, or bounded site URL discovery. Use mrscraper-serp when no target URL is known.
 ---
 
 # Extract Structured Data with MrScraper
@@ -11,6 +11,18 @@ known page or website. Use [mrscraper](../mrscraper/SKILL.md) for installation,
 authentication, saved runs, account status, or command routing.
 
 The command sends `POST https://api.app.mrscraper.com/api/v1/scrapers-ai`.
+
+For `general` and `listing`, MrScraper retrieves the page HTML and asks an LLM
+to interpret it according to `--prompt`. This adds model-processing time and
+can narrow the result to what the prompt requested. Prefer
+[mrscraper-fetch](../mrscraper-fetch/SKILL.md) when the current agent can read
+the HTML and perform the requested summarization, filtering, transformation, or
+ad hoc analysis itself. Fetch is usually faster, preserves the full source for
+follow-up questions, and avoids an extra extraction-model pass.
+
+Choose `scrape` when backend structured extraction is valuable: the user needs
+defined or repeated records, listing pagination, schema guidance, map
+discovery, or a saved scraper that can be rerun.
 
 ## Step 1 — Choose an Agent
 

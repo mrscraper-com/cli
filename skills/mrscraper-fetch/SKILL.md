@@ -1,7 +1,7 @@
 ---
 name: mrscraper-fetch
 description: |
-  Fetch page HTML from a known URL through MrScraper's Web Unblocker, with optional browser rendering, geographic routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user provides a URL and wants to read, summarize, cite, inspect, or archive the page, including protected, JavaScript-rendered, or geo-sensitive content. Use mrscraper-scrape for requested fields or structured records, and mrscraper-serp when no target URL is known.
+  Fetch HTML from a known public URL with MrScraper, with optional browser rendering, locale routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user wants to read, summarize, cite, inspect, archive, or flexibly analyze a page that they are authorized to access. Use mrscraper-scrape for backend LLM extraction of defined fields or structured records, and mrscraper-serp when no target URL is known. Do not use fetch to bypass authentication, paywalls, CAPTCHAs, access controls, or site restrictions.
 ---
 
 # Fetch Page Content with MrScraper
@@ -10,17 +10,20 @@ Use `fetch` when the user already has a URL and needs the content of that page.
 Use [mrscraper](../mrscraper/SKILL.md) for installation, authentication, saved
 runs, account status, or command routing.
 
-## Web Unblocker Context
+## Page Retrieval Context
 
 `fetch` uses MrScraper's
-[Web Unblocker](https://docs.mrscraper.com/docs/features/unblocker) to retrieve
-HTML from public or protected pages. Browser rendering executes page
-JavaScript, geographic routing selects a country proxy, selector waits allow
-delayed content to appear, and homepage navigation establishes a normal
-navigation path before loading the target.
+[page-fetching service](https://docs.mrscraper.com/docs/features/unblocker) to
+retrieve HTML from public pages. Browser rendering executes page JavaScript,
+locale routing selects geo-specific country, selector waits allow delayed
+content to appear, and homepage navigation establishes a normal navigation
+path before loading the target.
+
+Use `fetch` only for content the user is authorized to access and in accordance
+with the site's access requirements. Page-loading controls help render blocked sites.
 
 Start with the default request and add only the page-loading controls the target
-needs. Unblocker plan-token usage is based on runtime and bandwidth: one token
+needs. Plan-token usage is based on runtime and bandwidth: one token
 per 30 seconds and one token per 0.2 MB, rounded up per component. Resource
 blocking can reduce bandwidth for text-focused pages. Retries stop when the
 request succeeds, the retry limit is reached, or the running token total reaches
@@ -99,6 +102,8 @@ mrscraper fetch "https://example.com/product" \
   --home-page
 ```
 
+Use geographic routing for geo-specific content
+
 Bound resource use for a browser-rendered page:
 
 ```bash
@@ -127,8 +132,8 @@ mrscraper fetch "https://example.com" \
 
 ## Step 4 — Inspect and Retry Deliberately
 
-Start with the simplest command that can load the page. If the response is
-blocked, incomplete, or missing dynamic content:
+Start with the simplest command that can load the page. If the response
+is incomplete or missing dynamic content:
 
 1. Inspect `status_code`, `data`, and relevant response headers;
 2. Add `--browser-rendering`;
