@@ -1,7 +1,6 @@
 ---
 name: mrscraper-scrape
-description: |
-  Extract structured data from a known URL with the MrScraper CLI using the general, listing, or map agent. Use for requested fields, product or property details, repeated records, paginated listings, tables as JSON, or bounded site URL discovery. General handles one-page extraction, listing handles repeated or paginated records, and map discovers URLs. JSON Schema files can provide best-effort output-shape guidance. Use mrscraper-fetch to read page content and mrscraper-serp when no target URL is known.
+description: Extract structured data from a known URL with the MrScraper CLI using the general, listing, or map agent. Use for requested fields, product or property details, repeated records, paginated listings, tables as JSON, or bounded site URL discovery. General handles one-page extraction, listing handles repeated or paginated records, and map discovers URLs. JSON Schema files can provide best-effort output-shape guidance. Use mrscraper-fetch to read page content and mrscraper-serp when no target URL is known.
 ---
 
 # Extract Structured Data with MrScraper

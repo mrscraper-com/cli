@@ -1,7 +1,6 @@
 ---
 name: mrscraper-fetch
-description: |
-  Fetch page HTML from a known URL through MrScraper's Web Unblocker, with optional browser rendering, geographic routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user provides a URL and wants to read, summarize, cite, inspect, or archive the page, including protected, JavaScript-rendered, or geo-sensitive content. Use mrscraper-scrape for requested fields or structured records, and mrscraper-serp when no target URL is known.
+description: Fetch page HTML from a known public URL with MrScraper, with optional JavaScript rendering, locale selection, selector waits, resource blocking, retries, token limits, and page-load timeouts. Use when the user provides a public URL and wants to read, summarize, cite, inspect, or archive the page, including JavaScript-rendered or locale-specific content. Respect website access requirements and stop when content requires authorization. Use mrscraper-scrape for requested fields or structured records, and mrscraper-serp when no target URL is known.
 ---
 
 # Fetch Page Content with MrScraper
@@ -10,17 +9,15 @@ Use `fetch` when the user already has a URL and needs the content of that page.
 Use [mrscraper](../mrscraper/SKILL.md) for installation, authentication, saved
 runs, account status, or command routing.
 
-## Web Unblocker Context
+## Page Fetching Context
 
-`fetch` uses MrScraper's
-[Web Unblocker](https://docs.mrscraper.com/docs/features/unblocker) to retrieve
-HTML from public or protected pages. Browser rendering executes page
-JavaScript, geographic routing selects a country proxy, selector waits allow
-delayed content to appear, and homepage navigation establishes a normal
-navigation path before loading the target.
+`fetch` retrieves HTML from public pages. Browser rendering executes page
+JavaScript, locale selection requests country-specific public content, selector
+waits allow delayed content to appear, and homepage navigation can load the
+public site root before the target.
 
 Start with the default request and add only the page-loading controls the target
-needs. Unblocker plan-token usage is based on runtime and bandwidth: one token
+needs. Fetch plan-token usage is based on runtime and bandwidth: one token
 per 30 seconds and one token per 0.2 MB, rounded up per component. Resource
 blocking can reduce bandwidth for text-focused pages. Retries stop when the
 request succeeds, the retry limit is reached, or the running token total reaches
@@ -35,7 +32,7 @@ Confirm the target URL and what the user wants from it:
 - Read, summarize, cite, or inspect the page;
 - Check whether specific text appears;
 - Archive the response; or
-- Load JavaScript-rendered or geo-sensitive content.
+- Load JavaScript-rendered or locale-specific public content.
 
 Use [mrscraper-scrape](../mrscraper-scrape/SKILL.md) when the requested outcome
 is a structured record or set of fields. Use
@@ -90,7 +87,6 @@ mrscraper fetch "https://example.com/products" \
   --wait-for-selector ".product-card"
 ```
 
-Use geographic routing or homepage navigation when the target requires it:
 
 ```bash
 mrscraper fetch "https://example.com/product" \
@@ -116,10 +112,10 @@ mrscraper fetch "https://example.com" \
 | --- | --- | --- | --- |
 | `<url>` | required | Query `url` | Target page URL. |
 | `--browser-rendering` | `false` | Query `browserRendering=true` | Load the page in a browser and execute JavaScript. |
-| `--geo-code <code>` | omitted | Query `geoCode` | Route the request through an ISO 3166-1 alpha-2 country. |
+| `--geo-code <code>` | omitted | Query `geoCode` | Request public content for an ISO 3166-1 alpha-2 locale |
 | `--wait-for-selector <selector>` | omitted | Query `waitForSelector` | Wait for a CSS selector; include `--browser-rendering`. |
-| `--home-page` | `false` | Query `homePage=true` | Visit the site root before loading the target page. |
-| `--block-resources` | `false` | Query `blockResources=true` | Block non-essential browser resources when supported by the selected proxy. |
+| `--home-page` | `false` | Query `homePage=true` | Visit the public site root before loading the target page. |
+| `--block-resources` | `false` | Query `blockResources=true` | Block non-essential browser resources during browser rendering. |
 | `--max-retries <n>` | `3` | Query `maxRetries` | Set the maximum retry attempts after a failed request; zero is accepted. |
 | `--token-cap <n>` | omitted | Query `tokenCap` | Limit the running plan-token total used to decide whether another retry may run; the initial request always runs. |
 | `--timeout <seconds>` | `30` | Query `timeout` | Set the page-load timeout; the command allows another 30 seconds to receive the response. |
@@ -128,7 +124,7 @@ mrscraper fetch "https://example.com" \
 ## Step 4 — Inspect and Retry Deliberately
 
 Start with the simplest command that can load the page. If the response is
-blocked, incomplete, or missing dynamic content:
+incomplete or missing dynamic content:
 
 1. Inspect `status_code`, `data`, and relevant response headers;
 2. Add `--browser-rendering`;
@@ -137,8 +133,9 @@ blocked, incomplete, or missing dynamic content:
 4. Run one revised command and inspect that result before trying again.
 
 Treat `--wait-for-selector` as a CSS selector, not a duration. Browser
-rendering loads a page; it does not click controls, submit forms, or provide an
-authenticated interactive browser session.
+rendering loads a public page; it does not click controls, submit forms,
+meet authorization requirements, or provide an authenticated interactive browser
+session.
 
 ## Step 5 — Deliver the Result
 

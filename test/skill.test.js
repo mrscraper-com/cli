@@ -37,12 +37,18 @@ test("repository contains exactly the four approved MrScraper skills", () => {
   assert.deepEqual(discovered, [...skillNames].sort());
 });
 
-test("every skill has complete, minimal, harness-neutral metadata", () => {
+test("every skill has complete, normalized, harness-neutral metadata", () => {
   for (const [name, skill] of Object.entries(skills)) {
     const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/);
     assert.ok(frontmatter, `${name} must start with YAML frontmatter`);
     assert.match(frontmatter[1], new RegExp(`^name: ${name}$`, "m"));
-    assert.match(frontmatter[1], /^description: \|$/m);
+    const description = frontmatter[1].match(/^description: (.+)$/m)?.[1];
+    assert.ok(description, `${name} must have a single-line description`);
+    assert.equal(
+      description,
+      description.normalize("NFKC").trim().replace(/\s+/gu, " "),
+      `${name} description must already be normalized`,
+    );
     assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
     assert.doesNotMatch(skill, /\bTODO\b/);
     assert.doesNotMatch(
@@ -112,10 +118,6 @@ test("focused skills have distinct commands and intent boundaries", () => {
   assert.match(skills["mrscraper-fetch"], /mrscraper fetch/);
   assert.match(skills["mrscraper-fetch"], /--browser-rendering/);
   assert.match(skills["mrscraper-fetch"], /GET https:\/\/api\.mrscraper\.com\//);
-  assert.match(
-    skills["mrscraper-fetch"],
-    /docs\.mrscraper\.com\/docs\/features\/unblocker/,
-  );
   assert.match(skills["mrscraper-fetch"], /runtime and bandwidth/);
   assert.match(skills["mrscraper-fetch"], /initial request always runs/);
   for (const option of [
@@ -133,6 +135,10 @@ test("focused skills have distinct commands and intent boundaries", () => {
     skills["mrscraper-fetch"],
     /mrscraper fetch[^\n]*(?:--format|--unblock)/,
   );
+  assert.match(skills["mrscraper-fetch"], /^## Access Boundary$/m);
+  assert.match(skills["mrscraper-fetch"], /only for public pages/);
+  assert.match(skills["mrscraper-fetch"], /stop when content requires authorization/);
+  assert.doesNotMatch(skills["mrscraper-fetch"], /unblocker|protected pages|geo-sensitive/i);
   assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
   assert.match(skills["mrscraper-fetch"], /^## Step 5 — Deliver the Result$/m);
 

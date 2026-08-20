@@ -1,7 +1,6 @@
 ---
 name: mrscraper
-description: |
-  Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
+description: Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading to mrscraper-fetch, structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
 ---
 
 # MrScraper CLI
@@ -143,7 +142,7 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Read, summarize, cite, inspect, or archive a known URL, including a protected or JavaScript-driven page | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
+| Read, summarize, cite, inspect, or archive a known URL, including a JavaScript-driven or locale-specific public page | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
 | Extract fields, listings, records, tables, or site URLs from a known URL | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
 | Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) |
 | Reproduce a prior scrape or run an existing AI/manual scraper on new URLs | `mrscraper rerun` |

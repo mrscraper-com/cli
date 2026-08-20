@@ -19,18 +19,22 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "MrScraper",
-    "shortDescription": "Fetch pages and extract web data with MrScraper",
-    "longDescription": "Skills-only Codex plugin for fetching readable page content, extracting structured JSON, discovering pages through Google, and working with saved MrScraper runs. Requires the MrScraper CLI and an API key.",
+    "shortDescription": "Fetch and extract web data",
+    "longDescription": "Use the MrScraper CLI to fetch page content, extract structured JSON, discover pages through Google, rerun saved scraper configurations, inspect stored results, and check account usage. The skills include installation and authentication guidance for supported coding agents.",
     "developerName": "MrScraper",
     "category": "Productivity",
     "capabilities": [
       "Read",
       "Write"
     ],
-    "websiteURL": "https://app.mrscraper.com",
+    "websiteURL": "https://docs.mrscraper.com/docs/getting-started/cli",
+    "privacyPolicyURL": "https://app.mrscraper.com/privacy-policy",
+    "termsOfServiceURL": "https://app.mrscraper.com/terms-of-service",
+    "composerIcon": "./assets/mrscraper-plugin-logo.png",
+    "logo": "./assets/mrscraper-plugin-logo.png",
     "defaultPrompt": [
       "Get all listing information from this URL and save the extracted JSON.",
-      "Fetch this page as readable Markdown and summarize it.",
+      "Fetch this page and summarize its contents.",
       "Search Google for this topic and return the most relevant sources."
     ]
   }

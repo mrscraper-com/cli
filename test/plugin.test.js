@@ -46,6 +46,7 @@ function findMarketplaceEntry(marketplaceJson, pluginJson) {
 test("repository is a version-aligned skills-only Codex plugin", () => {
   assertSkillsOnly(codexPluginJson);
   assert.equal(codexPluginJson.interface.displayName, "MrScraper");
+  assert.ok(codexPluginJson.interface.shortDescription.length <= 30);
   assert.deepEqual(codexPluginJson.interface.capabilities, ["Read", "Write"]);
   assert.ok(Array.isArray(codexPluginJson.interface.defaultPrompt));
   assert.ok(codexPluginJson.interface.defaultPrompt.length > 0);
