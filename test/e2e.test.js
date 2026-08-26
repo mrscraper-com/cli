@@ -338,11 +338,6 @@ test("published CLI workflow reaches every data command with truthful wire contr
   assert.deepEqual(aiRerunRequest.body, {
     scraperId: "scraper-1",
     url: "https://example.com/product-2",
-    maxDepth: 2,
-    maxPages: 50,
-    limit: 1000,
-    includePatterns: "",
-    excludePatterns: "",
   });
   const manualBulkRequest = requests.find(
     ({ url }) => url.pathname === "/api/v1/scrapers-manual-rerun/bulk",

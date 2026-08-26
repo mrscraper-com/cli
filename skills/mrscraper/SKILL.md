@@ -279,16 +279,22 @@ mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://
   --id SCRAPER_UUID
 ```
 
-Single AI crawl controls and defaults:
+Single AI rerun controls:
 
 | Parameter | Default | Use |
 | --- | --- | --- |
-| `--max-depth <n>` | `2` | Map crawl depth. |
-| `--max-pages <n>` | `50` | Maximum pages. |
-| `--limit <n>` | `1000` | Maximum results. |
-| `--include-patterns <regex>` | `""` | Include matching URLs. |
-| `--exclude-patterns <regex>` | `""` | Exclude matching URLs. |
+| `--max-depth <n>` | saved scraper/backend default | Map crawl depth. |
+| `--max-pages <n>` | saved scraper/backend default | Maximum pages. |
+| `--limit <n>` | saved scraper/backend default | Maximum results. |
+| `--include-patterns <regex>` | saved scraper/backend default | Include matching URLs. |
+| `--exclude-patterns <regex>` | saved scraper/backend default | Exclude matching URLs. |
+| `--proxy-country <code>` | saved scraper/backend default | Route the AI rerun through a country. |
+| `--max-retry <n>` | saved scraper/backend default | Override the AI retry count. |
+| `--timeout <seconds>` | saved scraper/backend default | Override the listing rerun timeout. |
 | `--token <key>` | configured credential | Override authentication. |
+
+The CLI sends only controls explicitly supplied by the caller. Omitting them
+preserves the saved scraper and backend defaults.
 
 Use a saved manual scraper only after it has been created in the MrScraper
 dashboard.
@@ -301,6 +307,8 @@ List result rows:
 mrscraper results --page-size 20 --page 1
 mrscraper results --search scrapethissite.com
 mrscraper results --sort-field updatedAt --sort-order desc
+mrscraper results --scraper-id SCRAPER_UUID --status Finished --type Rerun-AI
+mrscraper results --url "https://www.scrapethissite.com/pages/forms/?page_num=2"
 ```
 
 ### Results parameters
@@ -312,6 +320,10 @@ mrscraper results --sort-field updatedAt --sort-order desc
 | `--page-size <n>` | `10` | Rows per page. |
 | `--page <n>` | `1` | 1-based page number. |
 | `--search <query>` | omitted | Search filter. |
+| `--scraper-id <uuid>` | omitted | Exact saved scraper UUID filter. |
+| `--status <status>` | omitted | Exact `Draft`, `Finished`, `Running`, `Failed`, or `Cancelled` filter. |
+| `--type <type>` | omitted | Exact result-origin filter such as `AI` or `Rerun-AI`. |
+| `--url <url>` | omitted | Exact stored target URL filter. |
 | `--date-range-column <column>` | omitted | Column used by the time range. |
 | `--start-at <iso>` | omitted | Inclusive range start. |
 | `--end-at <iso>` | omitted | Inclusive range end. |
@@ -322,7 +334,11 @@ Retrieve one row by positional ID or `--id`:
 ```bash
 mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
+mrscraper result --id RESULT_UUID --no-include-html
 ```
+
+Result detail includes stored HTML by default. Use `--no-include-html` for a
+smaller response when only status, metadata, or extracted data is needed.
 
 A stored extraction is a derived snapshot. When checking completeness,
 currentness, or a disputed value, fetch the recorded source URL and compare the

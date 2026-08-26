@@ -1,6 +1,6 @@
 ---
 name: mrscraper-fetch
-description: Retrieve raw HTML from a known public URL with MrScraper. Use for reading, inspecting, summarizing, archiving, or analyzing a page, and as the default content-acquisition step before agent-led or local extraction. Supports browser rendering and page-load controls; use SERP when no target URL is known.
+description: Retrieve raw HTML from a known public URL with MrScraper. Use for reading, inspecting, summarizing, archiving, or analyzing a page, and as the default content-acquisition step before agent-led or local extraction. Supports browser rendering, real-device Super Mode, and page-load controls; use SERP when no target URL is known.
 ---
 
 # Fetch Page Content with MrScraper
@@ -118,6 +118,17 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
   --wait-for-selector ".film"
 ```
 
+Use Super Mode only when ordinary browser rendering cannot load the public page:
+
+```bash
+mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
+  --browser-rendering \
+  --super-mode
+```
+
+Super Mode routes browser rendering through a real device and may consume more
+tokens. Do not enable it preemptively.
+
 Use geographic routing or homepage navigation when the target requires it:
 
 ```bash
@@ -146,6 +157,7 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
 | --- | --- | --- | --- |
 | `<url>` | required | Query `url` | Target page URL. |
 | `--browser-rendering` | `false` | Query `browserRendering=true` | Load the page in a browser and execute JavaScript. |
+| `--super-mode` | `false` | Query `super=true` | Route browser rendering through a real device; requires `--browser-rendering`. |
 | `--geo-code <code>` | omitted | Query `geoCode` | Route the request through an ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | omitted | Query `waitForSelector` | Wait for a CSS selector; include `--browser-rendering`. |
 | `--home-page` | `false` | Query `homePage=true` | Visit the site root before loading the target page. |
@@ -164,7 +176,8 @@ is incomplete or missing dynamic content:
 2. Add `--browser-rendering`;
 3. Add `--wait-for-selector`, `--geo-code`, or `--home-page` only when the
    target requires it; and
-4. Run one revised command and inspect that result before trying again.
+4. Add `--super-mode` only when ordinary browser rendering still fails; and
+5. Run one revised command and inspect that result before trying again.
 
 Treat `--wait-for-selector` as a CSS selector, not a duration. Browser
 rendering loads a page; it does not click controls, submit forms, or provide an

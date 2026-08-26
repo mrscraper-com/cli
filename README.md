@@ -246,6 +246,7 @@ Enable browser rendering for JavaScript-dependent pages:
 
 ```bash
 mrscraper fetch URL --browser-rendering
+mrscraper fetch URL --browser-rendering --super-mode
 mrscraper fetch URL --browser-rendering --wait-for-selector '.products'
 mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 ```
@@ -254,6 +255,7 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | --- | --- | --- | --- |
 | `<url>` | `url` | required | Target page URL. |
 | `--browser-rendering` | `browserRendering` | `false` | Load the page in a browser and execute JavaScript. |
+| `--super-mode` | `super` | `false` | Route browser rendering through a real device; requires `--browser-rendering`. |
 | `--geo-code <code>` | `geoCode` | omitted | Route through the requested ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | `waitForSelector` | omitted | Wait for a CSS selector; the CLI requires explicit `--browser-rendering`. |
 | `--home-page` | `homePage` | `false` | Visit the site's root before the target page. |
@@ -265,7 +267,8 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 
 Start with the default request. Add browser rendering for JavaScript-driven
 content, a selector wait for delayed elements, geographic routing for localized
-content, or homepage navigation when the target site requires it. Unblocker
+content, or homepage navigation when the target site requires it. Add Super Mode
+only when ordinary browser rendering still cannot load the public page. Unblocker
 usage is calculated from runtime and bandwidth: one plan token per 30 seconds
 and one plan token per 0.2 MB, rounded up per component. Resource blocking can
 reduce bandwidth for text-focused pages. Use `--max-retries` and `--token-cap`
@@ -302,6 +305,7 @@ Existing agent modes remain supported:
 
 ```bash
 mrscraper scrape URL --agent general --prompt "Extract the page"
+mrscraper scrape URL --agent general --mode Super --prompt "Extract the page"
 mrscraper scrape URL --agent listing --prompt "Extract products" --max-pages 5
 mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 ```
@@ -340,6 +344,7 @@ for the available modes and result-tracking workflow.
 | `--schema-prompt <path>` | Best-effort JSON Schema guidance added to `message`; general/listing only. |
 | `-o, --output <path>` | Write `data.data.data` as pretty JSON. |
 | `-a, --agent <agent>` | Select `general`, `listing`, or `map`; defaults to `general`. |
+| `--mode <mode>` | API `mode`; select `Cheap` or `Super`, or omit it for the backend default. |
 | `--proxy-country <code>` | API `proxyCountry`; general/listing only. |
 | `--max-pages <n>` | API `maxPages`; listing/map only. The service default applies when omitted. |
 | `--max-depth <n>` | API `maxDepth`; map only and omitted when not supplied. |
@@ -460,21 +465,26 @@ mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://
 ```
 
 Single reruns require `--scraper-id`. Bulk reruns require `--bulk` and `--id`,
-and split `<target>` on commas or newlines. The single AI endpoint receives
-`--max-depth` (`2`), `--max-pages` (`50`), `--limit` (`1000`), and the include
-and exclude patterns (empty strings) as defaults. These crawl controls apply
-only to single AI reruns.
+and split `<target>` on commas or newlines. Single AI rerun controls are sent
+only when explicitly supplied, preserving saved scraper and backend defaults.
+Available overrides include `--max-depth`, `--max-pages`, `--limit`, include and
+exclude patterns, `--proxy-country`, `--max-retry`, and listing `--timeout`.
 
 ## `results` and `result`
 
 ```bash
 mrscraper results --page-size 20 --sort-field updatedAt --sort-order DESC
 mrscraper results --search scrapethissite.com --page 2
+mrscraper results --scraper-id SCRAPER_UUID --status Finished --type Rerun-AI
+mrscraper results --url "https://www.scrapethissite.com/pages/forms/?page_num=2"
 mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
+mrscraper result --id RESULT_UUID --no-include-html
 ```
 
-Use these commands to inspect work created by `scrape` or `rerun`.
+Use exact scraper, status, type, and URL filters to narrow stored runs without a
+broad text search. Result detail includes stored HTML by default; use
+`--no-include-html` when metadata and extracted data are sufficient.
 
 ## Programmatic API
 

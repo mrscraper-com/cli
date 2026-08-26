@@ -1,6 +1,6 @@
 ---
 name: mrscraper-scrape
-description: Run MrScraper's general, listing, or map agents for managed structured extraction or bounded URL discovery within a known site. Use when managed output is explicitly requested or justified after source-page inspection; use fetch for initial acquisition of known pages and SERP when no starting URL is known.
+description: Run MrScraper's general, listing, or map agents with optional Cheap or Super execution for managed structured extraction or bounded URL discovery within a known site. Use when managed output is explicitly requested or justified after source-page inspection; use fetch for initial acquisition of known pages and SERP when no starting URL is known.
 ---
 
 # Extract Structured Data with MrScraper
@@ -45,6 +45,10 @@ discovery functionality and does not require an extraction schema.
 The default agent is `general`. For map, omit `--prompt`,
 `--schema-prompt`, and `--proxy-country`. For general and listing, omit the
 map-only crawl controls.
+
+`--mode Cheap` and `--mode Super` select the backend execution tier; they are
+not agent names. Omit `--mode` to preserve the backend default, and select
+`Super` only when the extraction requires the stronger mode.
 
 ## Step 2 — Define the Extraction
 
@@ -114,6 +118,7 @@ strict schema compliance is required.
 | --- | --- | --- | --- |
 | `<url>` | required | Body `url` | Target page or site. |
 | `-a, --agent <agent>` | `general` | Body `agent` | Select `general`, `listing`, or `map`. |
+| `--mode <mode>` | service default | Body `mode` | Select `Cheap` or `Super` execution without changing the agent. |
 | `-p, --prompt <text>` | required for general/listing | Body `message` | Describe the fields or records to extract. |
 | `--proxy-country <code>` | omitted | Body `proxyCountry` | Route general/listing through a country. |
 | `--max-pages <n>` | service default | Body `maxPages` | Bound listing or map pages. |

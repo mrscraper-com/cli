@@ -137,6 +137,7 @@ test("fetch sends one request with the documented query parameters", async () =>
     token: "test-token",
     url: "https://target.example",
     browserRendering: true,
+    superMode: true,
     timeout: 30,
     geoCode: "ID",
     waitForSelector: ".ready",
@@ -152,6 +153,7 @@ test("fetch sends one request with the documented query parameters", async () =>
   assert.equal(calls[0].searchParams.get("timeout"), "30");
   assert.equal(calls[0].searchParams.get("geoCode"), "ID");
   assert.equal(calls[0].searchParams.get("browserRendering"), "true");
+  assert.equal(calls[0].searchParams.get("super"), "true");
   assert.equal(calls[0].searchParams.get("waitForSelector"), ".ready");
   assert.equal(calls[0].searchParams.get("homePage"), "true");
   assert.equal(calls[0].searchParams.get("blockResources"), "true");
