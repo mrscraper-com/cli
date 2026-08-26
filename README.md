@@ -242,11 +242,32 @@ mrscraper fetch https://www.scrapethissite.com/pages/simple/
 mrscraper fetch https://www.scrapethissite.com/pages/simple/ | jq -r '.data'
 ```
 
-Enable browser rendering for JavaScript-dependent pages:
+Browser loading and real-device routing are independent controls. These four
+commands can return different results for the same URL:
 
 ```bash
+mrscraper fetch URL
 mrscraper fetch URL --browser-rendering
+mrscraper fetch URL --super-mode
 mrscraper fetch URL --browser-rendering --super-mode
+```
+
+| Browser rendering | Super Mode | Command | Loading path |
+| --- | --- | --- | --- |
+| Off | Off | `mrscraper fetch URL` | Standard routing with the non-browser loader. |
+| On | Off | `mrscraper fetch URL --browser-rendering` | Standard routing with browser loading and JavaScript. |
+| Off | On | `mrscraper fetch URL --super-mode` | Real-device routing with the non-browser loader. |
+| On | On | `mrscraper fetch URL --browser-rendering --super-mode` | Real-device routing with browser loading and JavaScript. |
+
+Browser rendering is not guaranteed to produce a better response. Some sites
+fail with it enabled but load without it. Start with both controls off, inspect
+the response, and change one control at a time when the result is unusable or
+incomplete. Try the other combinations deliberately without repeating one that
+already failed identically.
+
+Other page-loading options can refine the selected combination:
+
+```bash
 mrscraper fetch URL --browser-rendering --wait-for-selector '.products'
 mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 ```
@@ -255,7 +276,7 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | --- | --- | --- | --- |
 | `<url>` | `url` | required | Target page URL. |
 | `--browser-rendering` | `browserRendering` | `false` | Load the page in a browser and execute JavaScript. |
-| `--super-mode` | `super` | `false` | Route browser rendering through a real device; requires `--browser-rendering`. |
+| `--super-mode` | `super` | `false` | Select real-device routing independently of browser rendering. |
 | `--geo-code <code>` | `geoCode` | omitted | Route through the requested ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | `waitForSelector` | omitted | Wait for a CSS selector; the CLI requires explicit `--browser-rendering`. |
 | `--home-page` | `homePage` | `false` | Visit the site's root before the target page. |
@@ -265,14 +286,15 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | `--timeout <seconds>` | `timeout` | `30` | Set the page-load timeout. The command allows another 30 seconds to receive the response. |
 | `--token <key>` | authentication header | configured credential | Override authentication for this command. |
 
-Start with the default request. Add browser rendering for JavaScript-driven
-content, a selector wait for delayed elements, geographic routing for localized
-content, or homepage navigation when the target site requires it. Add Super Mode
-only when ordinary browser rendering still cannot load the public page. Unblocker
-usage is calculated from runtime and bandwidth: one plan token per 30 seconds
-and one plan token per 0.2 MB, rounded up per component. Resource blocking can
-reduce bandwidth for text-focused pages. Use `--max-retries` and `--token-cap`
-to balance recovery from temporary failures with usage. See the
+Use browser rendering when JavaScript is required, but retry without it when
+browser loading fails, is blocked, or returns worse content. Toggle Super Mode
+separately when routing may be the problem. A selector wait still requires
+browser rendering. Geographic routing and homepage navigation address different
+site requirements. Unblocker usage is calculated from runtime and bandwidth:
+one plan token per 30 seconds and one plan token per 0.2 MB, rounded up per
+component. Resource blocking can reduce bandwidth for text-focused pages. Use
+`--max-retries` and `--token-cap` to balance recovery from temporary failures
+with usage. See the
 [Token Plan](https://docs.mrscraper.com/docs/getting-started/api-token) for the
 complete calculation.
 

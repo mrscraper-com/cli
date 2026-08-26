@@ -103,6 +103,16 @@ stderr, so redirected stdout remains machine-readable.
 
 ## Step 3 — Choose Page-Loading Options
 
+Browser loading and real-device routing are independent. The same URL can
+produce different content or failures in each combination:
+
+| Browser rendering | Super Mode | Command | Loading path |
+| --- | --- | --- | --- |
+| Off | Off | `mrscraper fetch URL` | Standard routing with the non-browser loader. |
+| On | Off | `mrscraper fetch URL --browser-rendering` | Standard routing with browser loading and JavaScript. |
+| Off | On | `mrscraper fetch URL --super-mode` | Real-device routing with the non-browser loader. |
+| On | On | `mrscraper fetch URL --browser-rendering --super-mode` | Real-device routing with browser loading and JavaScript. |
+
 Use browser rendering when the page depends on JavaScript:
 
 ```bash
@@ -118,7 +128,15 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
   --wait-for-selector ".film"
 ```
 
-Use Super Mode only when ordinary browser rendering cannot load the public page:
+Use Super Mode with the non-browser loader when routing may be the problem but
+browser loading is unnecessary or produces a worse response:
+
+```bash
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
+  --super-mode
+```
+
+Use both controls for real-device browser loading:
 
 ```bash
 mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
@@ -126,8 +144,10 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
   --super-mode
 ```
 
-Super Mode routes browser rendering through a real device and may consume more
-tokens. Do not enable it preemptively.
+Super Mode selects real-device routing and may consume more tokens. It does not
+enable browser rendering. Browser rendering is not a strictly stronger mode:
+some sites fail or return worse content with it enabled but load successfully
+through the non-browser path.
 
 Use geographic routing or homepage navigation when the target requires it:
 
@@ -157,7 +177,7 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
 | --- | --- | --- | --- |
 | `<url>` | required | Query `url` | Target page URL. |
 | `--browser-rendering` | `false` | Query `browserRendering=true` | Load the page in a browser and execute JavaScript. |
-| `--super-mode` | `false` | Query `super=true` | Route browser rendering through a real device; requires `--browser-rendering`. |
+| `--super-mode` | `false` | Query `super=true` | Select real-device routing independently of browser rendering. |
 | `--geo-code <code>` | omitted | Query `geoCode` | Route the request through an ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | omitted | Query `waitForSelector` | Wait for a CSS selector; include `--browser-rendering`. |
 | `--home-page` | `false` | Query `homePage=true` | Visit the site root before loading the target page. |
@@ -169,15 +189,19 @@ mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
 
 ## Step 4 — Inspect and Retry Deliberately
 
-Start with the simplest command that can load the page. If the response
-is incomplete or missing dynamic content:
+Start with both controls off unless the task already establishes a requirement.
+If the response fails, is blocked, incomplete, or missing dynamic content:
 
 1. Inspect `status_code`, `data`, and relevant response headers;
-2. Add `--browser-rendering`;
-3. Add `--wait-for-selector`, `--geo-code`, or `--home-page` only when the
-   target requires it; and
-4. Add `--super-mode` only when ordinary browser rendering still fails; and
-5. Run one revised command and inspect that result before trying again.
+2. Change one axis at a time: browser rendering for JavaScript, or Super Mode
+   when routing may be the problem;
+3. If browser rendering fails or returns worse content, retry the same Super
+   Mode value without browser rendering;
+4. Try the remaining untested combinations when the response is still unusable;
+5. Add `--wait-for-selector`, `--geo-code`, or `--home-page` only when evidence
+   shows that the target requires it; and
+6. Do not repeat an identical combination. Stop after a usable response unless
+   the user requests a comparison.
 
 Treat `--wait-for-selector` as a CSS selector, not a duration. Browser
 rendering loads a page; it does not click controls, submit forms, or provide an

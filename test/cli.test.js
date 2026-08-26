@@ -240,17 +240,46 @@ test("fetch requires explicit browser rendering for selector waits", async () =>
   assert.match(result.stderr, /requires --browser-rendering/);
 });
 
-test("fetch requires explicit browser rendering for super mode", async () => {
-  const result = await runCli([
-    "fetch",
-    "https://target.example",
-    "--token",
-    "test",
-    "--super-mode",
-  ]);
+test("fetch supports every browser-rendering and super-mode combination", async (t) => {
+  const requestUrls = [];
+  const server = http.createServer((request, response) => {
+    requestUrls.push(new URL(request.url, "http://localhost"));
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end("<html><body>ok</body></html>");
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
 
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /--super-mode requires --browser-rendering/);
+  const combinations = [
+    { browserRendering: false, superMode: false, flags: [] },
+    { browserRendering: true, superMode: false, flags: ["--browser-rendering"] },
+    { browserRendering: false, superMode: true, flags: ["--super-mode"] },
+    {
+      browserRendering: true,
+      superMode: true,
+      flags: ["--browser-rendering", "--super-mode"],
+    },
+  ];
+
+  for (const combination of combinations) {
+    const result = await runCli(
+      ["fetch", "https://target.example", "--token", "test", ...combination.flags],
+      { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
+    );
+    assert.equal(result.code, 0);
+    assert.equal(result.stderr, "");
+  }
+
+  assert.deepEqual(
+    requestUrls.map((requestUrl) => ({
+      browserRendering: requestUrl.searchParams.get("browserRendering"),
+      superMode: requestUrl.searchParams.get("super"),
+    })),
+    combinations.map((combination) => ({
+      browserRendering: String(combination.browserRendering),
+      superMode: String(combination.superMode),
+    })),
+  );
 });
 
 test("API failures produce JSON and a non-zero exit code", async (t) => {
