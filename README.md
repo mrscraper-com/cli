@@ -159,25 +159,16 @@ or `--skip-auth` leaves it for an explicit `mrscraper login`. Package-runner
 flags such as `npx -y` approve package execution only; they do not authenticate
 the CLI.
 
-### Native plugins (optional)
+### Agent plugins (separate repositories)
 
-This repository also provides skills-only native plugins for Codex, Claude
-Code, and Cursor. A plugin is an alternative to `mrscraper init`, not an
-additional installation step. If `npx ... init` already installed the skills
-for an agent, skip its plugin installation to avoid loading duplicate copies of
-the same four skills.
+Native agent plugins are maintained separately from this CLI repository:
 
-Plugins do not install or authenticate the CLI. When choosing the plugin route,
-install those separately with `npm install -g @mrscraper/cli@latest` and
-`mrscraper login`.
+- [MrScraper for ChatGPT and Codex](https://github.com/mrscraper-com/mrscraper-chatgpt-plugin)
+- [MrScraper for Claude](https://github.com/mrscraper-com/mrscraper-claude-plugin)
 
-- **Claude Code:** add this repository with
-  `claude plugin marketplace add mrscraper-com/cli`, then install
-  `mrscraper-cli@mrscraper`.
-- **Cursor:** use `/add-plugin mrscraper-cli` after its public marketplace
-  listing; until then, load a checkout through Cursor's local plugin directory.
-- **Codex:** until its public directory listing is available, use the local
-  marketplace layout in [`examples/marketplace.json`](./examples/marketplace.json).
+Those plugins package MCP-oriented skills with the hosted MrScraper MCP server.
+Use `mrscraper init` when you want this repository's CLI-oriented skill pack
+instead.
 
 ## Hosted MCP (optional)
 

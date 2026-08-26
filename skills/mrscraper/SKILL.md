@@ -1,6 +1,6 @@
 ---
 name: mrscraper
-description: Install, authenticate, route, and troubleshoot the MrScraper CLI, and use its saved scraper, result, and account commands. Use when an agent needs to set up MrScraper, choose the correct web-data command, rerun an AI or manual scraper, inspect stored results, check subscription usage, or handle work spanning multiple MrScraper capabilities. Route known-URL page reading and flexible agent-led analysis to mrscraper-fetch, defined structured extraction to mrscraper-scrape, and query-first Google discovery to mrscraper-serp. Do not use for interactive browser actions, local document parsing, recurring monitoring, scheduling, or manual scraper creation.
+description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, saved scraper reruns, stored results, account usage, and cross-capability troubleshooting. Use for CLI-wide or multi-capability work; use the focused skills for fetching known URLs, managed extraction, or Google discovery.
 ---
 
 # MrScraper CLI
@@ -141,32 +141,49 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Read, summarize, cite, inspect, archive, or flexibly analyze a known public URL | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) |
-| Ask MrScraper's extraction LLM for defined fields, listings, records, tables, or site URLs | [mrscraper-scrape](../mrscraper-scrape/SKILL.md) |
-| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) |
+| Acquire and preserve raw content from known public URLs for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md), preferably first |
+| Add backend structured extraction, repeated records, site mapping, schema guidance, or a reusable scraper | [mrscraper-scrape](../mrscraper-scrape/SKILL.md), normally after or alongside fetch |
+| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md), then fetch selected pages |
 | Reproduce a prior scrape or run an existing AI/manual scraper on new URLs | `mrscraper rerun` |
 | List or retrieve stored results | `mrscraper results` or `mrscraper result` |
 | Check account usage or domain request outcomes | `mrscraper status` |
 
-When “scrape this page” is ambiguous, choose from the requested output:
+### Fetch-first principle
 
-- Page content, reading, summarization, or analysis the current agent can do
-  from HTML → fetch;
-- Defined fields, repeated records, schema-shaped JSON, or a reusable saved
-  extraction → scrape;
-- Relevant URLs from a topic or query → SERP.
+For agent-led work, always use `fetch` for the first exploration of a known URL.
+The raw response provides full page context and preserves details for later
+questions, validation, and custom processing.
 
-`mrscraper scrape` retrieves page content and uses an extraction LLM to
-interpret it. That adds model-processing time and commits the result to the
-extraction prompt. Prefer `fetch` when the current agent can inspect the HTML
-and perform the requested analysis or transformation itself: it is usually
-faster, preserves the source content, and leaves more flexibility for follow-up
-questions. Use `scrape` when the user benefits from backend structured
-extraction, listing pagination, map discovery, schema guidance, or a reusable
-saved scraper.
+The `general` and `listing` scrape modes send page content through a backend
+LLM. Their output is shaped by the extraction prompt and may omit information.
+Applying those modes across many pages also repeats model work that an agent can
+usually replace with one reusable local extraction implementation.
 
-For discovery-first work, run SERP, select the relevant URLs, and then load the
-fetch or scrape skill for those pages.
+Prefer this workflow:
+
+1. Fetch representative pages and inspect their raw content;
+2. Understand the shared page structure and required fields;
+3. Define a stable output schema and local extraction implementation;
+4. Fetch the remaining pages, in parallel when safe; and
+5. Run the same extractor across all saved responses.
+
+For a hundred same-layout pages, this means one hundred fetches followed by one
+local batch extraction, rather than backend LLM extraction repeated across one
+hundred pages. The raw inputs remain available if the schema changes or a field
+needs to be recovered later.
+
+Use `scrape` only when the user explicitly requests managed extraction or when,
+after fetch-led exploration, it still provides a clear benefit. Even then,
+retain the fetched source and verify important values against it. A request for
+JSON, a table, or named fields is not by itself a reason for an agent to use
+`scrape`; those outputs can be produced locally from the raw content.
+
+The `map` agent is separate URL-discovery functionality. Use it when bounded
+site mapping is actually needed, then fetch the pages whose content matters.
+
+For discovery-first work, run SERP, select the relevant URLs, fetch the pages
+whose content will inform the answer, and add scrape only when a derived
+structured view is useful.
 
 ## Step 4 — Handle Output and Artifacts
 
@@ -187,12 +204,16 @@ otherwise displays the account dashboard.
 Save substantial artifacts under the current project's `./.mrscraper/`
 folder:
 
+The scrape command below illustrates an explicit managed-extraction case. For
+ordinary agent-led work, keep the fetched source and produce the requested
+output with local analysis or extraction code.
+
 ```bash
 mkdir -p ./.mrscraper
-mrscraper fetch "https://example.com/page" > ./.mrscraper/page.json
-mrscraper scrape "https://example.com/listing" \
-  --prompt "Extract all available listing information" \
-  --output ./.mrscraper/listing.json
+mrscraper fetch "https://example.com/page" > ./.mrscraper/page-source.json
+mrscraper scrape "https://example.com/page" \
+  --prompt "Extract the requested fields as structured JSON" \
+  --output ./.mrscraper/page-extracted.json
 mrscraper serp "example search query" > ./.mrscraper/search.json
 ```
 
@@ -207,6 +228,12 @@ default. Read its UUID from `data.data.scraperId` in the stdout response and
 use `rerun --type ai --scraper-id <uuid>` to apply the same saved extraction
 configuration to the same or another URL. Prefer this over rebuilding a prompt
 when the user wants a repeatable version of an earlier scrape.
+
+When applying a saved configuration to a new target, prefer fetching that
+target before the rerun when preserving or verifying its source content would
+help. For bulk jobs, fetch representative or high-value targets instead of
+automatically duplicating the entire job unless the requested coverage warrants
+it.
 
 The `scraperId` makes the configuration reusable, but it does not guarantee
 identical extracted values when the source page or model behavior changes.
@@ -296,6 +323,10 @@ mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
 ```
 
+A stored extraction is a derived snapshot. When checking completeness,
+currentness, or a disputed value, fetch the recorded source URL and compare the
+raw page with the stored result.
+
 ## Step 7 — Review Account Usage
 
 Request machine-readable account status:
@@ -337,9 +368,10 @@ SEO, or market analytics.
 - **Page blocked or incomplete or missing dynamic content** — load
   [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with page-loading
   options appropriate to the target.
-- **Extraction is incomplete** — load
-  [mrscraper-scrape](../mrscraper-scrape/SKILL.md) and improve the prompt,
-  agent choice, or limits.
+- **Structured output is incomplete** — inspect the fetched raw content and
+  improve the local extraction logic first. If the user explicitly requested
+  managed scrape, load [mrscraper-scrape](../mrscraper-scrape/SKILL.md) and
+  improve the prompt, schema, agent choice, or limits.
 - **Search results are weak** — load
   [mrscraper-serp](../mrscraper-serp/SKILL.md) and refine the query, locale, or
   page.

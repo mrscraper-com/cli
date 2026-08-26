@@ -1,13 +1,17 @@
 ---
 name: mrscraper-fetch
-description: Fetch HTML from a known public URL with MrScraper, with optional browser rendering, locale routing, selector waits, homepage navigation, resource blocking, retries, token limits, and page-load timeouts. Use when the user wants to read, summarize, cite, inspect, archive, or flexibly analyze a page that they are authorized to access. Use mrscraper-scrape for backend LLM extraction of defined fields or structured records, and mrscraper-serp when no target URL is known. Do not use fetch to bypass authentication, paywalls, CAPTCHAs, access controls, or site restrictions.
+description: Retrieve raw HTML from a known public URL with MrScraper. Use for reading, inspecting, summarizing, archiving, or analyzing a page, and as the default content-acquisition step before agent-led or local extraction. Supports browser rendering and page-load controls; use SERP when no target URL is known.
 ---
 
 # Fetch Page Content with MrScraper
 
-Use `fetch` when the user already has a URL and needs the content of that page.
-Use [mrscraper](../mrscraper/SKILL.md) for installation, authentication, saved
-runs, account status, or command routing.
+Use `fetch` for the first exploration whenever the user already has a public
+URL. In agent-led workflows, keep using the raw response for summarization,
+comparison, transformation, and structured output rather than handing the page
+to another LLM by default. The agent can inspect all available details and write
+reusable local extraction logic when needed. Use
+[mrscraper](../mrscraper/SKILL.md) for installation, authentication, saved runs,
+account status, or command routing.
 
 ## Page Retrieval Context
 
@@ -34,14 +38,34 @@ for the complete calculation.
 
 Confirm the target URL and what the user wants from it:
 
+- Preserve a raw source before extraction, transformation, or comparison;
 - Read, summarize, cite, or inspect the page;
 - Check whether specific text appears;
-- Archive the response; or
+- Archive the response;
+- Produce fields, JSON, tables, or other structured output with local logic;
+- Verify or supplement a scrape or saved result; or
 - Load JavaScript-rendered or geo-sensitive content.
 
-Use [mrscraper-scrape](../mrscraper-scrape/SKILL.md) when the requested outcome
-is a structured record or set of fields. Use
-[mrscraper-serp](../mrscraper-serp/SKILL.md) when discovery must happen first.
+Do not call `scrape` merely because the requested output is structured. Fetch
+the page, understand its layout, and transform the saved raw content locally.
+Use [mrscraper-scrape](../mrscraper-scrape/SKILL.md) only when the user
+explicitly requests managed backend extraction, or after fetch-led exploration
+has produced a stable output JSON schema and scrape still offers a concrete
+benefit. Use [mrscraper-serp](../mrscraper-serp/SKILL.md) when discovery must
+happen first.
+
+### Prefer reusable local extraction
+
+When many pages share a layout:
+
+1. Fetch representative pages and inspect their raw content;
+2. Define one local extraction schema and implementation;
+3. Fetch the remaining pages, in parallel when safe and proportional; and
+4. Run the same local extractor across the saved responses.
+
+This preserves every raw input and avoids repeating backend LLM extraction for
+each page. Revisit the raw responses when the structure changes or a field is
+missing instead of immediately adding more scrape calls.
 
 ## Step 2 — Run the Fetch
 
@@ -150,3 +174,12 @@ Answer the user's request from the fetched page and report any saved artifact.
 Keep the full envelope when headers or diagnostics matter. For ordinary reading
 or summarization, use the HTML in `.data` and present the requested answer in
 chat.
+
+Keep fetched content available as the source of truth for later steps. Build
+summaries, tables, JSON transformations, and extraction scripts from that raw
+content. Fetch again when a follow-up needs details that an earlier local or
+managed transformation did not preserve.
+
+If fetch fails and another MrScraper workflow can still complete the task, the
+agent may continue, but must disclose that raw page content was not preserved
+and must not present the narrower result as exhaustive source content.

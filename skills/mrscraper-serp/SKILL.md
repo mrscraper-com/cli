@@ -1,6 +1,6 @@
 ---
 name: mrscraper-serp
-description: Discover public pages through Google with the MrScraper CLI using a search query or Google search URL. Use when the user starts with a topic, product, company, or question but has no target URL; asks to search Google or inspect a result page; or needs relevant URLs before page reading or structured extraction. Supports country, language, pagination, JSON or HTML output, JavaScript rendering, and command timeouts. Use mrscraper-fetch for flexible agent-led work from page HTML or mrscraper-scrape for defined structured extraction once a target URL is known.
+description: Discover public URLs through Google with the MrScraper CLI. Use when a task begins with a query, topic, product, company, or question rather than a known target URL; pass selected pages to fetch for reading and analysis.
 ---
 
 # Discover Pages with MrScraper SERP
@@ -100,10 +100,19 @@ Progress and diagnostics appear on stderr.
 
 Select only URLs relevant to the user's goal, then:
 
-- Load [mrscraper-fetch](../mrscraper-fetch/SKILL.md) to read, summarize, cite,
-  inspect, archive, or flexibly analyze selected pages; or
-- Load [mrscraper-scrape](../mrscraper-scrape/SKILL.md) to extract requested
-  fields or repeated records.
+- Load [mrscraper-fetch](../mrscraper-fetch/SKILL.md) for every selected page
+  whose content will inform the answer, preserving the raw responses;
+- Analyze or transform those responses locally, using one reusable extraction
+  implementation when pages share a structure; and
+- Load [mrscraper-scrape](../mrscraper-scrape/SKILL.md) only when the user asks
+  for managed extraction or when the pages and output schema are already
+  understood and scrape still provides a concrete benefit.
+
+SERP is the discovery layer, fetch is the default source and exploration layer,
+local code is the preferred extraction layer for agents, and scrape is a narrow
+managed-extraction exception. If the user only requested URL discovery, stop
+after SERP. For broad result sets, fetch the pages selected for analysis with
+coverage proportional to the request.
 
 Run independent follow-up URLs in parallel when the environment supports safe
 parallel execution. Keep the number of pages proportional to the requested

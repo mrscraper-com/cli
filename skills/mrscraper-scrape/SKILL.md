@@ -1,27 +1,38 @@
 ---
 name: mrscraper-scrape
-description: Extract structured data from an authorized public URL with the MrScraper CLI using the general, listing, or map agent. The general and listing modes use an LLM to read page HTML and produce structured output, so prefer mrscraper-fetch when the current agent can work directly from the HTML more quickly or flexibly. Use scrape for defined fields, repeated records, paginated listings, schema-shaped JSON, reusable extraction configurations, or bounded site URL discovery. Use mrscraper-serp when no target URL is known.
+description: Run MrScraper's general, listing, or map agents for managed structured extraction or bounded URL discovery within a known site. Use when managed output is explicitly requested or justified after source-page inspection; use fetch for initial acquisition of known pages and SERP when no starting URL is known.
 ---
 
 # Extract Structured Data with MrScraper
 
-Use `scrape` when the user wants defined fields, records, or site URLs from a
-known page or website. Use [mrscraper](../mrscraper/SKILL.md) for installation,
-authentication, saved runs, account status, or command routing.
+Do not use `scrape` for the first exploration of a known page. Start with
+[mrscraper-fetch](../mrscraper-fetch/SKILL.md), inspect the complete raw
+response, and prefer local analysis or a reusable extraction script. Use this
+skill when the user explicitly wants MrScraper's managed extraction, or after
+the agent understands the website and has defined the output JSON schema. Use
+[mrscraper](../mrscraper/SKILL.md) for installation, authentication, saved runs,
+account status, or command routing.
 
 The command sends `POST https://api.app.mrscraper.com/api/v1/scrapers-ai`.
 
-For `general` and `listing`, MrScraper retrieves the page HTML and asks an LLM
-to interpret it according to `--prompt`. This adds model-processing time and
-can narrow the result to what the prompt requested. Prefer
-[mrscraper-fetch](../mrscraper-fetch/SKILL.md) when the current agent can read
-the HTML and perform the requested summarization, filtering, transformation, or
-ad hoc analysis itself. Fetch is usually faster, preserves the full source for
-follow-up questions, and avoids an extra extraction-model pass.
+For `general` and `listing`, MrScraper retrieves page HTML and asks a backend LLM
+to interpret it according to `--prompt`. That adds model-processing time and can
+narrow the result to what the prompt requested. Across many pages, it also
+repeats model work that an agent can often replace with one local extraction
+implementation applied to every saved fetch response.
 
-Choose `scrape` when backend structured extraction is valuable: the user needs
-defined or repeated records, listing pagination, schema guidance, map
-discovery, or a saved scraper that can be rerun.
+Before using `general` or `listing`, confirm all of the following:
+
+1. The target or representative pages have already been fetched and inspected;
+2. The site structure and required output fields are understood;
+3. A stable output JSON schema has been defined; and
+4. Managed backend extraction still provides a concrete benefit over local code,
+   or the user explicitly requested it.
+
+If these conditions are not met, return to `fetch`. Requiring JSON, a table, or
+named fields is not by itself a reason to call `scrape`; agents can derive those
+outputs locally while retaining every raw input. The `map` agent is separate URL
+discovery functionality and does not require an extraction schema.
 
 ## Step 1 — Choose an Agent
 
@@ -37,13 +48,16 @@ map-only crawl controls.
 
 ## Step 2 — Define the Extraction
 
-Write a prompt that names the fields or records the user needs and preserves
-source values. Do not ask the model to infer unavailable values.
+The examples below assume the decision gate above has been satisfied. Write a
+prompt from the already-understood site structure and JSON schema, preserve
+source values, and do not ask the model to infer unavailable values.
 
 For a detail page:
 
 ```bash
 mkdir -p ./.mrscraper
+mrscraper fetch "https://example.com/product" \
+  > ./.mrscraper/example-product-source.json
 mrscraper scrape "https://example.com/product" \
   --prompt "Extract name, price, availability, description, and image URLs. Preserve source values and omit unavailable fields." \
   --output ./.mrscraper/example-product.json
@@ -52,12 +66,19 @@ mrscraper scrape "https://example.com/product" \
 For repeated records or pagination:
 
 ```bash
+mrscraper fetch "https://example.com/products" \
+  > ./.mrscraper/example-products-start-source.json
 mrscraper scrape "https://example.com/products" \
   --agent listing \
   --prompt "Extract every product's name, price, availability, and URL" \
   --max-pages 5 \
   --output ./.mrscraper/example-products.json
 ```
+
+For many similarly structured pages, prefer fetching every page and running one
+local extraction implementation across the saved responses. Use `listing` only
+when the user wants managed extraction or it remains materially useful after
+that alternative has been considered.
 
 For site URL discovery:
 
@@ -131,6 +152,11 @@ Treat a successfully written output file as the extraction artifact. Report its
 path and summarize the requested result. Post-process only when the user asks
 for filtering, merging, normalization, CSV, a table, or another deliverable.
 
+Retain and report both artifacts: the fetched response is the source record,
+while the scrape output is the narrower managed view. Check important,
+surprising, or apparently missing values against the fetched content before
+concluding that the source lacks them.
+
 ## Step 7 — Preserve the Reproducible Scraper
 
 Every successful `scrape` creates a saved AI scraper configuration by default.
@@ -164,6 +190,8 @@ tracking.
 - If the output file is absent, inspect `error`, `status_code`, and `data`
   in the response envelope.
 - Tighten the prompt when fields are missing or grouped incorrectly.
+- Inspect or fetch the raw page before assuming a missing extracted field is
+  absent from the source.
 - Validate locally when downstream code requires a strict schema.
 - Use [mrscraper-fetch](../mrscraper-fetch/SKILL.md) for page reading and
   [mrscraper-serp](../mrscraper-serp/SKILL.md) when discovery must happen first.

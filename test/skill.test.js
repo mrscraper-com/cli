@@ -48,6 +48,10 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
         ([, key, value]) => [key, value],
       ),
     );
+    assert.ok(
+      metadataValues.description.length <= 350,
+      `${name} description must stay discovery-focused`,
+    );
     for (const [key, value] of Object.entries(metadataValues)) {
       const normalized = value.normalize("NFKC").trim().replace(/\s+/gu, " ");
       assert.equal(value, normalized, `${name} ${key} must be normalized`);
@@ -91,7 +95,7 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
   assert.match(router, /^## Step 4 — Handle Output and Artifacts$/m);
   assert.match(router, /mrscraper fetch "https:\/\/example\.com\/page"/);
-  assert.match(router, /mrscraper scrape "https:\/\/example\.com\/listing"/);
+  assert.match(router, /mrscraper scrape "https:\/\/example\.com\/page"/);
   assert.match(router, /mrscraper serp "example search query"/);
   assert.match(router, /Save substantial artifacts under the current project's `\.\/\.mrscraper\/`/);
   assert.match(router, /project artifact folder `\.\/\.mrscraper\/` is separate from the credential/);
@@ -99,6 +103,13 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /^## Step 6 — Inspect Stored Results$/m);
   assert.match(router, /^## Step 7 — Review Account Usage$/m);
   assert.match(router, /^## Limits$/m);
+  assert.match(router, /^### Fetch-first principle$/m);
+  assert.match(router, /always use `fetch` for the first exploration/);
+  assert.match(router, /`general` and `listing` scrape modes send page content through a backend\s+LLM/);
+  assert.match(router, /one reusable local extraction implementation/);
+  assert.match(router, /one hundred fetches followed by one\s+local batch extraction/);
+  assert.match(router, /Use `scrape` only when the user explicitly requests managed extraction/);
+  assert.match(router, /improve the local extraction logic first/);
   for (const option of [
     "--max-depth",
     "--max-pages",
@@ -143,7 +154,16 @@ test("focused skills have distinct commands and intent boundaries", () => {
     skills["mrscraper-fetch"],
     /mrscraper fetch[^\n]*(?:--format|--unblock)/,
   );
-  assert.match(skills["mrscraper-fetch"], /read, summarize, cite/);
+  assert.match(skills["mrscraper-fetch"], /read, summarize, cite/i);
+  assert.match(
+    skills["mrscraper-fetch"],
+    /Use `fetch` for the first exploration whenever the user already has a public/,
+  );
+  assert.match(skills["mrscraper-fetch"], /Do not call `scrape` merely because the requested output is structured/);
+  assert.match(skills["mrscraper-fetch"], /Prefer reusable local extraction/);
+  assert.match(skills["mrscraper-fetch"], /Run the same local extractor across the saved responses/);
+  assert.match(skills["mrscraper-fetch"], /source of truth for later steps/);
+  assert.match(skills["mrscraper-fetch"], /must disclose that raw page content was not preserved/);
   assert.match(skills["mrscraper-fetch"], /authorized to access/);
   assert.doesNotMatch(skills["mrscraper-fetch"], /protected pages/i);
   assert.match(skills["mrscraper-fetch"], /^## Step 5 — Deliver the Result$/m);
@@ -166,8 +186,10 @@ test("focused skills have distinct commands and intent boundaries", () => {
     assert.match(skills["mrscraper-scrape"], new RegExp(option));
   }
   assert.match(skills["mrscraper-scrape"], /defined fields|fields or records/);
-  assert.match(skills["mrscraper-scrape"], /asks an LLM/);
-  assert.match(skills["mrscraper-scrape"], /Prefer\s+\[mrscraper-fetch\]/);
+  assert.match(skills["mrscraper-scrape"], /backend LLM/);
+  assert.match(skills["mrscraper-scrape"], /Do not use `scrape` for the first exploration/);
+  assert.match(skills["mrscraper-scrape"], /one local extraction\s+implementation applied to every saved fetch response/);
+  assert.match(skills["mrscraper-scrape"], /A stable output JSON schema has been defined/);
   assert.match(
     skills["mrscraper-scrape"],
     /Treat a successfully written output file as the extraction artifact/,
@@ -183,11 +205,23 @@ test("focused skills have distinct commands and intent boundaries", () => {
   );
   assert.match(skills["mrscraper-scrape"], /Listing still running\.\.\./);
   assert.match(skills["mrscraper-scrape"], /submit a duplicate/);
+  assert.ok(
+    skills["mrscraper-scrape"].indexOf(
+      'mrscraper fetch "https://example.com/product"',
+    ) <
+      skills["mrscraper-scrape"].indexOf(
+        'mrscraper scrape "https://example.com/product"',
+      ),
+    "detail-page example must preserve raw content before scraping",
+  );
 
   assert.match(skills["mrscraper-serp"], /mrscraper serp/);
   assert.match(skills["mrscraper-serp"], /POST https:\/\/sync\.scraper\.mrscraper\.com\/api\/google\/serp\/v2\/sync/);
   assert.match(skills["mrscraper-serp"], /--region/);
-  assert.match(skills["mrscraper-serp"], /has no target URL/);
+  assert.match(
+    skills["mrscraper-serp"],
+    /task begins with a search query rather than a known target\s+URL/,
+  );
   for (const option of [
     "--language",
     "--page",
@@ -199,6 +233,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
     assert.match(skills["mrscraper-serp"], new RegExp(option));
   }
   assert.match(skills["mrscraper-serp"], /^## Step 5 — Continue with Relevant URLs$/m);
+  assert.match(skills["mrscraper-serp"], /fetch is the default source and exploration layer/);
+  assert.match(skills["mrscraper-serp"], /local code is the preferred extraction layer for agents/);
 });
 
 test("README and skills use direct product language", () => {
