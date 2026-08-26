@@ -159,25 +159,16 @@ or `--skip-auth` leaves it for an explicit `mrscraper login`. Package-runner
 flags such as `npx -y` approve package execution only; they do not authenticate
 the CLI.
 
-### Native plugins (optional)
+### Agent plugins (separate repositories)
 
-This repository also provides skills-only native plugins for Codex, Claude
-Code, and Cursor. A plugin is an alternative to `mrscraper init`, not an
-additional installation step. If `npx ... init` already installed the skills
-for an agent, skip its plugin installation to avoid loading duplicate copies of
-the same four skills.
+Native agent plugins are maintained separately from this CLI repository:
 
-Plugins do not install or authenticate the CLI. When choosing the plugin route,
-install those separately with `npm install -g @mrscraper/cli@latest` and
-`mrscraper login`.
+- [MrScraper for ChatGPT and Codex](https://github.com/mrscraper-com/mrscraper-chatgpt-plugin)
+- [MrScraper for Claude](https://github.com/mrscraper-com/mrscraper-claude-plugin)
 
-- **Claude Code:** add this repository with
-  `claude plugin marketplace add mrscraper-com/cli`, then install
-  `mrscraper-cli@mrscraper`.
-- **Cursor:** use `/add-plugin mrscraper-cli` after its public marketplace
-  listing; until then, load a checkout through Cursor's local plugin directory.
-- **Codex:** until its public directory listing is available, use the local
-  marketplace layout in [`examples/marketplace.json`](./examples/marketplace.json).
+Those plugins package MCP-oriented skills with the hosted MrScraper MCP server.
+Use `mrscraper init` when you want this repository's CLI-oriented skill pack
+instead.
 
 ## Hosted MCP (optional)
 
@@ -212,7 +203,7 @@ API keys remain supported for CI and other non-interactive environments:
 ```bash
 mrscraper login --api-key "your-key"
 export MRSCRAPER_API_KEY="your-key"
-mrscraper fetch https://example.com --token "your-key"
+mrscraper fetch https://www.scrapethissite.com/pages/simple/ --token "your-key"
 ```
 
 Get API keys from
@@ -245,16 +236,38 @@ page HTML through `GET https://api.mrscraper.com/`. The response is available
 in the CLI envelope's `data` field:
 
 ```bash
-mrscraper fetch https://example.com
+mrscraper fetch https://www.scrapethissite.com/pages/simple/
 
 # Extract the HTML body
-mrscraper fetch https://example.com | jq -r '.data'
+mrscraper fetch https://www.scrapethissite.com/pages/simple/ | jq -r '.data'
 ```
 
-Enable browser rendering for JavaScript-dependent pages:
+Browser loading and real-device routing are independent controls. These four
+commands can return different results for the same URL:
 
 ```bash
+mrscraper fetch URL
 mrscraper fetch URL --browser-rendering
+mrscraper fetch URL --super-mode
+mrscraper fetch URL --browser-rendering --super-mode
+```
+
+| Browser rendering | Super Mode | Command | Loading path |
+| --- | --- | --- | --- |
+| Off | Off | `mrscraper fetch URL` | Standard routing with the non-browser loader. |
+| On | Off | `mrscraper fetch URL --browser-rendering` | Standard routing with browser loading and JavaScript. |
+| Off | On | `mrscraper fetch URL --super-mode` | Real-device routing with the non-browser loader. |
+| On | On | `mrscraper fetch URL --browser-rendering --super-mode` | Real-device routing with browser loading and JavaScript. |
+
+Browser rendering is not guaranteed to produce a better response. Some sites
+fail with it enabled but load without it. Start with both controls off, inspect
+the response, and change one control at a time when the result is unusable or
+incomplete. Try the other combinations deliberately without repeating one that
+already failed identically.
+
+Other page-loading options can refine the selected combination:
+
+```bash
 mrscraper fetch URL --browser-rendering --wait-for-selector '.products'
 mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 ```
@@ -263,6 +276,7 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | --- | --- | --- | --- |
 | `<url>` | `url` | required | Target page URL. |
 | `--browser-rendering` | `browserRendering` | `false` | Load the page in a browser and execute JavaScript. |
+| `--super-mode` | `super` | `false` | Select real-device routing independently of browser rendering. |
 | `--geo-code <code>` | `geoCode` | omitted | Route through the requested ISO 3166-1 alpha-2 country. |
 | `--wait-for-selector <selector>` | `waitForSelector` | omitted | Wait for a CSS selector; the CLI requires explicit `--browser-rendering`. |
 | `--home-page` | `homePage` | `false` | Visit the site's root before the target page. |
@@ -272,13 +286,15 @@ mrscraper fetch URL --browser-rendering --geo-code ID --home-page
 | `--timeout <seconds>` | `timeout` | `30` | Set the page-load timeout. The command allows another 30 seconds to receive the response. |
 | `--token <key>` | authentication header | configured credential | Override authentication for this command. |
 
-Start with the default request. Add browser rendering for JavaScript-driven
-content, a selector wait for delayed elements, geographic routing for localized
-content, or homepage navigation when the target site requires it. Unblocker
-usage is calculated from runtime and bandwidth: one plan token per 30 seconds
-and one plan token per 0.2 MB, rounded up per component. Resource blocking can
-reduce bandwidth for text-focused pages. Use `--max-retries` and `--token-cap`
-to balance recovery from temporary failures with usage. See the
+Use browser rendering when JavaScript is required, but retry without it when
+browser loading fails, is blocked, or returns worse content. Toggle Super Mode
+separately when routing may be the problem. A selector wait still requires
+browser rendering. Geographic routing and homepage navigation address different
+site requirements. Unblocker usage is calculated from runtime and bandwidth:
+one plan token per 30 seconds and one plan token per 0.2 MB, rounded up per
+component. Resource blocking can reduce bandwidth for text-focused pages. Use
+`--max-retries` and `--token-cap` to balance recovery from temporary failures
+with usage. See the
 [Token Plan](https://docs.mrscraper.com/docs/getting-started/api-token) for the
 complete calculation.
 
@@ -288,9 +304,9 @@ Call `POST /api/v1/scrapers-ai`. The default `general` agent and the `listing`
 agent require an extraction prompt:
 
 ```bash
-mrscraper scrape https://example.com/product \
-  --prompt "Extract all available product information" \
-  --output .mrscraper/example-product.json
+mrscraper scrape https://www.scrapethissite.com/pages/simple/ \
+  --prompt "Extract each country's name, capital, population, and area" \
+  --output .mrscraper/countries.json
 ```
 
 `-o, --output <path>` creates parent directories and writes the extracted
@@ -302,15 +318,16 @@ instructions as best-effort shape guidance. Validate the saved result
 separately when strict schema compliance is required:
 
 ```bash
-mrscraper scrape https://example.com/products \
-  --prompt "Extract every product" \
-  --schema-prompt ./product.schema.json
+mrscraper scrape https://www.scrapethissite.com/pages/simple/ \
+  --prompt "Extract every country" \
+  --schema-prompt ./countries.schema.json
 ```
 
 Existing agent modes remain supported:
 
 ```bash
 mrscraper scrape URL --agent general --prompt "Extract the page"
+mrscraper scrape URL --agent general --mode Super --prompt "Extract the page"
 mrscraper scrape URL --agent listing --prompt "Extract products" --max-pages 5
 mrscraper scrape URL --agent map --max-depth 2 --max-pages 50 --limit 1000
 ```
@@ -323,13 +340,13 @@ that UUID to run the same saved extraction configuration against the original
 URL or a new URL without rebuilding the prompt and agent settings:
 
 ```bash
-mrscraper scrape "https://example.com/product" \
-  --prompt "Extract the product name, price, and availability" \
-  --output .mrscraper/product.json \
-  > .mrscraper/product-run.json
+mrscraper scrape "https://www.scrapethissite.com/pages/forms/?page_num=1" \
+  --prompt "Extract each hockey team's name, year, wins, and losses" \
+  --output .mrscraper/hockey-teams-page-1.json \
+  > .mrscraper/hockey-teams-run.json
 
-SCRAPER_UUID=$(jq -r '.data.data.scraperId' .mrscraper/product-run.json)
-mrscraper rerun "https://example.com/product-2" \
+SCRAPER_UUID=$(jq -r '.data.data.scraperId' .mrscraper/hockey-teams-run.json)
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --type ai \
   --scraper-id "$SCRAPER_UUID"
 ```
@@ -349,6 +366,7 @@ for the available modes and result-tracking workflow.
 | `--schema-prompt <path>` | Best-effort JSON Schema guidance added to `message`; general/listing only. |
 | `-o, --output <path>` | Write `data.data.data` as pretty JSON. |
 | `-a, --agent <agent>` | Select `general`, `listing`, or `map`; defaults to `general`. |
+| `--mode <mode>` | API `mode`; select `Cheap` or `Super`, or omit it for the backend default. |
 | `--proxy-country <code>` | API `proxyCountry`; general/listing only. |
 | `--max-pages <n>` | API `maxPages`; listing/map only. The service default applies when omitted. |
 | `--max-depth <n>` | API `maxDepth`; map only and omitted when not supplied. |
@@ -406,9 +424,9 @@ source endpoints.
 Add analytics for a domain and UTC date range:
 
 ```bash
-mrscraper status --domain example.com
-mrscraper status --domain example.com --from 7d
-mrscraper status --domain example.com \
+mrscraper status --domain www.scrapethissite.com
+mrscraper status --domain www.scrapethissite.com --from 7d
+mrscraper status --domain www.scrapethissite.com \
   --from 2026-08-01T00:00:00Z \
   --to 2026-08-10T00:00:00Z
 ```
@@ -464,26 +482,31 @@ The CLI selects one of four endpoints from `--type` and `--bulk`:
 ```bash
 mrscraper rerun URL --type ai --scraper-id SCRAPER_UUID
 mrscraper rerun URL --type manual --scraper-id SCRAPER_UUID
-mrscraper rerun "https://a.example,https://b.example" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --bulk --type manual --id SCRAPER_UUID
 ```
 
 Single reruns require `--scraper-id`. Bulk reruns require `--bulk` and `--id`,
-and split `<target>` on commas or newlines. The single AI endpoint receives
-`--max-depth` (`2`), `--max-pages` (`50`), `--limit` (`1000`), and the include
-and exclude patterns (empty strings) as defaults. These crawl controls apply
-only to single AI reruns.
+and split `<target>` on commas or newlines. Single AI rerun controls are sent
+only when explicitly supplied, preserving saved scraper and backend defaults.
+Available overrides include `--max-depth`, `--max-pages`, `--limit`, include and
+exclude patterns, `--proxy-country`, `--max-retry`, and listing `--timeout`.
 
 ## `results` and `result`
 
 ```bash
 mrscraper results --page-size 20 --sort-field updatedAt --sort-order DESC
-mrscraper results --search example.com --page 2
+mrscraper results --search scrapethissite.com --page 2
+mrscraper results --scraper-id SCRAPER_UUID --status Finished --type Rerun-AI
+mrscraper results --url "https://www.scrapethissite.com/pages/forms/?page_num=2"
 mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
+mrscraper result --id RESULT_UUID --no-include-html
 ```
 
-Use these commands to inspect work created by `scrape` or `rerun`.
+Use exact scraper, status, type, and URL filters to narrow stored runs without a
+broad text search. Result detail includes stored HTML by default; use
+`--no-include-html` when metadata and extracted data are sufficient.
 
 ## Programmatic API
 

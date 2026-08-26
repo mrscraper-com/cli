@@ -197,6 +197,7 @@ test("fetch makes one request and preserves the endpoint HTML in its CLI envelop
       "--token",
       "test",
       "--browser-rendering",
+      "--super-mode",
       "--geo-code",
       "ID",
       "--wait-for-selector",
@@ -216,6 +217,7 @@ test("fetch makes one request and preserves the endpoint HTML in its CLI envelop
   const output = JSON.parse(result.stdout);
   assert.equal(output.data, "<html><body><h1>Fetched</h1><p>Page</p></body></html>");
   assert.equal(requestUrl.searchParams.get("browserRendering"), "true");
+  assert.equal(requestUrl.searchParams.get("super"), "true");
   assert.equal(requestUrl.searchParams.get("geoCode"), "ID");
   assert.equal(requestUrl.searchParams.get("waitForSelector"), ".ready");
   assert.equal(requestUrl.searchParams.get("homePage"), "true");
@@ -236,6 +238,48 @@ test("fetch requires explicit browser rendering for selector waits", async () =>
 
   assert.equal(result.code, 1);
   assert.match(result.stderr, /requires --browser-rendering/);
+});
+
+test("fetch supports every browser-rendering and super-mode combination", async (t) => {
+  const requestUrls = [];
+  const server = http.createServer((request, response) => {
+    requestUrls.push(new URL(request.url, "http://localhost"));
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end("<html><body>ok</body></html>");
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const combinations = [
+    { browserRendering: false, superMode: false, flags: [] },
+    { browserRendering: true, superMode: false, flags: ["--browser-rendering"] },
+    { browserRendering: false, superMode: true, flags: ["--super-mode"] },
+    {
+      browserRendering: true,
+      superMode: true,
+      flags: ["--browser-rendering", "--super-mode"],
+    },
+  ];
+
+  for (const combination of combinations) {
+    const result = await runCli(
+      ["fetch", "https://target.example", "--token", "test", ...combination.flags],
+      { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
+    );
+    assert.equal(result.code, 0);
+    assert.equal(result.stderr, "");
+  }
+
+  assert.deepEqual(
+    requestUrls.map((requestUrl) => ({
+      browserRendering: requestUrl.searchParams.get("browserRendering"),
+      superMode: requestUrl.searchParams.get("super"),
+    })),
+    combinations.map((combination) => ({
+      browserRendering: String(combination.browserRendering),
+      superMode: String(combination.superMode),
+    })),
+  );
 });
 
 test("API failures produce JSON and a non-zero exit code", async (t) => {
@@ -759,6 +803,36 @@ test("listing omits maxPages when the user does not supply it", async (t) => {
   assert.match(result.stderr, /max-pages=backend default/);
 });
 
+test("scrape sends the selected Cheap or Super execution mode", async (t) => {
+  let requestBody;
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    requestBody = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful operation!","data":{"id":"result-1"}}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+
+  const result = await runCli(
+    [
+      "scrape",
+      "https://target.example",
+      "--prompt",
+      "Extract the page",
+      "--mode",
+      "super",
+      "--token",
+      "test",
+    ],
+    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
+  );
+
+  assert.equal(result.code, 0);
+  assert.equal(requestBody.mode, "Super");
+});
+
 test("map rejects prompt instead of silently discarding it", async () => {
   const result = await runCli([
     "scrape",
@@ -840,6 +914,109 @@ test("rerun rejects endpoint-specific options instead of silently ignoring them"
   ]);
   assert.equal(manualResult.code, 1);
   assert.match(manualResult.stderr, /--max-depth is only accepted by single AI reruns/);
+});
+
+test("single AI rerun omits backend controls unless explicitly supplied", async (t) => {
+  const bodies = [];
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    bodies.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful operation!"}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  const environment = { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` };
+
+  const defaultResult = await runCli(
+    [
+      "rerun",
+      "https://target.example",
+      "--type",
+      "ai",
+      "--scraper-id",
+      "scraper-1",
+      "--token",
+      "test",
+    ],
+    environment,
+  );
+  const configuredResult = await runCli(
+    [
+      "rerun",
+      "https://target.example",
+      "--type",
+      "ai",
+      "--scraper-id",
+      "scraper-1",
+      "--proxy-country",
+      "ID",
+      "--max-retry",
+      "4",
+      "--timeout",
+      "90",
+      "--token",
+      "test",
+    ],
+    environment,
+  );
+
+  assert.equal(defaultResult.code, 0);
+  assert.equal(configuredResult.code, 0);
+  assert.deepEqual(bodies[0], {
+    scraperId: "scraper-1",
+    url: "https://target.example",
+  });
+  assert.deepEqual(bodies[1], {
+    scraperId: "scraper-1",
+    url: "https://target.example",
+    proxyCountry: "ID",
+    maxRetry: 4,
+    timeout: 90,
+  });
+});
+
+test("results sends exact structured filters and result can exclude HTML", async (t) => {
+  const urls = [];
+  const server = http.createServer((request, response) => {
+    urls.push(new URL(request.url, "http://localhost"));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"message":"Successful fetch","data":[]}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  const environment = { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` };
+
+  const results = await runCli(
+    [
+      "results",
+      "--scraper-id",
+      "scraper-1",
+      "--status",
+      "finished",
+      "--type",
+      "Rerun-AI",
+      "--url",
+      "https://target.example/?page=2",
+      "--token",
+      "test",
+    ],
+    environment,
+  );
+  const result = await runCli(
+    ["result", "result-1", "--no-include-html", "--token", "test"],
+    environment,
+  );
+
+  assert.equal(results.code, 0);
+  assert.equal(result.code, 0);
+  assert.equal(urls[0].searchParams.get("filters[scraperId]"), "scraper-1");
+  assert.equal(urls[0].searchParams.get("filters[status]"), "Finished");
+  assert.equal(urls[0].searchParams.get("filters[type]"), "Rerun-AI");
+  assert.equal(urls[0].searchParams.get("filters[url]"), "https://target.example/?page=2");
+  assert.equal(urls[1].pathname, "/api/v1/results/result-1");
+  assert.equal(urls[1].searchParams.get("includeHtml"), "false");
 });
 
 test("command help distinguishes API parameters from removed client transformations", async () => {
