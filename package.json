@@ -1,6 +1,6 @@
 {
   "name": "@mrscraper/cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "MrScraper CLI for HTML fetching, AI extraction, Google SERPs, reruns, results, account usage, and agent skill setup.",
   "license": "MIT",
   "author": "MrScraper",

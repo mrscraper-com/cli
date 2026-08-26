@@ -94,8 +94,14 @@ test("router owns onboarding and routes detailed web work to focused skills", ()
   assert.match(router, /\.\.\/mrscraper-scrape\/SKILL\.md/);
   assert.match(router, /\.\.\/mrscraper-serp\/SKILL\.md/);
   assert.match(router, /^## Step 4 — Handle Output and Artifacts$/m);
-  assert.match(router, /mrscraper fetch "https:\/\/example\.com\/page"/);
-  assert.match(router, /mrscraper scrape "https:\/\/example\.com\/page"/);
+  assert.match(
+    router,
+    /mrscraper fetch "https:\/\/www\.scrapethissite\.com\/pages\/simple\/"/,
+  );
+  assert.match(
+    router,
+    /mrscraper scrape "https:\/\/www\.scrapethissite\.com\/pages\/simple\/"/,
+  );
   assert.match(router, /mrscraper serp "example search query"/);
   assert.match(router, /Save substantial artifacts under the current project's `\.\/\.mrscraper\/`/);
   assert.match(router, /project artifact folder `\.\/\.mrscraper\/` is separate from the credential/);
@@ -207,10 +213,10 @@ test("focused skills have distinct commands and intent boundaries", () => {
   assert.match(skills["mrscraper-scrape"], /submit a duplicate/);
   assert.ok(
     skills["mrscraper-scrape"].indexOf(
-      'mrscraper fetch "https://example.com/product"',
+      'mrscraper fetch "https://www.scrapethissite.com/pages/simple/"',
     ) <
       skills["mrscraper-scrape"].indexOf(
-        'mrscraper scrape "https://example.com/product"',
+        'mrscraper scrape "https://www.scrapethissite.com/pages/simple/"',
       ),
     "detail-page example must preserve raw content before scraping",
   );
@@ -239,6 +245,8 @@ test("focused skills have distinct commands and intent boundaries", () => {
 
 test("README and skills use direct product language", () => {
   const documentation = [readme, ...Object.values(skills)].join("\n");
+  assert.match(documentation, /https:\/\/www\.scrapethissite\.com/);
+  assert.doesNotMatch(documentation, /(?:www\.)?example\.com/);
   for (const phrase of [
     /\breal (?:API|backend)/i,
     /\bfake (?:API|backend)/i,

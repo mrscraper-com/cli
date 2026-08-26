@@ -110,7 +110,7 @@ After credentials are configured, verify end-to-end access with one small
 fetch:
 
 ```bash
-mrscraper fetch "https://example.com"
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/"
 ```
 
 Treat a successful command as confirmation that the CLI can authenticate and
@@ -210,10 +210,11 @@ output with local analysis or extraction code.
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper fetch "https://example.com/page" > ./.mrscraper/page-source.json
-mrscraper scrape "https://example.com/page" \
-  --prompt "Extract the requested fields as structured JSON" \
-  --output ./.mrscraper/page-extracted.json
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
+  > ./.mrscraper/countries-source.json
+mrscraper scrape "https://www.scrapethissite.com/pages/simple/" \
+  --prompt "Extract each country's name, capital, population, and area as structured JSON" \
+  --output ./.mrscraper/countries-extracted.json
 mrscraper serp "example search query" > ./.mrscraper/search.json
 ```
 
@@ -264,15 +265,15 @@ finished. Do not present the initial running response as completed data.
 Examples:
 
 ```bash
-mrscraper rerun "https://example.com/product" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1" \
   --type ai \
   --scraper-id SCRAPER_UUID
 
-mrscraper rerun "https://example.com/product" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1" \
   --type manual \
   --scraper-id SCRAPER_UUID
 
-mrscraper rerun "https://a.example,https://b.example" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --bulk \
   --type manual \
   --id SCRAPER_UUID
@@ -298,7 +299,7 @@ List result rows:
 
 ```bash
 mrscraper results --page-size 20 --page 1
-mrscraper results --search example.com
+mrscraper results --search scrapethissite.com
 mrscraper results --sort-field updatedAt --sort-order desc
 ```
 
@@ -338,7 +339,7 @@ mrscraper status --json
 Add domain request outcomes and a time range:
 
 ```bash
-mrscraper status --json --domain example.com --from 7d --to now
+mrscraper status --json --domain www.scrapethissite.com --from 7d --to now
 ```
 
 ### Status parameters

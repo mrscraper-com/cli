@@ -76,7 +76,8 @@ Save substantial responses inside the user's current project:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper fetch "https://example.com" > ./.mrscraper/example-fetch.json
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
+  > ./.mrscraper/scrapethissite-simple-fetch.json
 ```
 
 Stdout contains a JSON envelope:
@@ -94,7 +95,7 @@ Stdout contains a JSON envelope:
 Extract the HTML when only the page body is needed:
 
 ```bash
-mrscraper fetch "https://example.com" | jq -r '.data'
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" | jq -r '.data'
 ```
 
 Check the exit code before using the result. Progress and diagnostics appear on
@@ -105,21 +106,22 @@ stderr, so redirected stdout remains machine-readable.
 Use browser rendering when the page depends on JavaScript:
 
 ```bash
-mrscraper fetch "https://example.com/products" --browser-rendering
+mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
+  --browser-rendering
 ```
 
 Wait for a CSS selector when the required content appears later:
 
 ```bash
-mrscraper fetch "https://example.com/products" \
+mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
   --browser-rendering \
-  --wait-for-selector ".product-card"
+  --wait-for-selector ".film"
 ```
 
 Use geographic routing or homepage navigation when the target requires it:
 
 ```bash
-mrscraper fetch "https://example.com/product" \
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
   --browser-rendering \
   --geo-code ID \
   --home-page
@@ -130,7 +132,7 @@ Use geographic routing for geo-specific content
 Bound resource use for a browser-rendered page:
 
 ```bash
-mrscraper fetch "https://example.com" \
+mrscraper fetch "https://www.scrapethissite.com/pages/ajax-javascript/#2015" \
   --browser-rendering \
   --block-resources \
   --max-retries 3 \

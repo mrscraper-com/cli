@@ -56,23 +56,23 @@ For a detail page:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper fetch "https://example.com/product" \
-  > ./.mrscraper/example-product-source.json
-mrscraper scrape "https://example.com/product" \
-  --prompt "Extract name, price, availability, description, and image URLs. Preserve source values and omit unavailable fields." \
-  --output ./.mrscraper/example-product.json
+mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
+  > ./.mrscraper/countries-source.json
+mrscraper scrape "https://www.scrapethissite.com/pages/simple/" \
+  --prompt "Extract each country's name, capital, population, and area. Preserve source values and omit unavailable fields." \
+  --output ./.mrscraper/countries.json
 ```
 
 For repeated records or pagination:
 
 ```bash
-mrscraper fetch "https://example.com/products" \
-  > ./.mrscraper/example-products-start-source.json
-mrscraper scrape "https://example.com/products" \
+mrscraper fetch "https://www.scrapethissite.com/pages/forms/?page_num=1" \
+  > ./.mrscraper/hockey-teams-start-source.json
+mrscraper scrape "https://www.scrapethissite.com/pages/forms/?page_num=1" \
   --agent listing \
-  --prompt "Extract every product's name, price, availability, and URL" \
+  --prompt "Extract each hockey team's name, year, wins, losses, and win percentage" \
   --max-pages 5 \
-  --output ./.mrscraper/example-products.json
+  --output ./.mrscraper/hockey-teams.json
 ```
 
 For many similarly structured pages, prefer fetching every page and running one
@@ -83,13 +83,13 @@ that alternative has been considered.
 For site URL discovery:
 
 ```bash
-mrscraper scrape "https://example.com" \
+mrscraper scrape "https://www.scrapethissite.com/" \
   --agent map \
   --max-depth 2 \
   --max-pages 50 \
   --limit 1000 \
-  --include-patterns "/products/" \
-  --output ./.mrscraper/example-product-urls.json
+  --include-patterns "/pages/" \
+  --output ./.mrscraper/sandbox-page-urls.json
 ```
 
 ## Step 3 — Add Shape Guidance When Useful
@@ -98,10 +98,10 @@ Use `--schema-prompt` to add a local JSON Schema object to the extraction
 instructions:
 
 ```bash
-mrscraper scrape "https://example.com/product" \
-  --prompt "Extract the product details" \
-  --schema-prompt ./product.schema.json \
-  --output ./.mrscraper/product.json
+mrscraper scrape "https://www.scrapethissite.com/pages/simple/" \
+  --prompt "Extract every country's name, capital, population, and area" \
+  --schema-prompt ./countries.schema.json \
+  --output ./.mrscraper/countries.json
 ```
 
 This option checks that the file contains a JSON object and adds it to the
@@ -170,7 +170,7 @@ the `scraperId` when it is available.
 Reuse the saved prompt and agent configuration on the same or another URL:
 
 ```bash
-mrscraper rerun "https://example.com/another-product" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --type ai \
   --scraper-id SCRAPER_UUID
 ```

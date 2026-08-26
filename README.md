@@ -203,7 +203,7 @@ API keys remain supported for CI and other non-interactive environments:
 ```bash
 mrscraper login --api-key "your-key"
 export MRSCRAPER_API_KEY="your-key"
-mrscraper fetch https://example.com --token "your-key"
+mrscraper fetch https://www.scrapethissite.com/pages/simple/ --token "your-key"
 ```
 
 Get API keys from
@@ -236,10 +236,10 @@ page HTML through `GET https://api.mrscraper.com/`. The response is available
 in the CLI envelope's `data` field:
 
 ```bash
-mrscraper fetch https://example.com
+mrscraper fetch https://www.scrapethissite.com/pages/simple/
 
 # Extract the HTML body
-mrscraper fetch https://example.com | jq -r '.data'
+mrscraper fetch https://www.scrapethissite.com/pages/simple/ | jq -r '.data'
 ```
 
 Enable browser rendering for JavaScript-dependent pages:
@@ -279,9 +279,9 @@ Call `POST /api/v1/scrapers-ai`. The default `general` agent and the `listing`
 agent require an extraction prompt:
 
 ```bash
-mrscraper scrape https://example.com/product \
-  --prompt "Extract all available product information" \
-  --output .mrscraper/example-product.json
+mrscraper scrape https://www.scrapethissite.com/pages/simple/ \
+  --prompt "Extract each country's name, capital, population, and area" \
+  --output .mrscraper/countries.json
 ```
 
 `-o, --output <path>` creates parent directories and writes the extracted
@@ -293,9 +293,9 @@ instructions as best-effort shape guidance. Validate the saved result
 separately when strict schema compliance is required:
 
 ```bash
-mrscraper scrape https://example.com/products \
-  --prompt "Extract every product" \
-  --schema-prompt ./product.schema.json
+mrscraper scrape https://www.scrapethissite.com/pages/simple/ \
+  --prompt "Extract every country" \
+  --schema-prompt ./countries.schema.json
 ```
 
 Existing agent modes remain supported:
@@ -314,13 +314,13 @@ that UUID to run the same saved extraction configuration against the original
 URL or a new URL without rebuilding the prompt and agent settings:
 
 ```bash
-mrscraper scrape "https://example.com/product" \
-  --prompt "Extract the product name, price, and availability" \
-  --output .mrscraper/product.json \
-  > .mrscraper/product-run.json
+mrscraper scrape "https://www.scrapethissite.com/pages/forms/?page_num=1" \
+  --prompt "Extract each hockey team's name, year, wins, and losses" \
+  --output .mrscraper/hockey-teams-page-1.json \
+  > .mrscraper/hockey-teams-run.json
 
-SCRAPER_UUID=$(jq -r '.data.data.scraperId' .mrscraper/product-run.json)
-mrscraper rerun "https://example.com/product-2" \
+SCRAPER_UUID=$(jq -r '.data.data.scraperId' .mrscraper/hockey-teams-run.json)
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --type ai \
   --scraper-id "$SCRAPER_UUID"
 ```
@@ -397,9 +397,9 @@ source endpoints.
 Add analytics for a domain and UTC date range:
 
 ```bash
-mrscraper status --domain example.com
-mrscraper status --domain example.com --from 7d
-mrscraper status --domain example.com \
+mrscraper status --domain www.scrapethissite.com
+mrscraper status --domain www.scrapethissite.com --from 7d
+mrscraper status --domain www.scrapethissite.com \
   --from 2026-08-01T00:00:00Z \
   --to 2026-08-10T00:00:00Z
 ```
@@ -455,7 +455,7 @@ The CLI selects one of four endpoints from `--type` and `--bulk`:
 ```bash
 mrscraper rerun URL --type ai --scraper-id SCRAPER_UUID
 mrscraper rerun URL --type manual --scraper-id SCRAPER_UUID
-mrscraper rerun "https://a.example,https://b.example" \
+mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://www.scrapethissite.com/pages/forms/?page_num=2" \
   --bulk --type manual --id SCRAPER_UUID
 ```
 
@@ -469,7 +469,7 @@ only to single AI reruns.
 
 ```bash
 mrscraper results --page-size 20 --sort-field updatedAt --sort-order DESC
-mrscraper results --search example.com --page 2
+mrscraper results --search scrapethissite.com --page 2
 mrscraper result RESULT_UUID
 mrscraper result --id RESULT_UUID
 ```
