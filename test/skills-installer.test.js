@@ -251,7 +251,7 @@ test("dry-run renders the nested npx command without executing it", () => {
   assert.equal(executed, false);
   assert.match(
     messages.join("\n"),
-    /npx -y skills add mrscraper-com\/cli --skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp --full-depth --global --agent codex --yes/,
+    /npx -y skills add mrscraper-com\/cli --skill mrscraper mrscraper-scraper-api mrscraper-account mrscraper-web-search --full-depth --global --agent codex --yes/,
   );
 });
 
@@ -267,7 +267,7 @@ test("a development source override is passed to the skills installer", () => {
 
   assert.match(
     messages.join("\n"),
-    /skills add \/workspace --skill mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp/,
+    /skills add \/workspace --skill mrscraper mrscraper-scraper-api mrscraper-account mrscraper-web-search/,
   );
 });
 
