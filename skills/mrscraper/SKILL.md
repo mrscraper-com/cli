@@ -1,13 +1,21 @@
 ---
 name: mrscraper
-description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, saved scraper reruns, stored results, account usage, and cross-capability troubleshooting. Use for CLI-wide or multi-capability work; use the focused skills for fetching known URLs, managed extraction, or Google discovery.
+description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, output handling, account usage, and troubleshooting. Use for CLI-wide or multi-step work; use the focused skills to retrieve a known page or to search Google.
 ---
 
 # MrScraper CLI
 
 Use this skill for setup, authentication, command selection, shared output
-handling, saved reruns, stored results, account status, and troubleshooting.
-Load the focused fetch, scrape, or SERP skill for those workflows.
+handling, account status, and troubleshooting. Load the focused skills for
+page retrieval and Google search.
+
+The CLI has three data commands:
+
+| Command | Purpose |
+| --- | --- |
+| `mrscraper scraper-api <url>` | Retrieve a known page as HTML, Markdown, a screenshot, or a combination. |
+| `mrscraper web-search <query-or-url>` | Search Google from query text or a Google search URL. |
+| `mrscraper status` | Show the account's subscription, token usage, and limits. |
 
 ## Step 1 — Verify or Install MrScraper
 
@@ -17,7 +25,7 @@ Check whether the CLI is available:
 command -v mrscraper && mrscraper --version
 ```
 
-When an agent performs first-time setup, install the CLI and all four skills
+When an agent performs first-time setup, install the CLI and all three skills
 without starting an interactive authentication step:
 
 ```bash
@@ -74,7 +82,8 @@ mrscraper setup skills --dry-run
 harness, and `--dry-run` to preview the installation.
 
 The bootstrap installs the CLI and skills. MCP is available separately at
-`https://mcp.mrscraper.com/mcp` and uses bearer API-key configuration.
+`https://mcp.mrscraper.com/mcp` with the same capabilities as the `scraperAPI`,
+`webSearch`, and `status` tools.
 
 ## Step 2 — Authenticate
 
@@ -85,7 +94,7 @@ mrscraper auth status --json
 ```
 
 A configured credential reports `credential_configured: true`. This command
-reads local configuration.
+reads local configuration only.
 
 A `credential_configured: false` result means the CLI is not authenticated. On
 a local interactive machine, start browser login so the CLI can be used right
@@ -106,11 +115,11 @@ can also store a key outside the agent conversation:
 mrscraper login --api-key "<key>"
 ```
 
-After credentials are configured, verify end-to-end access with one small
-fetch:
+After credentials are configured, verify end-to-end access with the account
+check, which does not retrieve a page:
 
 ```bash
-mrscraper fetch "https://www.scrapethissite.com/pages/simple/"
+mrscraper status --json
 ```
 
 Treat a successful command as confirmation that the CLI can authenticate and
@@ -141,53 +150,37 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Acquire and preserve raw content from known public URLs for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md), preferably first |
-| Add backend structured extraction, repeated records, site mapping, schema guidance, or a reusable scraper | [mrscraper-scrape](../mrscraper-scrape/SKILL.md), normally after or alongside fetch |
-| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md), then fetch selected pages |
-| Reproduce a prior scrape or run an existing AI/manual scraper on new URLs | `mrscraper rerun` |
-| List or retrieve stored results | `mrscraper results` or `mrscraper result` |
-| Check account usage or domain request outcomes | `mrscraper status` |
+| Acquire and preserve a known public page for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) with `mrscraper scraper-api` |
+| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) with `mrscraper web-search`, then retrieve selected pages |
+| Check the plan, token usage, or remaining tokens | `mrscraper status --json` |
 
-### Fetch-first principle
+### Retrieve first, extract locally
 
-For agent-led work, always use `fetch` for the first exploration of a known URL.
-The raw response provides full page context and preserves details for later
-questions, validation, and custom processing.
+The CLI returns raw page content. Produce summaries, tables, JSON, and other
+structured output from that content with local analysis or extraction code.
+The raw response preserves details for later questions, validation, and
+changes to the requested schema.
 
-The `general` and `listing` scrape modes send page content through a backend
-LLM. Their output is shaped by the extraction prompt and may omit information.
-Applying those modes across many pages also repeats model work that an agent can
-usually replace with one reusable local extraction implementation.
+For many pages that share a layout:
 
-Prefer this workflow:
-
-1. Fetch representative pages and inspect their raw content;
-2. Understand the shared page structure and required fields;
-3. Define a stable output schema and local extraction implementation;
-4. Fetch the remaining pages, in parallel when safe; and
+1. Retrieve representative pages and inspect their content;
+2. Understand the shared structure and required fields;
+3. Define a stable output schema and one local extraction implementation;
+4. Retrieve the remaining pages, in parallel when safe and proportional; and
 5. Run the same extractor across all saved responses.
 
-For a hundred same-layout pages, this means one hundred fetches followed by one
-local batch extraction, rather than backend LLM extraction repeated across one
-hundred pages. The raw inputs remain available if the schema changes or a field
-needs to be recovered later.
+Request Markdown with `--markdown` when readable text is enough, and HTML when
+the extractor needs the page structure.
 
-Use `scrape` only when the user explicitly requests managed extraction or when,
-after fetch-led exploration, it still provides a clear benefit. Even then,
-retain the fetched source and verify important values against it. A request for
-JSON, a table, or named fields is not by itself a reason for an agent to use
-`scrape`; those outputs can be produced locally from the raw content.
+For discovery-first work, run `web-search`, select the relevant URLs, and
+retrieve the pages whose content will inform the answer.
 
-The `map` agent is separate URL-discovery functionality. Use it when bounded
-site mapping is actually needed, then fetch the pages whose content matters.
-
-For discovery-first work, run SERP, select the relevant URLs, fetch the pages
-whose content will inform the answer, and add scrape only when a derived
-structured view is useful.
+The CLI does not create AI scrapers, rerun saved scrapers, or list stored
+results. Use the MrScraper dashboard at https://app.mrscraper.com for those.
 
 ## Step 4 — Handle Output and Artifacts
 
-Data commands print JSON to stdout. A typical response is:
+Data commands print JSON to stdout:
 
 ```json
 {
@@ -204,147 +197,18 @@ otherwise displays the account dashboard.
 Save substantial artifacts under the current project's `./.mrscraper/`
 folder:
 
-The scrape command below illustrates an explicit managed-extraction case. For
-ordinary agent-led work, keep the fetched source and produce the requested
-output with local analysis or extraction code.
-
 ```bash
 mkdir -p ./.mrscraper
-mrscraper fetch "https://www.scrapethissite.com/pages/simple/" \
-  > ./.mrscraper/countries-source.json
-mrscraper scrape "https://www.scrapethissite.com/pages/simple/" \
-  --prompt "Extract each country's name, capital, population, and area as structured JSON" \
-  --output ./.mrscraper/countries-extracted.json
-mrscraper serp "example search query" > ./.mrscraper/search.json
+mrscraper scraper-api "https://www.scrapethissite.com/pages/simple/" \
+  > ./.mrscraper/countries-page.json
+mrscraper web-search "country population data" > ./.mrscraper/search.json
 ```
 
 The project artifact folder `./.mrscraper/` is separate from the credential
 folder `~/.mrscraper/`. Keep project artifacts out of version control unless
 the user asks to commit them.
 
-## Step 5 — Rerun Saved Scrapers
-
-A successful `mrscraper scrape` creates a saved AI scraper configuration by
-default. Read its UUID from `data.data.scraperId` in the stdout response and
-use `rerun --type ai --scraper-id <uuid>` to apply the same saved extraction
-configuration to the same or another URL. Prefer this over rebuilding a prompt
-when the user wants a repeatable version of an earlier scrape.
-
-When applying a saved configuration to a new target, prefer fetching that
-target before the rerun when preserving or verifying its source content would
-help. For bulk jobs, fetch representative or high-value targets instead of
-automatically duplicating the entire job unless the requested coverage warrants
-it.
-
-The `scraperId` makes the configuration reusable, but it does not guarantee
-identical extracted values when the source page or model behavior changes.
-
-Choose the scraper type and target count independently:
-
-1. Use `--type ai` for a saved AI scraper created by `mrscraper scrape`.
-2. Use `--type manual` for a saved step-based workflow created in the
-   MrScraper dashboard. Do not try to create a manual scraper with this CLI.
-3. Omit `--bulk` for one URL. Add `--bulk` to apply the same saved
-   configuration to a comma- or newline-separated URL list in one request.
-
-Do not treat manual as meaning single or bulk as meaning manual. Both scraper
-types support single and bulk reruns:
-
-| Mode | Required ID | URL input | Crawl controls |
-| --- | --- | --- | --- |
-| Single AI | `--scraper-id` | One URL | Supported |
-| Single manual | `--scraper-id` | One URL | Not used |
-| Bulk AI | `--bulk --id` | Comma- or newline-separated URLs | Not used |
-| Bulk manual | `--bulk --id` | Comma- or newline-separated URLs | Not used |
-
-Treat a bulk rerun as one asynchronous backend job, not as repeated local
-single-URL calls. Read `data.data.bulkResultId` from the submission response,
-then call `mrscraper result --id <bulk-result-uuid>` until the stored result is
-finished. Do not present the initial running response as completed data.
-
-Examples:
-
-```bash
-mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1" \
-  --type ai \
-  --scraper-id SCRAPER_UUID
-
-mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1" \
-  --type manual \
-  --scraper-id SCRAPER_UUID
-
-mrscraper rerun "https://www.scrapethissite.com/pages/forms/?page_num=1,https://www.scrapethissite.com/pages/forms/?page_num=2" \
-  --bulk \
-  --type manual \
-  --id SCRAPER_UUID
-```
-
-Single AI rerun controls:
-
-| Parameter | Default | Use |
-| --- | --- | --- |
-| `--max-depth <n>` | saved scraper/backend default | Map crawl depth. |
-| `--max-pages <n>` | saved scraper/backend default | Maximum pages. |
-| `--limit <n>` | saved scraper/backend default | Maximum results. |
-| `--include-patterns <regex>` | saved scraper/backend default | Include matching URLs. |
-| `--exclude-patterns <regex>` | saved scraper/backend default | Exclude matching URLs. |
-| `--proxy-country <code>` | saved scraper/backend default | Route the AI rerun through a country. |
-| `--max-retry <n>` | saved scraper/backend default | Override the AI retry count. |
-| `--timeout <seconds>` | saved scraper/backend default | Override the listing rerun timeout. |
-| `--token <key>` | configured credential | Override authentication. |
-
-The CLI sends only controls explicitly supplied by the caller. Omitting them
-preserves the saved scraper and backend defaults.
-
-Use a saved manual scraper only after it has been created in the MrScraper
-dashboard.
-
-## Step 6 — Inspect Stored Results
-
-List result rows:
-
-```bash
-mrscraper results --page-size 20 --page 1
-mrscraper results --search scrapethissite.com
-mrscraper results --sort-field updatedAt --sort-order desc
-mrscraper results --scraper-id SCRAPER_UUID --status Finished --type Rerun-AI
-mrscraper results --url "https://www.scrapethissite.com/pages/forms/?page_num=2"
-```
-
-### Results parameters
-
-| Parameter | Default | Use |
-| --- | --- | --- |
-| `--sort-field <field>` | `updatedAt` | Field used to sort rows. |
-| `--sort-order <asc\|desc>` | `desc` | Sort direction. |
-| `--page-size <n>` | `10` | Rows per page. |
-| `--page <n>` | `1` | 1-based page number. |
-| `--search <query>` | omitted | Search filter. |
-| `--scraper-id <uuid>` | omitted | Exact saved scraper UUID filter. |
-| `--status <status>` | omitted | Exact `Draft`, `Finished`, `Running`, `Failed`, or `Cancelled` filter. |
-| `--type <type>` | omitted | Exact result-origin filter such as `AI` or `Rerun-AI`. |
-| `--url <url>` | omitted | Exact stored target URL filter. |
-| `--date-range-column <column>` | omitted | Column used by the time range. |
-| `--start-at <iso>` | omitted | Inclusive range start. |
-| `--end-at <iso>` | omitted | Inclusive range end. |
-| `--token <key>` | configured credential | Override authentication. |
-
-Retrieve one row by positional ID or `--id`:
-
-```bash
-mrscraper result RESULT_UUID
-mrscraper result --id RESULT_UUID
-mrscraper result --id RESULT_UUID --no-include-html
-```
-
-Result detail includes stored HTML by default. Use `--no-include-html` for a
-smaller response when only status, metadata, or extracted data is needed.
-
-A stored extraction is a derived snapshot. When checking completeness,
-currentness, or a disputed value, fetch the recorded source URL and compare the
-raw page with the stored result.
-
-## Step 7 — Review Account Usage
+## Step 5 — Review Account Usage
 
 Request machine-readable account status:
 
@@ -352,47 +216,40 @@ Request machine-readable account status:
 mrscraper status --json
 ```
 
-Add domain request outcomes and a time range:
-
-```bash
-mrscraper status --json --domain www.scrapethissite.com --from 7d --to now
-```
+The response summarizes the subscription status, token limit, token usage,
+remaining tokens, usage percentage, rate limit, auto-renewal, renewal date, and
+the account's name, email, and verification state. It never includes the API
+key.
 
 ### Status parameters
 
 | Parameter | Default | Use |
 | --- | --- | --- |
-| `--domain <domain-or-url>` | omitted | Add request outcomes for a hostname. |
-| `--from <date-or-duration>` | `24h` | ISO start or duration such as `30m`, `24h`, or `7d`. |
-| `--to <date>` | `now` | ISO end time or `now`. |
-| `--action <action>` | empty string | Filter outcomes by action. Used with `--domain`. |
-| `--api-token-name <name>` | empty string | Filter outcomes by API token name. Used with `--domain`. |
 | `--json` | automatic when piped | Print JSON. Agents should include it. |
 | `--pretty` | automatic in a terminal | Print the account dashboard. |
 | `--no-color` | off | Disable dashboard color. |
 | `--token <key>` | configured credential | Override authentication. |
 
-Domain outcomes describe MrScraper requests. They are not traffic, audience,
-SEO, or market analytics.
+Check remaining tokens before a large batch of page retrievals.
 
-## Step 8 — Troubleshoot
+## Step 6 — Troubleshoot
 
 - **Unauthorized or 401** — run `mrscraper login` in a local interactive
   session or verify `MRSCRAPER_API_KEY` in automation.
 - **CLI missing** — run the agent-safe `npx ... init` command from Step 1.
 - **Skills missing** — run `mrscraper setup skills --dry-run`, then target the
   current harness with `--agent <id>`.
-- **Page blocked or incomplete or missing dynamic content** — load
+- **Page blocked, incomplete, or missing dynamic content** — load
   [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with page-loading
   options appropriate to the target.
-- **Structured output is incomplete** — inspect the fetched raw content and
-  improve the local extraction logic first. If the user explicitly requested
-  managed scrape, load [mrscraper-scrape](../mrscraper-scrape/SKILL.md) and
-  improve the prompt, schema, agent choice, or limits.
+- **Structured output is incomplete** — inspect the saved raw content and
+  improve the local extraction logic.
 - **Search results are weak** — load
   [mrscraper-serp](../mrscraper-serp/SKILL.md) and refine the query, locale, or
   page.
-- **Unknown option** — run `mrscraper <command> --help`.
+- **Unknown option or command** — run `mrscraper <command> --help`. The `fetch`,
+  `scrape`, `serp`, `rerun`, `results`, and `result` commands were replaced by
+  `scraper-api`, `web-search`, and `status`.
 
 ## Limits
 

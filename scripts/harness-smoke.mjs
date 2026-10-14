@@ -1,15 +1,11 @@
 // Exercise the installed CLI against a local mock API for one agent harness.
 import { execFile } from "node:child_process";
-import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
-import path from "node:path";
 
 const harness = process.argv[2];
 if (!harness) throw new Error("Expected a MrScraper harness ID");
 
 const apiKey = "harness-smoke-api-key";
-const outputPath = path.join(os.tmpdir(), `mrscraper-${harness}-product.json`);
 
 function quote(value) {
   return /^[A-Za-z0-9_./:@=-]+$/.test(value)
@@ -28,13 +24,6 @@ function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
-}
-
-async function readJsonBody(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  const content = Buffer.concat(chunks).toString("utf8");
-  return content ? JSON.parse(content) : null;
 }
 
 function run(args, options = {}) {
@@ -79,37 +68,17 @@ const server = http.createServer(async (request, response) => {
     }
 
     const url = new URL(request.url, "http://localhost");
-    const body = request.method === "POST" ? await readJsonBody(request) : null;
 
-    if (url.pathname === "/fetch") {
+    if (url.pathname === "/scraper") {
       response.writeHead(200, {
         "content-type": "text/html",
-        "x-request-id": `${harness}-fetch`,
+        "x-request-id": `${harness}-scraper-api`,
       });
       response.end("<html><body>MrScraper harness smoke page</body></html>");
       return;
     }
 
     response.writeHead(200, { "content-type": "application/json" });
-
-    if (url.pathname === "/api/v1/scrapers-ai") {
-      const data =
-        body.agent === "map"
-          ? ["https://example.com/product"]
-          : { name: "Example product", price: "$10.00" };
-      response.end(
-        JSON.stringify({
-          message: "Successful operation!",
-          data: {
-            id: `${body.agent}-result`,
-            scraperId: "smoke-scraper",
-            status: "Finished",
-            data,
-          },
-        }),
-      );
-      return;
-    }
 
     if (url.pathname === "/sync/api/google/serp/v2/sync") {
       response.end(
@@ -141,49 +110,6 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    if (url.pathname === "/api/v1/analytic/statuses") {
-      response.end(
-        JSON.stringify({ data: { countAll: 4, successRate: 100 } }),
-      );
-      return;
-    }
-
-    if (url.pathname === "/api/v1/scrapers-ai-rerun") {
-      response.end(
-        JSON.stringify({ data: { id: "ai-rerun", status: "Finished" } }),
-      );
-      return;
-    }
-
-    if (url.pathname === "/api/v1/scrapers-manual-rerun/bulk") {
-      response.end(
-        JSON.stringify({ data: { id: "manual-bulk", status: "Running" } }),
-      );
-      return;
-    }
-
-    if (url.pathname === "/api/v1/results/smoke-result") {
-      response.end(
-        JSON.stringify({
-          data: {
-            id: "smoke-result",
-            data: { name: "Example product", price: "$10.00" },
-          },
-        }),
-      );
-      return;
-    }
-
-    if (url.pathname === "/api/v1/results") {
-      response.end(
-        JSON.stringify({
-          data: [{ id: "smoke-result" }],
-          meta: { page: 1, pageSize: 10 },
-        }),
-      );
-      return;
-    }
-
     response.writeHead(404, { "content-type": "application/json" });
     response.end('{"message":"not found"}');
   } catch (error) {
@@ -197,7 +123,7 @@ const environment = {
   ...process.env,
   MRSCRAPER_API_KEY: "",
   MRSCRAPER_API_TOKEN: "",
-  MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/fetch`,
+  MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/scraper`,
   MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
   MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}/sync`,
 };
@@ -216,7 +142,7 @@ try {
   });
   await run(
     [
-      "fetch",
+      "scraper-api",
       "https://example.com/product",
       "--browser-rendering",
       "--geo-code",
@@ -236,54 +162,7 @@ try {
   );
   await run(
     [
-      "scrape",
-      "https://example.com/product",
-      "--prompt",
-      "Extract the product name and price",
-      "--schema-prompt",
-      "/workspace/test/fixtures/product.schema.json",
-      "--proxy-country",
-      "ID",
-      "--output",
-      outputPath,
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "scrape",
-      "https://example.com/products",
-      "--agent",
-      "listing",
-      "--prompt",
-      "Extract every product",
-      "--max-pages",
-      "2",
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "scrape",
-      "https://example.com",
-      "--agent",
-      "map",
-      "--max-pages",
-      "2",
-      "--max-depth",
-      "1",
-      "--limit",
-      "5",
-      "--include-patterns",
-      "/product/",
-      "--exclude-patterns",
-      "/account/",
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "serp",
+      "web-search",
       "iphone 17",
       "--region",
       "id",
@@ -294,70 +173,14 @@ try {
       "--format",
       "json",
       "--render-js",
-      "--client-timeout",
+      "--timeout",
       "5",
     ],
     { environment },
   );
-  await run(
-    [
-      "status",
-      "--json",
-      "--domain",
-      "example.com",
-      "--from",
-      "24h",
-      "--to",
-      "2026-08-18T00:00:00Z",
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "rerun",
-      "https://example.com/product-2",
-      "--type",
-      "ai",
-      "--scraper-id",
-      "smoke-scraper",
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "rerun",
-      "https://a.example,https://b.example",
-      "--bulk",
-      "--type",
-      "manual",
-      "--id",
-      "manual-scraper",
-    ],
-    { environment },
-  );
-  await run(
-    [
-      "results",
-      "--page-size",
-      "10",
-      "--page",
-      "1",
-      "--sort-field",
-      "updatedAt",
-      "--sort-order",
-      "DESC",
-      "--search",
-      "example.com",
-    ],
-    { environment },
-  );
-  await run(["result", "smoke-result"], { environment });
+  await run(["status", "--json"], { environment });
   await run(["logout"], { environment });
   await run(["auth", "status", "--json"], { environment });
-
-  if (!fs.existsSync(outputPath)) {
-    throw new Error(`Expected scrape output at ${outputPath}`);
-  }
 
   process.stdout.write(`\nPASS: ${harness}\n`);
 } finally {
