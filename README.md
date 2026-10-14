@@ -131,8 +131,9 @@ Sends `POST https://sync.scraper.mrscraper.com/api/google/serp/v2/sync`.
 The CLI requests parsed JSON by default. `--format html` requests HTML;
 `--raw` is a shorthand for that format. `--region`, `--language`, and `--page`
 override values extracted from Google URLs. `start=10` selects page 2.
-`--render-js` enables dynamic search features. `--client-timeout` defaults
-to 120 seconds and controls the local deadline without entering the API body.
+`--render-js` enables dynamic search features. `--timeout` defaults to 600
+seconds and controls the local deadline without entering the API body.
+`--client-timeout` remains a compatibility alias.
 
 ## Account
 
@@ -174,7 +175,7 @@ import { scraperAPI, webSearch, account } from "@mrscraper/cli";
 
 const token = process.env.MRSCRAPER_API_KEY;
 const page = await scraperAPI({ token, url: "https://books.toscrape.com/", markdown: true });
-const results = await webSearch({ token, query: "books", format: "json" });
+const results = await webSearch({ token, query: "books", raw: false, format: "json" });
 const status = await account({ token, timeout: 30 });
 console.log(status.data.token_remaining);
 ```
@@ -182,6 +183,8 @@ console.log(status.data.token_remaining);
 Programmatic account results put the summary directly in `data`. CLI page
 options use kebab-case flags; programmatic options use camelCase, including
 `browserRendering`, `homePage`, `maxRetries`, and `tokenCap`.
+Programmatic `webSearch` defaults to `raw: true`, like the SDKs; set
+`raw: false` for parsed JSON.
 
 ## Publish to npm manually
 

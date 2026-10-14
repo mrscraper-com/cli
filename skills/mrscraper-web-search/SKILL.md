@@ -17,7 +17,8 @@ The CLI requests parsed JSON by default. Use `--format html` for the raw page.
 Google URLs supply `q`, `gl`, `hl`, and `start`; explicit `--region`,
 `--language`, and `--page` override URL-derived values. Pages are one-based;
 `start=10` selects page 2. `--render-js` enables dynamic search features.
-`--client-timeout` controls the HTTP deadline and is excluded from the body.
+`--timeout` controls the HTTP deadline, defaults to 600 seconds, and is excluded
+from the body. `--client-timeout` is a compatibility alias.
 
 Search results identify candidate sources. Retrieve relevant result URLs with
 [mrscraper-scraper-api](../mrscraper-scraper-api/SKILL.md) before drawing

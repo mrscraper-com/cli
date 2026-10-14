@@ -116,6 +116,7 @@ test("SERP accepts a plain query and sends the documented v2 payload", async () 
   await webSearch({
     token: "test-token",
     query: "iphone 17",
+    raw: false,
     region: "id",
     language: "id",
     page: 2,
@@ -161,7 +162,7 @@ test("SERP omits optional fields when only a query is provided", async () => {
   await webSearch({ token: "test-token", query: "mrscraper" });
   assert.deepEqual(capturedBody, {
     query: "mrscraper",
-    format: "json",
+    format: "html",
     renderJs: false,
   });
 });
