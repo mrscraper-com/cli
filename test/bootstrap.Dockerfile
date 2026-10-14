@@ -40,20 +40,20 @@ ENV MRSCRAPER_CLI_PACKAGE_SPEC=/tmp/mrscraper-cli.tgz
 RUN node bin/mrscraper.js init --skip-auth --all
 RUN mrscraper --version
 # Cursor, Codex, OpenCode, and OMP read the universal skills directly.
-RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+RUN for skill in mrscraper mrscraper-fetch mrscraper-serp; do \
   test -f "/root/.agents/skills/$skill/SKILL.md"; \
   done
 # Claude Code, Hermes, OpenClaw, and Pi receive harness-specific links.
-RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+RUN for skill in mrscraper mrscraper-fetch mrscraper-serp; do \
   test -f "/root/.claude/skills/$skill/SKILL.md"; \
   done
-RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+RUN for skill in mrscraper mrscraper-fetch mrscraper-serp; do \
   test -f "/root/.hermes/skills/$skill/SKILL.md"; \
   done
-RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+RUN for skill in mrscraper mrscraper-fetch mrscraper-serp; do \
   test -f "/root/.openclaw/skills/$skill/SKILL.md"; \
   done
-RUN for skill in mrscraper mrscraper-fetch mrscraper-scrape mrscraper-serp; do \
+RUN for skill in mrscraper mrscraper-fetch mrscraper-serp; do \
   test -f "/root/.pi/agent/skills/$skill/SKILL.md"; \
   done
 RUN mrscraper setup skills --agent claude-code

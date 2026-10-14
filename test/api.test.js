@@ -1,13 +1,13 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  FETCH_HTML_BASE_URL,
+  SCRAPER_API_BASE_URL,
   SYNC_SCRAPER_BASE_URL,
-  fetchContentApi,
-  googleSerpSyncApi,
-  normalizeSerpInput,
+  normalizeSearchInput,
   request,
   sanitizeResponseData,
+  scraperApi,
+  webSearchApi,
 } from "../lib/api.js";
 
 const originalFetch = globalThis.fetch;
@@ -80,7 +80,7 @@ test("API calls send saved API keys through both compatibility headers", async (
     return mockResponse("<html><h1>Available</h1></html>");
   };
 
-  await fetchContentApi({
+  await scraperApi({
     token: { auth_type: "api_key", api_key: "saved-secret" },
     url: "https://target.example",
   });
@@ -124,109 +124,114 @@ test("response redaction preserves extracted data exactly", () => {
   assert.match(sanitized.data.curl, /REDACTED/);
 });
 
-test("fetch sends one request with the documented query parameters", async () => {
+test("scraper API uses the SDK defaults in one POST and keeps the page body exact", async () => {
   const calls = [];
-  globalThis.fetch = async (url) => {
-    calls.push(new URL(url));
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: new URL(url), init });
     return mockResponse(
       "<html><p>Authorization: Bearer documentation-example</p></html>",
     );
   };
 
-  const result = await fetchContentApi({
+  const result = await scraperApi({
     token: "test-token",
     url: "https://target.example",
-    browserRendering: true,
-    superMode: true,
-    timeout: 30,
-    geoCode: "ID",
-    waitForSelector: ".ready",
-    homePage: true,
-    blockResources: true,
-    maxRetries: 2,
-    tokenCap: 50,
   });
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].origin, new URL(FETCH_HTML_BASE_URL).origin);
-  assert.equal(calls[0].searchParams.get("url"), "https://target.example");
-  assert.equal(calls[0].searchParams.get("timeout"), "30");
-  assert.equal(calls[0].searchParams.get("geoCode"), "ID");
-  assert.equal(calls[0].searchParams.get("browserRendering"), "true");
-  assert.equal(calls[0].searchParams.get("super"), "true");
-  assert.equal(calls[0].searchParams.get("waitForSelector"), ".ready");
-  assert.equal(calls[0].searchParams.get("homePage"), "true");
-  assert.equal(calls[0].searchParams.get("blockResources"), "true");
-  assert.equal(calls[0].searchParams.get("maxRetries"), "2");
-  assert.equal(calls[0].searchParams.get("tokenCap"), "50");
+  assert.equal(calls[0].init.method, "POST");
+  assert.equal(calls[0].url.origin, new URL(SCRAPER_API_BASE_URL).origin);
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
+    token: "test-token",
+    timeout: "120",
+    geoCode: "US",
+    html: "true",
+    markdown: "false",
+  });
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    url: "https://target.example",
+    maxRetries: 3,
+  });
   assert.match(result.data, /Authorization: Bearer documentation-example/);
 });
 
-test("SERP accepts a plain query and sends the documented v2 payload", async () => {
-  let capturedUrl;
-  let capturedBody;
+test("scraper API rejects a timeout outside 1 to 300 seconds without a request", async () => {
+  globalThis.fetch = async () => {
+    throw new Error("no request expected");
+  };
+  for (const timeout of [0, 301, 1.5]) {
+    await assert.rejects(
+      scraperApi({ token: "test-token", url: "https://target.example", timeout }),
+      /timeout must be between 1 and 300 seconds/,
+    );
+  }
+});
+
+test("network errors never echo the API key from the query string", async () => {
+  globalThis.fetch = async (url) => {
+    throw new Error(`connect ECONNREFUSED while requesting ${url}`);
+  };
+  const result = await scraperApi({
+    token: "atk_networkerrorsecret1234",
+    url: "https://target.example",
+  });
+  assert.equal(result.status_code, null);
+  assert.doesNotMatch(result.error, /networkerrorsecret/);
+});
+
+test("web search requests HTML by default, as the SDK does, and JSON when raw is false", async () => {
+  const bodies = [];
   globalThis.fetch = async (url, init) => {
-    capturedUrl = url;
-    capturedBody = JSON.parse(init.body);
+    assert.equal(url, `${SYNC_SCRAPER_BASE_URL}/api/google/serp/v2/sync`);
+    bodies.push(JSON.parse(init.body));
     return mockResponse('{"success":true}', 200, "application/json");
   };
 
-  await googleSerpSyncApi({
+  await webSearchApi({ token: "test-token", url: "mrscraper" });
+  await webSearchApi({
     token: "test-token",
-    query: "iphone 17",
+    url: "iphone 17",
+    raw: false,
     region: "id",
     language: "id",
     page: 2,
-    format: "json",
     renderJs: true,
   });
 
-  assert.equal(
-    capturedUrl,
-    `${SYNC_SCRAPER_BASE_URL}/api/google/serp/v2/sync`,
-  );
-  assert.deepEqual(capturedBody, {
-    query: "iphone 17",
-    region: "id",
-    language: "id",
-    page: 2,
-    format: "json",
-    renderJs: true,
-  });
+  assert.deepEqual(bodies, [
+    { query: "mrscraper", format: "html", renderJs: false },
+    {
+      query: "iphone 17",
+      region: "id",
+      language: "id",
+      page: 2,
+      format: "json",
+      renderJs: true,
+    },
+  ]);
 });
 
-test("SERP preserves Google URL compatibility", () => {
+test("web search derives the query, locale, and page from a Google URL", () => {
   assert.deepEqual(
-    normalizeSerpInput(
+    normalizeSearchInput(
       "https://www.google.com/search?q=running+shoes&gl=us&hl=en&start=20",
     ),
-    {
-      query: "running shoes",
-      region: "us",
-      language: "en",
-      page: 3,
-    },
+    { query: "running shoes", region: "us", language: "en", page: 3 },
   );
-});
-
-test("SERP omits optional fields when only a query is provided", async () => {
-  let capturedBody;
-  globalThis.fetch = async (_url, init) => {
-    capturedBody = JSON.parse(init.body);
-    return mockResponse('{"success":true}', 200, "application/json");
-  };
-
-  await googleSerpSyncApi({ token: "test-token", query: "mrscraper" });
-  assert.deepEqual(capturedBody, {
-    query: "mrscraper",
-    format: "json",
-    renderJs: false,
-  });
+  assert.deepEqual(
+    normalizeSearchInput("https://www.google.com/search?q=shoes&start=abc"),
+    { query: "shoes", region: null, language: null, page: null },
+  );
+  assert.throws(
+    () => normalizeSearchInput("https://www.google.com/search?hl=en"),
+    /must contain a q parameter/,
+  );
 });
 
 test("the public package entry point imports successfully", async () => {
   const exports = await import("../lib/index.js");
   assert.equal(exports.SYNC_SCRAPER_BASE_URL, SYNC_SCRAPER_BASE_URL);
-  assert.equal(typeof exports.fetchContentApi, "function");
+  assert.equal(typeof exports.scraperApi, "function");
+  assert.equal(typeof exports.webSearchApi, "function");
   assert.equal(typeof exports.getSubscriptionAccountApi, "function");
 });
