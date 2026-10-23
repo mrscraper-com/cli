@@ -48,7 +48,7 @@ function runCli(args, environment = {}) {
 }
 
 test("removed data commands fail instead of calling obsolete APIs", async () => {
-  for (const command of ["fetch", "serp", "status", "scrape", "rerun", "result", "results", "scraper-api", "Account"]) {
+  for (const command of ["fetch", "serp", "status", "scrape", "rerun", "result", "results", "scraper-api", "scraperAPI", "Account"]) {
     const result = await runCli([command]);
     assert.equal(result.code, 1, command);
     assert.match(result.stderr, /unknown command|too many arguments/, command);
@@ -217,7 +217,7 @@ test("API failures produce JSON and a non-zero exit code", async (t) => {
   t.after(() => close(server));
 
   const result = await runCli(
-    ["scraperAPI", "https://target.example", "--token", "test"],
+    ["scraperHtml", "https://target.example", "--token", "test"],
     { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
   );
 
@@ -269,25 +269,21 @@ test("account summarizes the account without exposing API tokens", async (t) => 
   }
 });
 
-test("scraperAPI command sends SDK options through a POST request", async (t) => {
+test("scraperMarkdown sends shared options without unrelated output flags", async (t) => {
   const calls = [];
   const server = http.createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
-    calls.push({
-      method: request.method, url: new URL(request.url, "http://localhost"),
-      body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
-    });
+    calls.push({ method: request.method, url: new URL(request.url, "http://localhost"), body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
     response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"html":"<html>page</html>","markdown":"page"}');
+    response.end('{"markdown":"page"}');
   });
   const port = await listen(server);
   t.after(() => close(server));
   const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
   const result = await runCli([
-    "scraperAPI", "https://target.example", "--token", "test", "--no-html",
-    "--markdown", "--screenshot", "--no-browser-rendering", "--super", "--home-page",
-    "--no-use-proxy", "--headers", '{"x-target":"yes"}', "--token-cap", "0", "--no-stream",
+    "scraper_markdown", "https://target.example", "--token", "test", "--no-browser-rendering", "--super", "--home-page",
+    "--no-use-proxy", "--headers", '{"x-target":"yes"}', "--token-cap", "0", "--no-stream", "--wait-until", "networkidle",
   ], environment);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).data.markdown, "page");
@@ -295,13 +291,38 @@ test("scraperAPI command sends SDK options through a POST request", async (t) =>
   assert.deepEqual(calls[0].body, { url: "https://target.example", maxRetries: 3, tokenCap: 0 });
   const params = calls[0].url.searchParams;
   for (const [key, value] of Object.entries({
-    html: "false", markdown: "true", browserRendering: "true", screenshot: "true",
-    super: "true", warmStart: "true", useProxy: "false", stream: "false", headers: '{"x-target":"yes"}',
+    markdown: "true", browserRendering: "false", super: "true", warmStart: "true", useProxy: "false", stream: "false", waitUntil: "networkidle", headers: '{"x-target":"yes"}',
   })) assert.equal(params.get(key), value, key);
-  const defaults = await runCli(["scraperAPI", "https://target.example", "--token", "test"], environment);
+  assert.equal(params.has("html"), false);
+  assert.equal(params.has("screenshot"), false);
+  const defaults = await runCli(["scraperHtml", "https://target.example", "--token", "test"], environment);
   assert.equal(defaults.code, 0, defaults.stderr);
   assert.equal(calls[1].url.searchParams.has("browserRendering"), false);
   assert.equal(calls[1].url.searchParams.has("stream"), false);
+});
+
+test("screenshot downloads are saved unchanged and represented as base64 in JSON", async (t) => {
+  const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-download-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url, "http://localhost");
+    assert.equal(request.method, "GET");
+    assert.equal(url.searchParams.get("screenshot"), "true");
+    assert.equal(url.searchParams.get("timeout"), "300");
+    response.writeHead(200, { "content-type": "image/png" });
+    response.end(bytes);
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  const destination = path.join(directory, "page.png");
+  const result = await runCli(["getScreenshot", "https://target.example", "--no-full-page", "--save", destination, "--token", "test"], { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` });
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(fs.readFileSync(destination), bytes);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.saved_to, destination);
+  assert.equal(output.data.encoding, "base64");
+  assert.deepEqual(Buffer.from(output.data.content, "base64"), bytes);
 });
 
 test("webSearch command accepts query text and Google URLs", async (t) => {

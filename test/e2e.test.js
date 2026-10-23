@@ -22,7 +22,7 @@ function runCli(args, environment) {
   });
 }
 
-test("installed CLI authenticates and reaches exactly the three supported data operations", async (t) => {
+test("installed CLI authenticates and reaches page retrieval, web search and account operations", async (t) => {
   const credentialDir = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-e2e-"));
   t.after(() => fs.rmSync(credentialDir, { recursive: true, force: true }));
   const calls = [];
@@ -76,7 +76,7 @@ test("installed CLI authenticates and reaches exactly the three supported data o
   assert.equal(auth.credential_configured, true);
   const harness = process.env.MRSCRAPER_E2E_HARNESS || "codex";
   await runCli(["setup", "skills", "--agent", harness, "--dry-run"], environment);
-  const page = JSON.parse(await runCli(["scraperAPI", "https://books.toscrape.com/", "--markdown"], environment));
+  const page = JSON.parse(await runCli(["scraperMarkdown", "https://books.toscrape.com/"], environment));
   assert.equal(page.status_code, 200);
   assert.equal(page.data.markdown, "Books");
   const search = JSON.parse(await runCli(["webSearch", "books"], environment));

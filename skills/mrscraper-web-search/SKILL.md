@@ -1,11 +1,13 @@
 ---
 name: mrscraper-web-search
-description: Find public pages through Google using MrScraper webSearch. Use for query-based discovery or a Google search URL, then retrieve selected pages with scraperAPI for reading and analysis.
+description: Search the web to retrieve real-time search results, including relevant website URLs, titles, descriptions, and related questions based on a given query. Use MrScraper webSearch with a query or Google search URL, then retrieve selected pages with scraperHtml or scraperMarkdown for reading and analysis.
 ---
 
 # Search Google
 
 Use [mrscraper](../mrscraper/SKILL.md) for setup and authentication.
+`webSearch` retrieves live Google search results, including website URLs,
+titles, descriptions, and related questions when available in the results.
 `webSearch` sends `POST https://sync.scraper.mrscraper.com/api/google/serp/v2/sync`.
 
 ```bash

@@ -28,7 +28,10 @@ test("skill and README command examples resolve to supported CLI commands", () =
     fs.readFileSync(path.join(skillsRoot, name, "SKILL.md"), "utf8"))];
   const commands = new Set(docs.flatMap((text) =>
     [...text.matchAll(/^mrscraper\s+([A-Za-z][A-Za-z-]*)/gm)].map(([, name]) => name)));
-  assert.ok(commands.has("scraperAPI"));
+  for (const command of ["scraperHtml", "scraperMarkdown", "getScreenshot", "scraperJson", "scraperMultiplePage", "scraperSitemap", "scrapeBrand", "getBrand"]) {
+    assert.ok(commands.has(command), command);
+  }
+  assert.equal(commands.has("scraperAPI"), false);
   assert.ok(commands.has("webSearch"));
   assert.ok(commands.has("account"));
   for (const command of commands) {
