@@ -47,11 +47,33 @@ function runCli(args, environment = {}) {
   });
 }
 
-async function readBody(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  return Buffer.concat(chunks).toString("utf8");
-}
+test("removed data commands fail instead of calling obsolete APIs", async () => {
+  for (const command of ["fetch", "serp", "status", "scrape", "rerun", "result", "results", "scraper-api", "scraperAPI", "Account"]) {
+    const result = await runCli([command]);
+    assert.equal(result.code, 1, command);
+    assert.match(result.stderr, /unknown command|too many arguments/, command);
+  }
+});
+
+test("account reports HTTP and invalid response failures with a non-zero exit code", async (t) => {
+  let status = 401;
+  let body = '{"message":"failed"}';
+  const server = http.createServer((_request, response) => {
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(body);
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  for (status of [401, 403, 500, 200]) {
+    if (status === 200) body = '{"data":null}';
+    const result = await runCli(["account", "--json", "--token", "test"], {
+      MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
+    });
+    assert.equal(result.code, 1);
+    assert.equal(JSON.parse(result.stdout).status_code, status);
+    assert.ok(JSON.parse(result.stdout).error);
+  }
+});
 
 test("init never starts authentication when stdin is non-interactive", async (t) => {
   const homeDirectory = fs.mkdtempSync(
@@ -156,7 +178,10 @@ test("setup skills can target one harness without requiring detection", async ()
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /Would install the MrScraper skill pack for Codex/);
-  assert.match(result.stdout, /--skill mrscraper mrscraper-fetch mrscraper-serp /);
+  assert.match(
+    result.stdout,
+    /--skill mrscraper mrscraper-scraper-api mrscraper-account mrscraper-web-search/,
+  );
 });
 
 test("setup skills can target Grok without requiring detection", async () => {
@@ -183,152 +208,6 @@ test("setup skills can target Hermes without requiring detection", async () => {
   assert.match(result.stdout, /--agent hermes-agent --yes/);
 });
 
-test("scraper-api sends one POST with the SDK query fields and preserves the page body", async (t) => {
-  const requests = [];
-  const server = http.createServer(async (request, response) => {
-    requests.push({
-      method: request.method,
-      url: new URL(request.url, "http://localhost"),
-      headers: request.headers,
-      body: JSON.parse(await readBody(request)),
-    });
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end("<html><body><h1>Retrieved</h1></body></html>");
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const result = await runCli(
-    [
-      "scraper-api",
-      "https://target.example",
-      "--token",
-      "test",
-      "--no-html",
-      "--markdown",
-      "--super",
-      "--geo-code",
-      "ID",
-      "--proxy-country",
-      "SG",
-      "--no-use-proxy",
-      "--proxy",
-      "user:pass@proxy.example:8000",
-      "--wait-for-selector",
-      ".ready",
-      "--home-page",
-      "--block-resources",
-      "--bypass-proxy",
-      "--cookie-jar",
-      "domain=example.com",
-      "--headers",
-      '{"Accept-Language":"en"}',
-      "--max-retries",
-      "0",
-      "--token-cap",
-      "0",
-      "--timeout",
-      "300",
-      "--stream",
-      "--discard-token-secret",
-      "discard-me",
-    ],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 0);
-  assert.equal(result.stderr, "");
-  assert.equal(
-    JSON.parse(result.stdout).data,
-    "<html><body><h1>Retrieved</h1></body></html>",
-  );
-  assert.equal(requests.length, 1);
-  const [sent] = requests;
-  assert.equal(sent.method, "POST");
-  assert.equal(sent.headers["x-discard-token-secret"], "discard-me");
-  assert.deepEqual(sent.body, {
-    url: "https://target.example",
-    maxRetries: 0,
-    tokenCap: 0,
-  });
-  assert.deepEqual(Object.fromEntries(sent.url.searchParams), {
-    token: "test",
-    timeout: "300",
-    geoCode: "ID",
-    proxyCountry: "SG",
-    super: "true",
-    useProxy: "false",
-    proxy: "user:pass@proxy.example:8000",
-    html: "false",
-    markdown: "true",
-    waitForSelector: ".ready",
-    warmStart: "true",
-    blockResources: "true",
-    bypassProxy: "true",
-    cookieJar: "domain=example.com",
-    headers: '{"Accept-Language":"en"}',
-    stream: "true",
-  });
-});
-
-test("scraper-api leaves browser rendering automatic unless set, and screenshots force it", async (t) => {
-  const sent = [];
-  const server = http.createServer(async (request, response) => {
-    await readBody(request);
-    const params = new URL(request.url, "http://localhost").searchParams;
-    sent.push({
-      browserRendering: params.get("browserRendering"),
-      screenshot: params.get("screenshot"),
-    });
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end("<html><body>ok</body></html>");
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const cases = [
-    { flags: [], browserRendering: null, screenshot: null },
-    { flags: ["--browser-rendering"], browserRendering: "true", screenshot: null },
-    { flags: ["--no-browser-rendering"], browserRendering: "false", screenshot: null },
-    {
-      flags: ["--screenshot", "--no-browser-rendering"],
-      browserRendering: "true",
-      screenshot: "true",
-    },
-  ];
-  for (const { flags } of cases) {
-    const result = await runCli(
-      ["scraper-api", "https://target.example", "--token", "test", ...flags],
-      { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-    );
-    assert.equal(result.code, 0);
-  }
-
-  assert.deepEqual(
-    sent,
-    cases.map(({ browserRendering, screenshot }) => ({ browserRendering, screenshot })),
-  );
-});
-
-test("scraper-api rejects a timeout above 300 seconds before sending a request", async (t) => {
-  let requestCount = 0;
-  const server = http.createServer((_request, response) => {
-    requestCount += 1;
-    response.end();
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const result = await runCli(
-    ["scraper-api", "https://target.example", "--token", "test", "--timeout", "301"],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /timeout must be an integer from 1 to 300/);
-  assert.equal(requestCount, 0);
-});
-
 test("API failures produce JSON and a non-zero exit code", async (t) => {
   const server = http.createServer((_request, response) => {
     response.writeHead(500, { "content-type": "application/json" });
@@ -338,7 +217,7 @@ test("API failures produce JSON and a non-zero exit code", async (t) => {
   t.after(() => close(server));
 
   const result = await runCli(
-    ["scraper-api", "https://target.example", "--token", "test"],
+    ["scraperHtml", "https://target.example", "--token", "test"],
     { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
   );
 
@@ -349,49 +228,7 @@ test("API failures produce JSON and a non-zero exit code", async (t) => {
   assert.equal(output.error, "HTTP 500");
 });
 
-test("web-search asks for parsed JSON and lets explicit options override a Google URL", async (t) => {
-  const bodies = [];
-  const server = http.createServer(async (request, response) => {
-    assert.equal(request.method, "POST");
-    assert.equal(request.url, "/api/google/serp/v2/sync");
-    bodies.push(JSON.parse(await readBody(request)));
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"success":true,"data":{"organic":[]}}');
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-  const environment = { MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}` };
-  const googleUrl = "https://www.google.com/search?q=web+scraping&gl=us&hl=en&start=20";
-
-  const derived = await runCli(["web-search", googleUrl, "--token", "test"], environment);
-  const overridden = await runCli(
-    ["web-search", googleUrl, "--token", "test", "--region", "id", "--format", "html"],
-    environment,
-  );
-
-  assert.equal(derived.code, 0);
-  assert.equal(overridden.code, 0);
-  assert.deepEqual(bodies, [
-    {
-      query: "web scraping",
-      region: "us",
-      language: "en",
-      page: 3,
-      format: "json",
-      renderJs: false,
-    },
-    {
-      query: "web scraping",
-      region: "id",
-      language: "en",
-      page: 3,
-      format: "html",
-      renderJs: false,
-    },
-  ]);
-});
-
-test("status summarizes the account without exposing API tokens", async (t) => {
+test("account summarizes the account without exposing API tokens", async (t) => {
   const server = http.createServer((request, response) => {
     assert.equal(request.url, "/api/v1/subscription-accounts");
     response.writeHead(200, { "content-type": "application/json" });
@@ -419,20 +256,101 @@ test("status summarizes the account without exposing API tokens", async (t) => {
   const port = await listen(server);
   t.after(() => close(server));
 
-  const result = await runCli(["status", "--token", "test"], {
-    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
-  });
+  for (const command of ["account"]) {
+    const result = await runCli([command, "--token", "test"], {
+      MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
+    });
 
-  assert.equal(result.code, 0);
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.kind, "mrscraper-cli-status-summary");
-  assert.deepEqual(output.source_endpoints, ["/subscription-accounts"]);
-  assert.equal(output.data.account.token_remaining, 80);
-  assert.equal(output.data.account.subscription_status, "active");
-  assert.doesNotMatch(result.stdout, /atk_secret|sub_secret/);
+    assert.equal(result.code, 0);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.data.account.token_remaining, 80);
+    assert.equal(output.data.account.subscription_status, "active");
+    assert.doesNotMatch(result.stdout, /atk_secret|sub_secret/);
+  }
 });
 
-test("status --pretty renders a human dashboard instead of bare JSON", async (t) => {
+test("scraperMarkdown sends shared options without unrelated output flags", async (t) => {
+  const calls = [];
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    calls.push({ method: request.method, url: new URL(request.url, "http://localhost"), body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"markdown":"page"}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
+  const result = await runCli([
+    "scraper_markdown", "https://target.example", "--token", "test", "--no-browser-rendering", "--super", "--home-page",
+    "--no-use-proxy", "--headers", '{"x-target":"yes"}', "--token-cap", "0", "--no-stream", "--wait-until", "networkidle",
+  ], environment);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).data.markdown, "page");
+  assert.equal(calls[0].method, "POST");
+  assert.deepEqual(calls[0].body, { url: "https://target.example", maxRetries: 3, tokenCap: 0 });
+  const params = calls[0].url.searchParams;
+  for (const [key, value] of Object.entries({
+    markdown: "true", browserRendering: "false", super: "true", warmStart: "true", useProxy: "false", stream: "false", waitUntil: "networkidle", headers: '{"x-target":"yes"}',
+  })) assert.equal(params.get(key), value, key);
+  assert.equal(params.has("html"), false);
+  assert.equal(params.has("screenshot"), false);
+  const defaults = await runCli(["scraperHtml", "https://target.example", "--token", "test"], environment);
+  assert.equal(defaults.code, 0, defaults.stderr);
+  assert.equal(calls[1].url.searchParams.has("browserRendering"), false);
+  assert.equal(calls[1].url.searchParams.has("stream"), false);
+});
+
+test("screenshot downloads are saved unchanged and represented as base64 in JSON", async (t) => {
+  const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-download-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url, "http://localhost");
+    assert.equal(request.method, "GET");
+    assert.equal(url.searchParams.get("screenshot"), "true");
+    assert.equal(url.searchParams.get("timeout"), "300");
+    response.writeHead(200, { "content-type": "image/png" });
+    response.end(bytes);
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  const destination = path.join(directory, "page.png");
+  const result = await runCli(["getScreenshot", "https://target.example", "--no-full-page", "--save", destination, "--token", "test"], { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` });
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(fs.readFileSync(destination), bytes);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.saved_to, destination);
+  assert.equal(output.data.encoding, "base64");
+  assert.deepEqual(Buffer.from(output.data.content, "base64"), bytes);
+});
+
+test("webSearch command accepts query text and Google URLs", async (t) => {
+  const bodies = [];
+  const server = http.createServer(async (request, response) => {
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    assert.equal(request.url, "/api/google/serp/v2/sync");
+    bodies.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"results":[]}');
+  });
+  const port = await listen(server);
+  t.after(() => close(server));
+  for (const input of ["python scraping", "https://google.com/search?q=python+scraping&gl=id&start=10"]) {
+    const result = await runCli(["webSearch", input, "--token", "test"], {
+      MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}`,
+    });
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout).data, { results: [] });
+  }
+  assert.deepEqual(bodies, [
+    { query: "python scraping", format: "json", renderJs: false },
+    { query: "python scraping", format: "json", renderJs: false, region: "id", page: 2 },
+  ]);
+});
+
+test("account --pretty renders a human dashboard instead of bare JSON", async (t) => {
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
@@ -457,7 +375,7 @@ test("status --pretty renders a human dashboard instead of bare JSON", async (t)
   t.after(() => close(server));
 
   const result = await runCli(
-    ["status", "--pretty", "--no-color", "--token", "test"],
+    ["account", "--pretty", "--no-color", "--token", "test"],
     { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
   );
 
@@ -469,23 +387,4 @@ test("status --pretty renders a human dashboard instead of bare JSON", async (t)
   assert.match(result.stdout, /Tip: pass --json/);
   assert.doesNotMatch(result.stdout, /^\s*\{/);
   assert.doesNotMatch(result.stdout, /\x1b\[/);
-});
-
-test("status reports an API failure as JSON with a non-zero exit code", async (t) => {
-  const server = http.createServer((_request, response) => {
-    response.writeHead(401, { "content-type": "application/json" });
-    response.end('{"message":"Unauthenticated."}');
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const result = await runCli(["status", "--json", "--token", "bad"], {
-    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
-  });
-
-  assert.equal(result.code, 1);
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.status_code, 401);
-  assert.match(output.error, /Unauthorized/);
-  assert.equal(output.kind, undefined);
 });

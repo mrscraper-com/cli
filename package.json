@@ -1,7 +1,7 @@
 {
   "name": "@mrscraper/cli",
-  "version": "0.3.2",
-  "description": "MrScraper CLI for HTML fetching, AI extraction, Google SERPs, reruns, results, account usage, and agent skill setup.",
+  "version": "0.5.1",
+  "description": "MrScraper CLI for web scraping, structured extraction, brand assets, web search, and account status.",
   "license": "MIT",
   "author": "MrScraper",
   "repository": {

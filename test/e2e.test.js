@@ -7,213 +7,89 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
-const cliPath =
-  process.env.MRSCRAPER_E2E_CLI_PATH ??
-  path.join(repositoryRoot, "bin", "mrscraper.js");
-
-function listen(server) {
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => resolve(server.address().port));
-  });
-}
-
-function close(server) {
-  return new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
-}
-
-async function readJsonBody(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  const body = Buffer.concat(chunks).toString("utf8");
-  return body ? JSON.parse(body) : null;
-}
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const cliPath = process.env.MRSCRAPER_E2E_CLI_PATH ?? path.join(repositoryRoot, "bin/mrscraper.js");
 
 function runCli(args, environment) {
-  return new Promise((resolve) => {
-    execFile(
-      process.execPath,
-      [cliPath, ...args],
-      {
-        cwd: repositoryRoot,
-        env: { ...process.env, ...environment },
-        timeout: 15_000,
-      },
-      (error, stdout, stderr) => {
-        resolve({
-          code: typeof error?.code === "number" ? error.code : 0,
-          stdout,
-          stderr,
-        });
-      },
-    );
+  const executable = process.env.MRSCRAPER_E2E_EXECUTABLE;
+  return new Promise((resolve, reject) => {
+    execFile(executable || process.execPath, executable ? args : [cliPath, ...args], {
+      cwd: repositoryRoot, env: { ...process.env, ...environment }, timeout: 15_000,
+    }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`${args[0]} failed: ${stderr || error.message}`));
+      else resolve(stdout);
+    });
   });
 }
 
-test("published CLI workflow reaches every data command with truthful wire contracts", async (t) => {
-  const requests = [];
-
+test("installed CLI authenticates and reaches page retrieval, web search and account operations", async (t) => {
+  const credentialDir = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-e2e-"));
+  t.after(() => fs.rmSync(credentialDir, { recursive: true, force: true }));
+  const calls = [];
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://localhost");
-      const body = request.method === "POST" ? await readJsonBody(request) : null;
-      requests.push({ method: request.method, url, body, headers: request.headers });
-
-      assert.equal(request.headers.authorization, "Bearer e2e-api-key");
-      assert.equal(request.headers["x-api-token"], "e2e-api-key");
-
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const text = Buffer.concat(chunks).toString("utf8");
+      const body = text ? JSON.parse(text) : null;
+      calls.push({ method: request.method, url, body });
+      assert.equal(request.headers.authorization, "Bearer e2e-key");
+      assert.equal(request.headers["x-api-token"], "e2e-key");
+      response.setHeader("content-type", "application/json");
       if (url.pathname === "/scraper") {
-        response.writeHead(200, { "content-type": "text/html", "x-request-id": "page-1" });
-        response.end("<html><body>token=public-page-value</body></html>");
-        return;
+        assert.equal(request.method, "POST");
+        assert.deepEqual(body, { url: "https://books.toscrape.com/", maxRetries: 3 });
+        assert.equal(url.searchParams.get("markdown"), "true");
+        response.end('{"html":"<html>Books</html>","markdown":"Books"}');
+      } else if (url.pathname === "/sync/api/google/serp/v2/sync") {
+        assert.equal(request.method, "POST");
+        assert.deepEqual(body, { query: "books", format: "json", renderJs: false });
+        response.end('{"results":[{"url":"https://books.toscrape.com/"}]}');
+      } else if (url.pathname === "/api/v1/subscription-accounts") {
+        assert.equal(request.method, "GET");
+        assert.equal(body, null);
+        response.end(JSON.stringify({ data: {
+          tokenLimit: 1000, tokenUsage: 125, stripeStatus: "active", stripeCustomerId: "billing-secret",
+          user: { name: "Ada", email: "ada@example.com", isVerified: true, latestApiToken: "private-key" },
+        } }));
+      } else {
+        response.statusCode = 404;
+        response.end('{"error":"unexpected endpoint"}');
       }
-
-      response.writeHead(200, { "content-type": "application/json" });
-      if (url.pathname === "/sync/api/google/serp/v2/sync") {
-        response.end(JSON.stringify({ success: true, html: "<html>results</html>" }));
-        return;
-      }
-      if (url.pathname === "/api/v1/subscription-accounts") {
-        response.end(
-          JSON.stringify({
-            data: {
-              tokenLimit: 1000,
-              tokenUsage: 125,
-              stripeStatus: "active",
-              rateLimit: 30,
-              rateTtl: 60,
-              user: {
-                name: "E2E User",
-                email: "e2e@example.com",
-                latestApiToken: "atk_do_not_print",
-                isVerified: true,
-              },
-            },
-          }),
-        );
-        return;
-      }
-
-      response.writeHead(404, { "content-type": "application/json" });
-      response.end('{"message":"not found"}');
     } catch (error) {
-      response.writeHead(500, { "content-type": "application/json" });
-      response.end(JSON.stringify({ message: error.message }));
+      response.statusCode = 500;
+      response.end(JSON.stringify({ error: error.message }));
     }
   });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-e2e-"));
-  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const port = server.address().port;
   const environment = {
-    MRSCRAPER_HOME: path.join(temporaryRoot, ".mrscraper"),
-    MRSCRAPER_API_KEY: "",
-    MRSCRAPER_API_TOKEN: "",
+    MRSCRAPER_HOME: credentialDir, MRSCRAPER_API_KEY: "", MRSCRAPER_API_TOKEN: "",
     MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/scraper`,
-    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
     MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}/sync`,
+    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
   };
-
-  const login = await runCli(["login", "--api-key", "e2e-api-key"], environment);
-  assert.equal(login.code, 0);
-  const authStatus = await runCli(["auth", "status", "--json"], environment);
-  assert.equal(JSON.parse(authStatus.stdout).credential_configured, true);
-
-  const pageResult = await runCli(
-    [
-      "scraper-api",
-      "https://example.com/product",
-      "--browser-rendering",
-      "--geo-code",
-      "ID",
-      "--wait-for-selector",
-      ".product",
-      "--home-page",
-      "--block-resources",
-      "--max-retries",
-      "2",
-      "--token-cap",
-      "75",
-      "--timeout",
-      "5",
-    ],
-    environment,
-  );
-  assert.equal(pageResult.code, 0);
-  assert.equal(
-    JSON.parse(pageResult.stdout).data,
-    "<html><body>token=public-page-value</body></html>",
-  );
-
-  const searchResult = await runCli(
-    [
-      "web-search",
-      "iphone 17",
-      "--region",
-      "id",
-      "--language",
-      "id",
-      "--page",
-      "2",
-      "--format",
-      "html",
-      "--render-js",
-      "--timeout",
-      "5",
-    ],
-    environment,
-  );
-  assert.equal(searchResult.code, 0);
-
-  const statusResult = await runCli(["status", "--json"], environment);
-  assert.equal(statusResult.code, 0);
-  const status = JSON.parse(statusResult.stdout);
-  assert.equal(status.kind, "mrscraper-cli-status-summary");
-  assert.equal(status.data.account.token_remaining, 875);
-  assert.doesNotMatch(statusResult.stdout, /atk_do_not_print/);
-
-  const pageRequests = requests.filter(({ url }) => url.pathname === "/scraper");
-  assert.equal(pageRequests.length, 1);
-  const [pageRequest] = pageRequests;
-  assert.equal(pageRequest.method, "POST");
-  assert.deepEqual(pageRequest.body, {
-    url: "https://example.com/product",
-    maxRetries: 2,
-    tokenCap: 75,
-  });
-  assert.deepEqual(Object.fromEntries(pageRequest.url.searchParams), {
-    token: "e2e-api-key",
-    timeout: "5",
-    geoCode: "ID",
-    browserRendering: "true",
-    html: "true",
-    markdown: "false",
-    waitForSelector: ".product",
-    warmStart: "true",
-    blockResources: "true",
-  });
-
-  const searchRequest = requests.find(
-    ({ url }) => url.pathname === "/sync/api/google/serp/v2/sync",
-  );
-  assert.deepEqual(searchRequest.body, {
-    query: "iphone 17",
-    region: "id",
-    language: "id",
-    page: 2,
-    format: "html",
-    renderJs: true,
-  });
-
-  const logout = await runCli(["logout"], environment);
-  assert.equal(logout.code, 0);
-  const loggedOutStatus = await runCli(["auth", "status", "--json"], environment);
-  assert.equal(JSON.parse(loggedOutStatus.stdout).credential_configured, false);
+  await runCli(["login", "--api-key", "e2e-key"], environment);
+  const auth = JSON.parse(await runCli(["auth", "status", "--json"], environment));
+  assert.equal(auth.credential_configured, true);
+  const harness = process.env.MRSCRAPER_E2E_HARNESS || "codex";
+  await runCli(["setup", "skills", "--agent", harness, "--dry-run"], environment);
+  const page = JSON.parse(await runCli(["scraperMarkdown", "https://books.toscrape.com/"], environment));
+  assert.equal(page.status_code, 200);
+  assert.equal(page.data.markdown, "Books");
+  const search = JSON.parse(await runCli(["webSearch", "books"], environment));
+  assert.equal(search.data.results[0].url, "https://books.toscrape.com/");
+  const accountText = await runCli(["account", "--json"], environment);
+  const account = JSON.parse(accountText);
+  assert.equal(account.data.account.subscription_status, "active");
+  assert.equal(account.data.account.token_remaining, 875);
+  assert.doesNotMatch(accountText, /billing-secret|private-key/);
+  assert.deepEqual(calls.map(({ method, url }) => [method, url.pathname]), [
+    ["POST", "/scraper"], ["POST", "/sync/api/google/serp/v2/sync"], ["GET", "/api/v1/subscription-accounts"],
+  ]);
+  await runCli(["logout"], environment);
+  const loggedOut = JSON.parse(await runCli(["auth", "status", "--json"], environment));
+  assert.equal(loggedOut.credential_configured, false);
 });
