@@ -1,6 +1,6 @@
 ---
 name: mrscraper
-description: Set up and authenticate the MrScraper CLI, route tasks to page retrieval, structured extraction, site mapping, brand assets, Google web search, or account status, and handle shared output. Use the focused skills for each data operation.
+description: Set up and authenticate the MrScraper CLI, route tasks to page retrieval, structured extraction, site mapping, brand assets, Web Search, or account status, and handle shared output. Use the focused skills for each data operation.
 ---
 
 # MrScraper CLI
@@ -36,7 +36,7 @@ Refresh skills with `mrscraper setup skills`. Use `--agent <id>` to target
 | Task | Skill |
 | --- | --- |
 | Read pages, extract data, map a site, or retrieve brand assets | [mrscraper-scraper-api](../mrscraper-scraper-api/SKILL.md) |
-| Find pages from a Google query or Google search URL | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) |
+| Find pages from a search query | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) |
 | Check account identity, subscription, or remaining quota | [mrscraper-account](../mrscraper-account/SKILL.md) |
 
 For discovery, search first, then retrieve the relevant result URLs. Preserve

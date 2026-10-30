@@ -2,7 +2,7 @@
 
 ![MrScraper](./assets/mrscraper.jpeg)
 
-MrScraper CLI for page HTML, Markdown, screenshots, structured extraction, site maps, brand assets, Google search, and account status.
+MrScraper CLI for page HTML, Markdown, screenshots, structured extraction, site maps, brand assets, Web Search, and account status.
 Requires Node.js 20 or newer.
 
 ## Install and authenticate
@@ -66,7 +66,7 @@ The skill pack contains:
 
 - [mrscraper](./skills/mrscraper/SKILL.md): setup, authentication, routing, and output.
 - [mrscraper-scraper-api](./skills/mrscraper-scraper-api/SKILL.md): retrieve page content.
-- [mrscraper-web-search](./skills/mrscraper-web-search/SKILL.md): discover pages through Google.
+- [mrscraper-web-search](./skills/mrscraper-web-search/SKILL.md): discover pages with Web Search.
 - [mrscraper-account](./skills/mrscraper-account/SKILL.md): account status and quota.
 
 Supported harness IDs are `claude-code`, `cursor`, `codex`, `grok`, `hermes`,
@@ -108,28 +108,24 @@ Snake-case command aliases match the Python SDK: `scraper_html`,
 `scraper_markdown`, `get_screenshot`, `scraper_json`, `scraper_multiple_page`,
 `scraper_sitemap`, `scrape_brand`, and `get_brand`.
 
-| Operation | Description | Request and defaults |
+| Operation | Description | Parameters and defaults |
 | --- | --- | --- |
-| `scraperHtml` | Fetch a public web page as HTML. | POST with `html=true`; omits Markdown and screenshot flags |
-| `scraperMarkdown` | Fetch a public web page as Markdown for reading and analysis. | POST with `markdown=true`; omits HTML and screenshot flags |
-| `getScreenshot` | Capture a public web page as a rendered screenshot. | GET with `browserRendering=true`, `screenshot=full`, `waitUntil=domcontentloaded`, and timeout 300; use `--no-full-page` for `screenshot=true` |
-| `scraperJson` | Extract structured data from a page using a prompt. | POST with `html=true`, body `agent=general`, prompt `Extract all data as complete as possible.` |
-| `scraperMultiplePage` | Extract listing entries across multiple pages. | POST with body `agent=listing`, `maxPages=3`, prompt `Extract all entry data as complete as possible.`; no output flags |
-| `scraperSitemap` | Discover site URLs with optional include and exclude patterns. | POST with body `agent=map`, `maxDepth=2`, `maxPages=3`, `limit=1000`; no output flags |
-| `scrapeBrand` | Start a job to extract brand assets from a public website. | POST with query `action=brand-scraping`, bundle `clean`, and URL; JSON body contains only URL |
-| `getBrand` | Read a brand job or download its HTML, ZIP bundle, or screenshot. | GET `/neo/brand?id=<job_id>`; optional output `html`, `bundle`, `screenshot`, or `screenshot_full`; timeout 600 |
+| `scraperHtml` | Fetch a public web page as HTML. | Required URL and shared scraping options |
+| `scraperMarkdown` | Fetch a public web page as Markdown for reading and analysis. | Required URL and shared scraping options |
+| `getScreenshot` | Capture a public web page as a rendered screenshot. | Full-page capture, `--wait-until domcontentloaded`, timeout 300; use `--no-full-page` for the viewport |
+| `scraperJson` | Extract structured data from a page using a prompt. | `--prompt` defaults to `Extract all data as complete as possible.` |
+| `scraperMultiplePage` | Extract listing entries across multiple pages. | `--max-pages 3`; `--prompt` defaults to `Extract all entry data as complete as possible.` |
+| `scraperSitemap` | Discover site URLs with optional include and exclude patterns. | `--max-depth 2`, `--max-pages 3`, `--limit 1000`; optional pattern filters |
+| `scrapeBrand` | Start a job to extract brand assets from a public website. | Required URL; `--bundle clean` (`clean`, `full`, or `none`) |
+| `getBrand` | Read a brand job or download its HTML, ZIP bundle, or screenshot. | Required job ID; optional `--output html`, `bundle`, `screenshot`, or `screenshot_full`; timeout 600 |
 
 Use the job ID returned by `scrapeBrand` with `getBrand` to check the job and
 retrieve its outputs. Each `getBrand` invocation makes one request; repeat it
 to check a job that is still processing. `--bundle` accepts `clean`, `full`,
 or `none`.
 
-Scraping requests use `https://api.mrscraper.com`. Authentication uses Bearer
-and `x-api-token` headers; initial scraping requests also send the API's
-`token` query parameter. POST bodies include `url`, `maxRetries=3`, and
-optional `tokenCap`. Screenshot and brand creation put retry and token
-controls in the query. Sitemap pattern strings are passed unchanged as JSON
-`includePatterns` and `excludePatterns`; omitted patterns are not sent.
+All data commands use your configured API token. Sitemap pattern strings
+are preserved unchanged; omitted patterns leave results unfiltered.
 
 The following controls apply to the initial scraping services. Browser
 rendering flags apply to every initial service except `getScreenshot`, which
@@ -143,7 +139,7 @@ always renders. `getBrand` accepts only `--output`, `--save`, `--timeout`, and
 | `--geo-code <code>` | `US` | Geolocation |
 | `--proxy-country <code>`, `--proxy <url>`, `--no-use-proxy` | API defaults | Proxy controls |
 | `--wait-for-selector <selector>`, `--wait-until <event>` | omitted | Wait for page readiness; screenshot readiness defaults as above |
-| `--home-page` | off | Visit the site root via `warmStart=true` |
+| `--home-page` | off | Visit the site root before the target page |
 | `--block-resources`, `--bypass-proxy` | off | Resource and proxy controls |
 | `--cookie-jar <settings>`, `--headers <json>` | omitted | Session settings and target headers |
 | `--max-retries <n>`, `--token-cap <n>` | `3`, omitted | Nonnegative retry count and token budget, including zero |
@@ -159,25 +155,23 @@ commands, `--save` writes the original bytes and reports `saved_to`. If the API
 returns JSON metadata instead of a file, that JSON is saved and returned as
 provided.
 
-## Web search
+## Web Search
 
 Search the web to retrieve real-time search results, including relevant
 website URLs, titles, descriptions, and related questions based on a given
-query. Results come from Google; available fields depend on the query and
-returned search features.
+query. Available fields depend on the query and returned search features.
 
 ```bash
 mrscraper webSearch "web scraping best practices" --region us --language en
-mrscraper webSearch "https://www.google.com/search?q=books&gl=id&hl=en&start=10"
+mrscraper webSearch "books" --region id --language en --page 2
 mrscraper webSearch "books" --format html --render-js
 ```
 
-Sends `POST https://sync.scraper.mrscraper.com/api/google/serp/v2/sync`.
 The CLI requests parsed JSON by default. `--format html` requests HTML;
-`--raw` is a shorthand for that format. `--region`, `--language`, and `--page`
-override values extracted from Google URLs. `start=10` selects page 2.
+`--raw` is a shorthand for that format. `--region` and `--language` set the
+country and language. `--page` selects a results page, starting at 1.
 `--render-js` enables dynamic search features. `--timeout` defaults to 600
-seconds and controls the local deadline without entering the API body.
+seconds and sets the request deadline.
 `--client-timeout` remains a compatibility alias.
 
 ## Account
@@ -188,8 +182,7 @@ mrscraper account --json
 mrscraper account --pretty --no-color
 ```
 
-Sends `GET https://api.app.mrscraper.com/api/v1/subscription-accounts` with
-Bearer and `x-api-token` authentication. The summary includes identity,
+Check the account associated with your configured API token. The summary includes identity,
 verification state, subscription status, token usage, token limit, remaining
 tokens, usage percentage, rate limit, renewal settings, and subscription end
 date. API keys and billing identifiers are excluded. Remaining tokens are
@@ -239,34 +232,29 @@ flags; programmatic options use camelCase, including `browserRendering`,
 
 ## Publish to npm manually
 
-This checkout is prepared for `0.5.0`. Version `0.4.0` is already published;
-npm requires a new version for every release. This release replaces the public
-`scraperAPI` command and export with the format-specific services above.
-After merging the branch and updating your checkout, run:
+This checkout prepares documentation patch **0.5.1**. Version **0.5.0** is
+already published. Publishing is manual; pushing this branch does not publish
+to npm. From the repository root, validate and preview the package:
 
 ```bash
 npm test
 npm pack --dry-run
 npm publish --dry-run --access public
+```
+
+After committing and pushing the release files, publish with your npm account:
+
+```bash
 npm login
 npm whoami
 npm publish --access public
-npm view @mrscraper/cli@0.5.0 version
-npx --yes @mrscraper/cli@0.5.0 --version
+npm view @mrscraper/cli version
 ```
 
-Use an npm account with permission to publish `@mrscraper/cli`, and complete
-the browser authentication and two-factor challenge when prompted. The
-MrScraper API token used for scraping is separate from npm authentication.
-See npm's [publishing authentication requirements](https://docs.npmjs.com/requiring-2fa-for-package-publishing-and-settings-modification/)
-and [publish command](https://docs.npmjs.com/cli/v11/commands/npm-publish/).
-
-Publishing is manual; pushing this branch does not publish to npm. For later
-releases, use `npm version patch` or `npm version minor` to update both
-`package.json` and `package-lock.json` and create a release commit and tag.
-Push the release commit and tag before publishing. The `files` allowlist
-excludes local test scripts and credentials from the npm package; review
-`npm pack --dry-run` before release.
+Complete npm's browser authentication and two-factor challenge when prompted.
+Each version can be published only once. For later releases, update both
+`package.json` and `package-lock.json` with `npm version patch` or
+`npm version minor`, then validate the package again.
 
 ## Development
 
@@ -275,9 +263,7 @@ npm test
 npm pack --dry-run
 ```
 
-Tests use local HTTP mocks and require no API token. Endpoint overrides for
-local testing are `MRSCRAPER_FETCH_BASE_URL`, `MRSCRAPER_SYNC_BASE_URL`, and
-`MRSCRAPER_API_BASE_URL`. Run `node scripts/harness-smoke.mjs codex` to verify
+Tests use local HTTP mocks and require no API token. Run `node scripts/harness-smoke.mjs codex` to verify
 an already installed package through the page/search/account mock workflow.
 
 ### Manual real API testing
@@ -317,8 +303,7 @@ node scripts/manual-real.mjs --help
 Responses are printed as JSON and saved to `.mrscraper/manual/<operation>.json`,
 including API failures. Repeating an operation replaces its previous output.
 These artifacts are ignored by Git. Failed operations exit nonzero.
-This script uses the real API endpoints by default and honors the endpoint
-overrides above. Page and search requests can consume your API quota.
+This script uses the live services. Page and search requests can consume your API quota.
 
 ## License
 

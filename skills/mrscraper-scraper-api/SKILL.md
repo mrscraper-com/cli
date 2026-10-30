@@ -31,14 +31,14 @@ mrscraper getBrand "<job_id>"
 mrscraper getBrand "<job_id>" --output bundle --save ./.mrscraper/brand.zip
 ```
 
-HTML and Markdown use POST with only their selected format flag. JSON extraction
-uses POST with `agent=general` and `html=true`. Listing extraction uses
-`agent=listing`, max pages 3, and no format flags. Sitemap discovery uses
-`agent=map`, max depth 2, max pages 3, and limit 1000; optional include/exclude
-pattern strings are preserved unchanged in the JSON body. The CLI also accepts
+HTML and Markdown commands select their own output format. JSON extraction
+accepts `--prompt` to describe the data to extract. Listing extraction defaults
+to `--max-pages 3`. Sitemap discovery defaults to `--max-depth 2`,
+`--max-pages 3`, and `--limit 1000`; optional include/exclude pattern strings
+are preserved unchanged. The CLI also accepts
 the Python SDK's snake-case names for all eight commands.
 
-Screenshots use GET with browser rendering, full-page capture, readiness
+Screenshots use browser rendering, full-page capture, readiness
 `domcontentloaded`, and timeout 300. `--no-full-page` captures the viewport.
 Other initial scraping services default to timeout 120, geolocation `US`,
 and the API's default browser rendering policy. `--super` enables real-device routing.

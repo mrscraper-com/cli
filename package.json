@@ -1,6 +1,6 @@
 {
   "name": "@mrscraper/cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "MrScraper CLI for web scraping, structured extraction, brand assets, web search, and account status.",
   "license": "MIT",
   "author": "MrScraper",

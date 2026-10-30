@@ -6,8 +6,7 @@ description: Check MrScraper account identity, subscription status, token usage,
 # Check account status
 
 Use [mrscraper](../mrscraper/SKILL.md) for setup and authentication.
-`account` sends an authenticated `GET` request to
-`https://api.app.mrscraper.com/api/v1/subscription-accounts`.
+`account` checks the account associated with your configured API token.
 
 ```bash
 mrscraper account --json
