@@ -1,6 +1,6 @@
 ---
 name: mrscraper-web-search
-description: Search the web for real-time results: website URLs, titles, and descriptions. Use MrScraper webSearch with a query, then fetch selected pages with scraperAPI for reading and analysis.
+description: "Search the web for real-time results: website URLs, titles, and descriptions. Use MrScraper webSearch with a query, then fetch selected pages with scraperAPI for reading and analysis."
 ---
 
 # Web Search
