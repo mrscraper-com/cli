@@ -8,7 +8,7 @@ description: Set up and authenticate the MrScraper CLI, route tasks to the Scrap
 The CLI exposes three data commands:
 
 - `scraperAPI`: Fetch a public web page as rendered HTML, Markdown, screenshot, or a combination.
-- `webSearch`: Searches the web to retrieve real-time results, including relevant website URLs, titles, descriptions, and related questions based on a given query.
+- `webSearch`: Search the web for real-time results: website URLs, titles, and descriptions.
 - `account`: Check account identity, subscription, token quota, and rate limits.
 
 Login and setup commands manage local configuration.

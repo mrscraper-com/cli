@@ -8,7 +8,7 @@ Requires Node.js 20 or newer.
 | Command | Purpose |
 | --- | --- |
 | `scraperAPI <url>` | Fetch a public web page as rendered HTML, Markdown, screenshot, or a combination. |
-| `webSearch <query>` | Searches the web to retrieve real-time results, including relevant website URLs, titles, descriptions, and related questions based on a given query. |
+| `webSearch <query>` | Search the web for real-time results: website URLs, titles, and descriptions. |
 | `account` | Check account identity, subscription, token quota, and rate limits. |
 
 Login, auth, init, and setup are configuration commands.
@@ -136,8 +136,7 @@ an entry for each requested output, such as `html`, `markdown`, and
 
 ## Web Search
 
-Searches the web to retrieve real-time results, including relevant website
-URLs, titles, descriptions, and related questions based on a given query.
+Search the web for real-time results: website URLs, titles, and descriptions.
 
 ```bash
 mrscraper webSearch "e-menessaptieka.lv linkedin" --country us --num-results 10

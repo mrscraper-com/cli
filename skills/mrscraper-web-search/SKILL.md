@@ -1,14 +1,12 @@
 ---
 name: mrscraper-web-search
-description: Searches the web to retrieve real-time results, including relevant website URLs, titles, descriptions, and related questions based on a given query. Use MrScraper webSearch with a query, then fetch selected pages with scraperAPI for reading and analysis.
+description: Search the web for real-time results: website URLs, titles, and descriptions. Use MrScraper webSearch with a query, then fetch selected pages with scraperAPI for reading and analysis.
 ---
 
 # Web Search
 
 Use [mrscraper](../mrscraper/SKILL.md) for setup and authentication.
-`webSearch` searches the web to retrieve real-time results, including relevant
-website URLs, titles, descriptions, and related questions based on a given
-query.
+`webSearch` searches the web for real-time results: website URLs, titles, and descriptions.
 
 ```bash
 mrscraper webSearch "e-menessaptieka.lv linkedin" --country us --num-results 10
