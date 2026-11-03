@@ -1,17 +1,17 @@
 // Run one operation from this checkout against the API, using an exported token.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { scraperMarkdown, webSearch, account } from "../lib/index.js";
+import { scraperAPI, webSearch, account } from "../lib/index.js";
 
 const help = `Usage:
   export MRSCRAPER_API_TOKEN="YOUR_API_TOKEN"
   node scripts/manual-real.mjs account
-  node scripts/manual-real.mjs scraperMarkdown [url]
-  node scripts/manual-real.mjs webSearch ["query or Google search URL"]
+  node scripts/manual-real.mjs scraperAPI [url]
+  node scripts/manual-real.mjs webSearch ["search query"]
 
 MRSCRAPER_API_KEY is also supported and takes precedence over MRSCRAPER_API_TOKEN.
-scraperMarkdown defaults to https://books.toscrape.com/ and requests Markdown.
-webSearch defaults to "books to scrape" and requests parsed JSON.
+scraperAPI defaults to https://books.toscrape.com/ and requests HTML and Markdown.
+webSearch defaults to "books to scrape" with 10 results.
 Each invocation makes one API call. Page and search requests can use API quota.
 Results are printed as JSON and saved to .mrscraper/manual/<operation>.json.
 The next run of the same operation replaces its previous result.
@@ -23,8 +23,8 @@ async function main() {
     console.log(help);
     return;
   }
-  if (!["scraperMarkdown", "webSearch", "account"].includes(operation)) {
-    throw new Error("Choose one operation: scraperMarkdown, webSearch, or account. Use --help for examples.");
+  if (!["scraperAPI", "webSearch", "account"].includes(operation)) {
+    throw new Error("Choose one operation: scraperAPI, webSearch, or account. Use --help for examples.");
   }
   if (extra.length || (operation === "account" && input !== undefined)) {
     throw new Error("Unexpected arguments. Quote search queries containing spaces. Use --help for examples.");
@@ -37,10 +37,10 @@ async function main() {
 
   console.error(`Running ${operation}…`);
   let result;
-  if (operation === "scraperMarkdown") {
-    result = await scraperMarkdown({ token, url: input ?? "https://books.toscrape.com/" });
+  if (operation === "scraperAPI") {
+    result = await scraperAPI({ token, url: input ?? "https://books.toscrape.com/", html: true, markdown: true });
   } else if (operation === "webSearch") {
-    result = await webSearch({ token, query: input ?? "books to scrape", raw: false, format: "json" });
+    result = await webSearch({ token, query: input ?? "books to scrape", numResults: 10 });
   } else {
     result = await account({ token });
   }

@@ -1,13 +1,16 @@
 ---
 name: mrscraper
-description: Set up and authenticate the MrScraper CLI, route tasks to page retrieval, structured extraction, site mapping, brand assets, Web Search, or account status, and handle shared output. Use the focused skills for each data operation.
+description: Set up and authenticate the MrScraper CLI, route tasks to the Scraper API, Web Search, or account status, and handle shared output. Use the focused skills for each data operation.
 ---
 
 # MrScraper CLI
 
-The CLI exposes `scraperHtml`, `scraperMarkdown`, `getScreenshot`, `scraperJson`,
-`scraperMultiplePage`, `scraperSitemap`, `scrapeBrand`, `getBrand`, `webSearch`,
-and `account`. Output flags are selected by each service.
+The CLI exposes three data commands:
+
+- `scraperAPI`: Fetch a public web page as rendered HTML, Markdown, screenshot, or a combination.
+- `webSearch`: Searches the web to retrieve real-time results, including relevant website URLs, titles, descriptions, and related questions based on a given query.
+- `account`: Check account identity, subscription, token quota, and rate limits.
+
 Login and setup commands manage local configuration.
 
 ## Installation and authentication
@@ -35,37 +38,34 @@ Refresh skills with `mrscraper setup skills`. Use `--agent <id>` to target
 
 | Task | Skill |
 | --- | --- |
-| Read pages, extract data, map a site, or retrieve brand assets | [mrscraper-scraper-api](../mrscraper-scraper-api/SKILL.md) |
+| Fetch page HTML, Markdown, or a screenshot | [mrscraper-scraper-api](../mrscraper-scraper-api/SKILL.md) |
 | Find pages from a search query | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) |
 | Check account identity, subscription, or remaining quota | [mrscraper-account](../mrscraper-account/SKILL.md) |
 
-For discovery, search first, then retrieve the relevant result URLs. Preserve
+For discovery, search first, then fetch the relevant result URLs. Preserve
 raw page content when subsequent analysis or local extraction needs it.
 
 ## Output and artifacts
 
-Page and search operations return `{ status_code, data, headers }`. Account
+`scraperAPI` and `webSearch` return `{ status_code, data, headers }`. Account
 JSON places the normalized summary at `data.account`; use `account --json`
 for machine-readable output even in an interactive terminal. HTTP or network
 failures exit nonzero and include `error`; progress uses stderr.
 
-Scraping operations and `getBrand` support `--save <path>` to write response
-data directly, including unchanged binary image and ZIP downloads. Stdout
-still contains the JSON response envelope and adds `saved_to` after a save;
-binary `data` is represented as base64 in that envelope. Redirect stdout when
-you want the complete response rather than the downloaded content.
+`scraperAPI` supports `--save <path>` to write response data directly: HTML as
+text and combined outputs as JSON. Stdout still contains the JSON response
+envelope and adds `saved_to` after a save. Redirect stdout when you want the
+complete response rather than the page content.
 
 Save requested artifacts in the current project's `./.mrscraper/` directory:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper scraperMarkdown "https://books.toscrape.com/" > ./.mrscraper/page.json
-mrscraper webSearch "web scraping best practices" > ./.mrscraper/search.json
+mrscraper scraperAPI "https://books.toscrape.com/" --no-html --markdown > ./.mrscraper/page.json
+mrscraper webSearch "web scraping best practices" --country us > ./.mrscraper/search.json
 mrscraper account --json
 ```
 
 The project artifact directory is separate from `~/.mrscraper/` credentials.
 Use `mrscraper <command> --help` for flags. For a 401 response, check configured
-credentials or run browser login in a local session. Brand jobs can be read
-or downloaded with `getBrand`; the other extraction services return their
-response directly.
+credentials or run browser login in a local session.

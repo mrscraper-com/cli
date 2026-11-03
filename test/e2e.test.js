@@ -37,15 +37,16 @@ test("installed CLI authenticates and reaches page retrieval, web search and acc
       assert.equal(request.headers.authorization, "Bearer e2e-key");
       assert.equal(request.headers["x-api-token"], "e2e-key");
       response.setHeader("content-type", "application/json");
-      if (url.pathname === "/scraper") {
-        assert.equal(request.method, "POST");
-        assert.deepEqual(body, { url: "https://books.toscrape.com/", maxRetries: 3 });
+      if (url.pathname === "/scraper" && request.method === "GET") {
+        assert.equal(body, null);
+        assert.equal(url.searchParams.get("url"), "https://books.toscrape.com/");
+        assert.equal(url.searchParams.get("maxRetries"), "3");
+        assert.equal(url.searchParams.get("html"), "true");
         assert.equal(url.searchParams.get("markdown"), "true");
         response.end('{"html":"<html>Books</html>","markdown":"Books"}');
-      } else if (url.pathname === "/sync/api/google/serp/v2/sync") {
-        assert.equal(request.method, "POST");
-        assert.deepEqual(body, { query: "books", format: "json", renderJs: false });
-        response.end('{"results":[{"url":"https://books.toscrape.com/"}]}');
+      } else if (url.pathname === "/scraper" && request.method === "POST") {
+        assert.deepEqual(body, { action: "websearch", query: "books", numResults: 10 });
+        response.end('{"success":true,"message":"Search completed","data":[{"rank":1,"url":"https://books.toscrape.com/"}]}');
       } else if (url.pathname === "/api/v1/subscription-accounts") {
         assert.equal(request.method, "GET");
         assert.equal(body, null);
@@ -68,7 +69,6 @@ test("installed CLI authenticates and reaches page retrieval, web search and acc
   const environment = {
     MRSCRAPER_HOME: credentialDir, MRSCRAPER_API_KEY: "", MRSCRAPER_API_TOKEN: "",
     MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/scraper`,
-    MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}/sync`,
     MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
   };
   await runCli(["login", "--api-key", "e2e-key"], environment);
@@ -76,18 +76,18 @@ test("installed CLI authenticates and reaches page retrieval, web search and acc
   assert.equal(auth.credential_configured, true);
   const harness = process.env.MRSCRAPER_E2E_HARNESS || "codex";
   await runCli(["setup", "skills", "--agent", harness, "--dry-run"], environment);
-  const page = JSON.parse(await runCli(["scraperMarkdown", "https://books.toscrape.com/"], environment));
+  const page = JSON.parse(await runCli(["scraperAPI", "https://books.toscrape.com/", "--markdown"], environment));
   assert.equal(page.status_code, 200);
   assert.equal(page.data.markdown, "Books");
   const search = JSON.parse(await runCli(["webSearch", "books"], environment));
-  assert.equal(search.data.results[0].url, "https://books.toscrape.com/");
+  assert.equal(search.data.data[0].url, "https://books.toscrape.com/");
   const accountText = await runCli(["account", "--json"], environment);
   const account = JSON.parse(accountText);
   assert.equal(account.data.account.subscription_status, "active");
   assert.equal(account.data.account.token_remaining, 875);
   assert.doesNotMatch(accountText, /billing-secret|private-key/);
   assert.deepEqual(calls.map(({ method, url }) => [method, url.pathname]), [
-    ["POST", "/scraper"], ["POST", "/sync/api/google/serp/v2/sync"], ["GET", "/api/v1/subscription-accounts"],
+    ["GET", "/scraper"], ["POST", "/scraper"], ["GET", "/api/v1/subscription-accounts"],
   ]);
   await runCli(["logout"], environment);
   const loggedOut = JSON.parse(await runCli(["auth", "status", "--json"], environment));

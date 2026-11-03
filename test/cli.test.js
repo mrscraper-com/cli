@@ -48,7 +48,12 @@ function runCli(args, environment = {}) {
 }
 
 test("removed data commands fail instead of calling obsolete APIs", async () => {
-  for (const command of ["fetch", "serp", "status", "scrape", "rerun", "result", "results", "scraper-api", "scraperAPI", "Account"]) {
+  for (const command of [
+    "fetch", "status", "scrape", "rerun", "result", "results", "scraper-api", "Account",
+    "scraperHtml", "scraper_html", "scraperMarkdown", "scraper_markdown", "getScreenshot", "get_screenshot",
+    "scraperJson", "scraper_json", "scraperMultiplePage", "scraper_multiple_page", "scraperSitemap",
+    "scraper_sitemap", "scrapeBrand", "scrape_brand", "getBrand", "get_brand",
+  ]) {
     const result = await runCli([command]);
     assert.equal(result.code, 1, command);
     assert.match(result.stderr, /unknown command|too many arguments/, command);
@@ -217,7 +222,7 @@ test("API failures produce JSON and a non-zero exit code", async (t) => {
   t.after(() => close(server));
 
   const result = await runCli(
-    ["scraperHtml", "https://target.example", "--token", "test"],
+    ["scraperAPI", "https://target.example", "--token", "test"],
     { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
   );
 
@@ -269,85 +274,123 @@ test("account summarizes the account without exposing API tokens", async (t) => 
   }
 });
 
-test("scraperMarkdown sends shared options without unrelated output flags", async (t) => {
+test("scraperAPI sends a GET with outputs and shared options in the query string", async (t) => {
   const calls = [];
   const server = http.createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
-    calls.push({ method: request.method, url: new URL(request.url, "http://localhost"), body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"markdown":"page"}');
+    calls.push({ method: request.method, url: new URL(request.url, "http://localhost"), body: Buffer.concat(chunks).toString("utf8"), headers: request.headers });
+    const params = calls.at(-1).url.searchParams;
+    if (params.get("markdown") === "true" || params.get("screenshot") === "true") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end('{"html":"<p>page</p>","markdown":"page","screenshot":"iVBORw0KGgo="}');
+    } else {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end("<html>page</html>");
+    }
   });
   const port = await listen(server);
   t.after(() => close(server));
   const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
-  const result = await runCli([
-    "scraper_markdown", "https://target.example", "--token", "test", "--no-browser-rendering", "--super", "--home-page",
-    "--no-use-proxy", "--headers", '{"x-target":"yes"}', "--token-cap", "0", "--no-stream", "--wait-until", "networkidle",
+
+  const htmlOnly = await runCli(["scraperAPI", "https://target.example", "--token", "test"], environment);
+  assert.equal(htmlOnly.code, 0, htmlOnly.stderr);
+  assert.equal(JSON.parse(htmlOnly.stdout).data, "<html>page</html>");
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].body, "");
+  assert.equal(calls[0].headers["x-api-token"], "test");
+  assert.deepEqual(Object.fromEntries(calls[0].url.searchParams), {
+    token: "test", timeout: "120", geoCode: "US", html: "true", markdown: "false",
+    url: "https://target.example", maxRetries: "3",
+  });
+
+  const combined = await runCli([
+    "scraperAPI", "https://target.example", "--token", "test", "--markdown", "--screenshot",
+    "--no-browser-rendering", "--super", "--home-page", "--no-use-proxy", "--headers", '{"x-target":"yes"}',
+    "--token-cap", "0", "--max-retries", "5", "--no-stream", "--wait-until", "networkidle", "--timeout", "60",
+    "--discard-token-secret", "discard",
   ], environment);
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(JSON.parse(result.stdout).data.markdown, "page");
-  assert.equal(calls[0].method, "POST");
-  assert.deepEqual(calls[0].body, { url: "https://target.example", maxRetries: 3, tokenCap: 0 });
-  const params = calls[0].url.searchParams;
+  assert.equal(combined.code, 0, combined.stderr);
+  assert.deepEqual(JSON.parse(combined.stdout).data, { html: "<p>page</p>", markdown: "page", screenshot: "iVBORw0KGgo=" });
+  assert.equal(calls[1].method, "GET");
+  assert.equal(calls[1].headers["x-discard-token-secret"], "discard");
   for (const [key, value] of Object.entries({
-    markdown: "true", browserRendering: "false", super: "true", warmStart: "true", useProxy: "false", stream: "false", waitUntil: "networkidle", headers: '{"x-target":"yes"}',
-  })) assert.equal(params.get(key), value, key);
-  assert.equal(params.has("html"), false);
-  assert.equal(params.has("screenshot"), false);
-  const defaults = await runCli(["scraperHtml", "https://target.example", "--token", "test"], environment);
-  assert.equal(defaults.code, 0, defaults.stderr);
-  assert.equal(calls[1].url.searchParams.has("browserRendering"), false);
-  assert.equal(calls[1].url.searchParams.has("stream"), false);
+    html: "true", markdown: "true", screenshot: "true", browserRendering: "true", super: "true", warmStart: "true",
+    useProxy: "false", stream: "false", waitUntil: "networkidle", headers: '{"x-target":"yes"}',
+    tokenCap: "0", maxRetries: "5", timeout: "60", url: "https://target.example",
+  })) assert.equal(calls[1].url.searchParams.get(key), value, key);
+
+  const markdownOnly = await runCli(["scraperAPI", "https://target.example", "--token", "test", "--no-html", "--markdown"], environment);
+  assert.equal(markdownOnly.code, 0, markdownOnly.stderr);
+  assert.equal(calls[2].url.searchParams.get("html"), "false");
+  assert.equal(calls[2].url.searchParams.has("screenshot"), false);
+  assert.equal(calls[2].url.searchParams.has("browserRendering"), false);
 });
 
-test("screenshot downloads are saved unchanged and represented as base64 in JSON", async (t) => {
-  const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
+test("scraperAPI rejects requests without an output before contacting the API", async () => {
+  const result = await runCli(["scraperAPI", "https://target.example", "--token", "test", "--no-html"], {
+    MRSCRAPER_FETCH_BASE_URL: "http://127.0.0.1:9",
+  });
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /at least one output/i);
+  const timeout = await runCli(["scraperAPI", "https://target.example", "--token", "test", "--timeout", "301"]);
+  assert.equal(timeout.code, 1);
+  assert.match(timeout.stderr, /timeout must be an integer from 1 to 300/);
+});
+
+test("scraperAPI --save writes HTML unchanged", async (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-download-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  const server = http.createServer((request, response) => {
-    const url = new URL(request.url, "http://localhost");
-    assert.equal(request.method, "GET");
-    assert.equal(url.searchParams.get("screenshot"), "true");
-    assert.equal(url.searchParams.get("timeout"), "300");
-    response.writeHead(200, { "content-type": "image/png" });
-    response.end(bytes);
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end("<html>saved</html>");
   });
   const port = await listen(server);
   t.after(() => close(server));
-  const destination = path.join(directory, "page.png");
-  const result = await runCli(["getScreenshot", "https://target.example", "--no-full-page", "--save", destination, "--token", "test"], { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` });
+  const destination = path.join(directory, "page.html");
+  const result = await runCli(["scraperAPI", "https://target.example", "--save", destination, "--token", "test"], { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` });
   assert.equal(result.code, 0, result.stderr);
-  assert.deepEqual(fs.readFileSync(destination), bytes);
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.saved_to, destination);
-  assert.equal(output.data.encoding, "base64");
-  assert.deepEqual(Buffer.from(output.data.content, "base64"), bytes);
+  assert.equal(fs.readFileSync(destination, "utf8"), "<html>saved</html>");
+  assert.equal(JSON.parse(result.stdout).saved_to, destination);
 });
 
-test("webSearch command accepts query text and Google URLs", async (t) => {
-  const bodies = [];
+test("webSearch command posts the websearch action with country and result count", async (t) => {
+  const requests = [];
   const server = http.createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
-    assert.equal(request.url, "/api/google/serp/v2/sync");
-    bodies.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    requests.push({ method: request.method, url: request.url, headers: request.headers, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
     response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"results":[]}');
+    response.end('{"success":true,"message":"Search completed","data":[{"rank":1,"title":"Example","url":"https://example.com","description":"d","source":"s"}]}');
   });
   const port = await listen(server);
   t.after(() => close(server));
-  for (const input of ["python scraping", "https://google.com/search?q=python+scraping&gl=id&start=10"]) {
-    const result = await runCli(["webSearch", input, "--token", "test"], {
-      MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}`,
-    });
-    assert.equal(result.code, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout).data, { results: [] });
-  }
-  assert.deepEqual(bodies, [
-    { query: "python scraping", format: "json", renderJs: false },
-    { query: "python scraping", format: "json", renderJs: false, region: "id", page: 2 },
+  const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
+  const result = await runCli(["webSearch", "e-menessaptieka.lv linkedin", "--country", "us", "--num-results", "25", "--token", "test"], environment);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).data.data[0].rank, 1);
+  const defaults = await runCli(["webSearch", "python scraping", "--token", "test"], environment);
+  assert.equal(defaults.code, 0, defaults.stderr);
+  assert.deepEqual(requests.map(({ method, url }) => [method, url]), [["POST", "/"], ["POST", "/"]]);
+  assert.equal(requests[0].headers["x-api-token"], "test");
+  assert.match(requests[0].headers["content-type"], /^application\/json/);
+  assert.deepEqual(requests.map(({ body }) => body), [
+    { action: "websearch", query: "e-menessaptieka.lv linkedin", country: "us", numResults: 25 },
+    { action: "websearch", query: "python scraping", numResults: 10 },
   ]);
+});
+
+test("webSearch rejects out-of-range result counts and removed flags", async () => {
+  for (const value of ["9", "101", "abc"]) {
+    const result = await runCli(["webSearch", "books", "--num-results", value, "--token", "test"]);
+    assert.equal(result.code, 1, value);
+    assert.match(result.stderr, /num results must be an integer from 10 to 100/, value);
+  }
+  for (const flag of ["--region", "--language", "--page", "--format", "--raw", "--render-js", "--client-timeout"]) {
+    const result = await runCli(["webSearch", "books", flag, "x", "--token", "test"]);
+    assert.equal(result.code, 1, flag);
+    assert.match(result.stderr, /unknown option/, flag);
+  }
 });
 
 test("account --pretty renders a human dashboard instead of bare JSON", async (t) => {

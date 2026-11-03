@@ -28,12 +28,12 @@ test("skill and README command examples resolve to supported CLI commands", () =
     fs.readFileSync(path.join(skillsRoot, name, "SKILL.md"), "utf8"))];
   const commands = new Set(docs.flatMap((text) =>
     [...text.matchAll(/^mrscraper\s+([A-Za-z][A-Za-z-]*)/gm)].map(([, name]) => name)));
-  for (const command of ["scraperHtml", "scraperMarkdown", "getScreenshot", "scraperJson", "scraperMultiplePage", "scraperSitemap", "scrapeBrand", "getBrand"]) {
+  for (const command of ["scraperAPI", "webSearch", "account"]) {
     assert.ok(commands.has(command), command);
   }
-  assert.equal(commands.has("scraperAPI"), false);
-  assert.ok(commands.has("webSearch"));
-  assert.ok(commands.has("account"));
+  for (const command of ["scraperHtml", "scraperMarkdown", "getScreenshot", "scraperJson", "scraperMultiplePage", "scraperSitemap", "scrapeBrand", "getBrand"]) {
+    assert.equal(commands.has(command), false, command);
+  }
   for (const command of commands) {
     execFileSync(process.execPath, [path.join(root, "bin/mrscraper.js"), command, "--help"], { stdio: "pipe" });
   }

@@ -2,18 +2,16 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   SCRAPER_API_BASE_URL,
-  SYNC_SCRAPER_BASE_URL,
-  scraperHtml,
-  scraperMarkdown,
-  getScreenshot,
-  scraperJson,
-  scraperMultiplePage,
-  scraperSitemap,
-  scrapeBrand,
-  getBrand,
+  scraperAPI,
+  _scraperHtml as scraperHtml,
+  _getScreenshot as getScreenshot,
+  _scraperJson as scraperJson,
+  _scraperMultiplePage as scraperMultiplePage,
+  _scraperSitemap as scraperSitemap,
+  _scrapeBrand as scrapeBrand,
+  _getBrand as getBrand,
   webSearch,
   account,
-  normalizeSerpInput,
   request,
   sanitizeResponseData,
 } from "../lib/api.js";
@@ -88,7 +86,7 @@ test("API calls send saved API keys through both compatibility headers", async (
     return mockResponse("<html><h1>Available</h1></html>");
   };
 
-  await scraperHtml({
+  await scraperAPI({
     token: { auth_type: "api_key", api_key: "saved-secret" },
     url: "https://target.example",
   });
@@ -111,81 +109,127 @@ test("response data redacts tokens in fields and generated curl commands", () =>
   assert.match(sanitized.curl, /REDACTED/);
 });
 
-test("SERP accepts a plain query and sends the documented v2 payload", async () => {
-  let capturedUrl;
-  let capturedBody;
+test("scraperAPI sends a GET with every option in the query string", async () => {
+  let call;
   globalThis.fetch = async (url, init) => {
-    capturedUrl = url;
-    capturedBody = JSON.parse(init.body);
-    return mockResponse('{"success":true}', 200, "application/json");
+    call = { url: new URL(url), init };
+    return mockResponse("<html>ok</html>");
   };
-
-  await webSearch({
-    token: "test-token",
-    query: "iphone 17",
-    raw: false,
-    region: "id",
-    language: "id",
-    page: 2,
-    format: "json",
-    renderJs: true,
-  });
-
-  assert.equal(
-    capturedUrl,
-    `${SYNC_SCRAPER_BASE_URL}/api/google/serp/v2/sync`,
-  );
-  assert.deepEqual(capturedBody, {
-    query: "iphone 17",
-    region: "id",
-    language: "id",
-    page: 2,
-    format: "json",
-    renderJs: true,
+  const result = await scraperAPI({ token: "test-token", url: "https://books.toscrape.com/" });
+  assert.equal(result.data, "<html>ok</html>");
+  assert.equal(`${call.url.origin}${call.url.pathname}`.replace(/\/$/, ""), SCRAPER_API_BASE_URL.replace(/\/$/, ""));
+  assert.equal(call.init.method, "GET");
+  assert.equal(call.init.body, undefined);
+  assert.equal(call.init.headers["x-api-token"], "test-token");
+  assert.deepEqual(Object.fromEntries(call.url.searchParams), {
+    token: "test-token", timeout: "120", geoCode: "US", html: "true", markdown: "false",
+    url: "https://books.toscrape.com/", maxRetries: "3",
   });
 });
 
-test("SERP preserves Google URL compatibility", () => {
-  assert.deepEqual(
-    normalizeSerpInput(
-      "https://www.google.com/search?q=running+shoes&gl=us&hl=en&start=20",
-    ),
-    {
-      query: "running shoes",
-      region: "us",
-      language: "en",
-      page: 3,
-    },
-  );
+test("scraperAPI combines outputs and forces browser rendering for screenshots", async () => {
+  let call;
+  globalThis.fetch = async (url, init) => {
+    call = { params: new URL(url).searchParams, init };
+    return mockResponse('{"html":"<p>x</p>","markdown":"x","screenshot":"iVBORw0KGgo="}', 200, "application/json");
+  };
+  const result = await scraperAPI({
+    token: "test-token", url: "https://example.com", html: true, markdown: true, screenshot: true,
+    browserRendering: false, timeout: 45, geoCode: "ID", proxyCountry: "SG", super: true, useProxy: false,
+    proxy: "user:pass@proxy.example:8000", waitForSelector: ".ready", waitUntil: "networkidle",
+    homePage: true, blockResources: true, bypassProxy: true, cookieJar: "domain=example.com",
+    headers: { "x-target": "yes" }, maxRetries: 0, tokenCap: 0, stream: false, discardTokenSecret: "discard-secret",
+  });
+  assert.deepEqual(result.data, { html: "<p>x</p>", markdown: "x", screenshot: "iVBORw0KGgo=" });
+  assert.equal(call.init.method, "GET");
+  assert.equal(call.init.body, undefined);
+  assert.equal(call.init.headers["x-discard-token-secret"], "discard-secret");
+  for (const [key, value] of Object.entries({
+    html: "true", markdown: "true", screenshot: "true", browserRendering: "true", timeout: "45",
+    geoCode: "ID", proxyCountry: "SG", super: "true", useProxy: "false", proxy: "user:pass@proxy.example:8000",
+    waitForSelector: ".ready", waitUntil: "networkidle", warmStart: "true", blockResources: "true",
+    bypassProxy: "true", cookieJar: "domain=example.com", headers: '{"x-target":"yes"}',
+    maxRetries: "0", tokenCap: "0", stream: "false", url: "https://example.com",
+  })) {
+    assert.equal(call.params.get(key), value, key);
+  }
+  await scraperAPI({ token: "test-token", url: "https://example.com", html: false, markdown: true, browserRendering: false });
+  assert.equal(call.params.get("html"), "false");
+  assert.equal(call.params.get("markdown"), "true");
+  assert.equal(call.params.has("screenshot"), false);
+  assert.equal(call.params.get("browserRendering"), "false");
 });
 
-test("SERP omits optional fields when only a query is provided", async () => {
-  let capturedBody;
-  globalThis.fetch = async (_url, init) => {
-    capturedBody = JSON.parse(init.body);
-    return mockResponse('{"success":true}', 200, "application/json");
+test("scraperAPI rejects invalid output selections before making a request", async () => {
+  globalThis.fetch = async () => assert.fail("should not fetch");
+  const base = { token: "test-token", url: "https://example.com" };
+  await assert.rejects(scraperAPI({ ...base, html: false }), /At least one of html, markdown, or screenshot/);
+  await assert.rejects(scraperAPI({ ...base, markdown: "true" }), /markdown must be a boolean/);
+  await assert.rejects(scraperAPI({ ...base, url: "" }), /url/);
+  for (const options of [{ timeout: 0 }, { timeout: 301 }, { maxRetries: -1 }, { tokenCap: -1 }, { super: "true" }]) {
+    await assert.rejects(scraperAPI({ ...base, ...options }));
+  }
+});
+
+test("webSearch posts the websearch action to the API base URL", async () => {
+  let call;
+  globalThis.fetch = async (url, init) => {
+    call = { url, init, body: JSON.parse(init.body) };
+    return mockResponse(JSON.stringify({
+      success: true, message: "Search completed",
+      data: [{ rank: 1, title: "Example", url: "https://example.com", description: "d", source: "s" }],
+    }), 200, "application/json");
   };
+  const result = await webSearch({ token: "test-token", query: "  e-menessaptieka.lv linkedin ", country: "us", numResults: 10 });
+  assert.equal(call.url, SCRAPER_API_BASE_URL);
+  assert.equal(call.init.method, "POST");
+  assert.equal(call.init.headers["x-api-token"], "test-token");
+  assert.equal(call.init.headers["Content-Type"], "application/json");
+  assert.deepEqual(call.body, { action: "websearch", query: "e-menessaptieka.lv linkedin", country: "us", numResults: 10 });
+  assert.equal(result.data.data[0].url, "https://example.com");
 
   await webSearch({ token: "test-token", query: "mrscraper" });
-  assert.deepEqual(capturedBody, {
-    query: "mrscraper",
-    format: "html",
-    renderJs: false,
-  });
+  assert.deepEqual(call.body, { action: "websearch", query: "mrscraper", numResults: 10 });
+  await webSearch({ token: "test-token", query: "mrscraper", numResults: 100 });
+  assert.equal(call.body.numResults, 100);
 });
 
-test("the public package entry point imports successfully", async () => {
+test("webSearch validates query, country, result count and timeout before making a request", async () => {
+  globalThis.fetch = async () => assert.fail("should not fetch");
+  const base = { token: "test-token", query: "books" };
+  await assert.rejects(webSearch({ ...base, query: "  " }), /search query is required/);
+  await assert.rejects(webSearch({ ...base, query: undefined }), /search query is required/);
+  await assert.rejects(webSearch({ ...base, country: " " }), /country/);
+  for (const numResults of [9, 101, 10.5, "10", true]) {
+    await assert.rejects(webSearch({ ...base, numResults }), /numResults must be an integer from 10 to 100/);
+  }
+  await assert.rejects(webSearch({ ...base, timeout: 0 }), /timeout/);
+});
+
+test("webSearch reports authentication failures", async () => {
+  globalThis.fetch = async () => mockResponse('{"message":"Unauthorized"}', 401, "application/json");
+  const result = await webSearch({ token: "bad-token", query: "books" });
+  assert.equal(result.status_code, 401);
+  assert.match(result.error, /Unauthorized/);
+});
+
+test("the public package entry point exposes only the three operations", async () => {
   const exports = await import("../lib/index.js");
-  assert.equal(exports.SYNC_SCRAPER_BASE_URL, SYNC_SCRAPER_BASE_URL);
-  assert.equal(exports.scraperHtml, scraperHtml);
+  assert.equal(exports.SCRAPER_API_BASE_URL, SCRAPER_API_BASE_URL);
+  assert.equal(exports.scraperAPI, scraperAPI);
   assert.equal(exports.webSearch, webSearch);
   assert.equal(exports.account, account);
-  for (const name of ["scraperAPI", "fetchContentApi", "fetchHtmlApi", "googleSerpSyncApi", "getSubscriptionAccountApi", "createAiScraperApi", "rerunAiScraperApi", "getAllResultsApi"]) {
+  for (const name of [
+    "scraperHtml", "scraperMarkdown", "getScreenshot", "scraperJson", "scraperMultiplePage",
+    "scraperSitemap", "scrapeBrand", "getBrand", "_scraperHtml", "_scraperMarkdown", "_getScreenshot",
+    "_scraperJson", "_scraperMultiplePage", "_scraperSitemap", "_scrapeBrand", "_getBrand",
+    "SYNC_SCRAPER_BASE_URL", "fetchContentApi", "getSubscriptionAccountApi",
+  ]) {
     assert.equal(name in exports, false, name);
   }
 });
 
-test("format-specific operations match the Python SDK contracts", async () => {
+test("internal format-specific helpers keep their request contracts", async () => {
   const calls = [];
   globalThis.fetch = async (url, init) => {
     calls.push({ params: new URL(url).searchParams, init });
@@ -194,7 +238,6 @@ test("format-specific operations match the Python SDK contracts", async () => {
   const base = { token: "test-token", url: "https://example.com" };
   const cases = [
     [scraperHtml, { html: "true" }, { url: base.url, maxRetries: 3 }],
-    [scraperMarkdown, { markdown: "true" }, { url: base.url, maxRetries: 3 }],
     [scraperJson, { html: "true" }, { url: base.url, maxRetries: 3, prompt: "Extract all data as complete as possible.", agent: "general" }],
     [scraperMultiplePage, {}, { url: base.url, maxRetries: 3, prompt: "Extract all entry data as complete as possible.", agent: "listing", maxPages: 3 }],
     [scraperSitemap, {}, { url: base.url, maxRetries: 3, agent: "map", maxPages: 3, maxDepth: 2, limit: 1000 }],
@@ -325,7 +368,7 @@ test("account reports HTTP and malformed payload failures", async () => {
 
 test("scraperAPI transport errors do not expose query credentials", async () => {
   globalThis.fetch = async (url) => { throw new Error(`Connection failed: ${url}`); };
-  const response = await scraperHtml({ token: "private-key", url: "https://example.com" });
+  const response = await scraperAPI({ token: "private-key", url: "https://example.com" });
   assert.doesNotMatch(response.error, /private-key/);
   assert.match(response.error, /REDACTED/);
 });
@@ -346,5 +389,5 @@ test("nonstandard archive MIME remains binary while XML remains text", async () 
     assert.deepEqual(result.data, bytes);
   }
   globalThis.fetch = async () => new Response("<xml>test</xml>", { headers: { "content-type": "application/xml" } });
-  assert.equal((await scraperHtml({ token: "test-token", url: "https://example.com" })).data, "<xml>test</xml>");
+  assert.equal((await scraperAPI({ token: "test-token", url: "https://example.com" })).data, "<xml>test</xml>");
 });
