@@ -8,9 +8,7 @@ if (!harness) throw new Error("Expected a MrScraper harness ID");
 const apiKey = "harness-smoke-api-key";
 
 function quote(value) {
-  return /^[A-Za-z0-9_./:@=-]+$/.test(value)
-    ? value
-    : JSON.stringify(value);
+  return /^[A-Za-z0-9_./:@=-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
 function listen(server) {
@@ -69,10 +67,10 @@ const server = http.createServer(async (request, response) => {
 
     const url = new URL(request.url, "http://localhost");
 
-    if (url.pathname === "/scraper") {
+    if (url.pathname === "/scraper" && request.method === "GET") {
       response.writeHead(200, {
         "content-type": "text/html",
-        "x-request-id": `${harness}-scraper-api`,
+        "x-request-id": `${harness}-scrape-html`,
       });
       response.end("<html><body>MrScraper harness smoke page</body></html>");
       return;
@@ -80,7 +78,7 @@ const server = http.createServer(async (request, response) => {
 
     response.writeHead(200, { "content-type": "application/json" });
 
-    if (url.pathname === "/sync/api/google/serp/v2/sync") {
+    if (url.pathname === "/scraper" && request.method === "POST") {
       response.end(
         JSON.stringify({
           success: true,
@@ -125,7 +123,6 @@ const environment = {
   MRSCRAPER_API_TOKEN: "",
   MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/scraper`,
   MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
-  MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}/sync`,
 };
 
 try {
@@ -142,14 +139,13 @@ try {
   });
   await run(
     [
-      "scraper-api",
+      "scrape-html",
       "https://example.com/product",
       "--browser-rendering",
       "--geo-code",
       "ID",
       "--wait-for-selector",
       ".product",
-      "--home-page",
       "--block-resources",
       "--max-retries",
       "2",
@@ -164,15 +160,10 @@ try {
     [
       "web-search",
       "iphone 17",
-      "--region",
+      "--country",
       "id",
-      "--language",
-      "id",
-      "--page",
-      "2",
-      "--format",
-      "json",
-      "--render-js",
+      "--num-results",
+      "20",
       "--timeout",
       "5",
     ],

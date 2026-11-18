@@ -1,20 +1,24 @@
 ---
 name: mrscraper
-description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, output handling, account usage, and troubleshooting. Use for CLI-wide or multi-step work; use the focused skills to retrieve a known page or to search Google.
+description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, output handling, account usage, and troubleshooting. Use for CLI-wide or multi-step work; use the focused skills to retrieve a known page or to search the web.
 ---
 
 # MrScraper CLI
 
 Use this skill for setup, authentication, command selection, shared output
 handling, account status, and troubleshooting. Load the focused skills for
-page retrieval and Google search.
+page retrieval and web search.
 
-The CLI has three data commands:
+The CLI has six scraping and search commands, plus account status:
 
 | Command | Purpose |
 | --- | --- |
-| `mrscraper scraper-api <url>` | Retrieve a known page as HTML, Markdown, a screenshot, or a combination. |
-| `mrscraper web-search <query-or-url>` | Search Google from query text or a Google search URL. |
+| `mrscraper scrape-html <url>` | Retrieve raw page HTML. |
+| `mrscraper scrape-markdown <url>` | Retrieve clean Markdown. |
+| `mrscraper get-screenshot <url>` | Capture the full page or top viewport. |
+| `mrscraper scrape-json <url>` | Extract structured JSON using a prompt. |
+| `mrscraper scrape-brand [url]` | Extract a brand, or retrieve a prior job with `--job-id`. |
+| `mrscraper web-search <query>` | Search the web using query text. |
 | `mrscraper status` | Show the account's subscription, token usage, and limits. |
 
 ## Step 1 — Verify or Install MrScraper
@@ -150,14 +154,15 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Acquire and preserve a known public page for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) with `mrscraper scraper-api` |
-| Discover relevant pages from a Google query | [mrscraper-serp](../mrscraper-serp/SKILL.md) with `mrscraper web-search`, then retrieve selected pages |
+| Acquire and preserve a known public page for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) with `mrscraper scrape-html` |
+| Discover relevant pages from a search query | [mrscraper-serp](../mrscraper-serp/SKILL.md) with `mrscraper web-search`, then retrieve selected pages |
 | Check the plan, token usage, or remaining tokens | `mrscraper status --json` |
 
 ### Retrieve first, extract locally
 
-The CLI returns raw page content. Produce summaries, tables, JSON, and other
-structured output from that content with local analysis or extraction code.
+The CLI can return raw page content or extract JSON with `scrape-json`.
+Produce summaries, tables, JSON, and other structured output from that content
+with local analysis or extraction code.
 The raw response preserves details for later questions, validation, and
 changes to the requested schema.
 
@@ -169,7 +174,8 @@ For many pages that share a layout:
 4. Retrieve the remaining pages, in parallel when safe and proportional; and
 5. Run the same extractor across all saved responses.
 
-Request Markdown with `--markdown` when readable text is enough, and HTML when
+Use `scrape-json --prompt` for AI extraction or derive structured data locally.
+Request Markdown with `scrape-markdown` when readable text is enough, and HTML when
 the extractor needs the page structure.
 
 For discovery-first work, run `web-search`, select the relevant URLs, and
@@ -199,7 +205,7 @@ folder:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper scraper-api "https://www.scrapethissite.com/pages/simple/" \
+mrscraper scrape-html "https://www.scrapethissite.com/pages/simple/" \
   > ./.mrscraper/countries-page.json
 mrscraper web-search "country population data" > ./.mrscraper/search.json
 ```
@@ -246,10 +252,10 @@ Check remaining tokens before a large batch of page retrievals.
   improve the local extraction logic.
 - **Search results are weak** — load
   [mrscraper-serp](../mrscraper-serp/SKILL.md) and refine the query, locale, or
-  page.
+  result count.
 - **Unknown option or command** — run `mrscraper <command> --help`. The `fetch`,
   `scrape`, `serp`, `rerun`, `results`, and `result` commands were replaced by
-  `scraper-api`, `web-search`, and `status`.
+  the six commands above and `status`. The old `scraper-api` command is removed.
 
 ## Limits
 
