@@ -50,7 +50,10 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
       const normalized = value.normalize("NFKC").trim().replace(/\s+/gu, " ");
       assert.equal(value, normalized, `${name} ${key} must be normalized`);
     }
-    assert.deepEqual(Object.keys(metadataValues).sort(), ["description", "name"]);
+    assert.deepEqual(Object.keys(metadataValues).sort(), [
+      "description",
+      "name",
+    ]);
     assert.doesNotMatch(frontmatter[1], /^(?!name:|description:|\s).+:/m);
     assert.doesNotMatch(skill, /\bTODO\b/);
     assert.doesNotMatch(
@@ -68,8 +71,13 @@ test("every skill has complete, minimal, harness-neutral metadata", () => {
 
 test("skills link only to skills that ship", () => {
   for (const [name, skill] of Object.entries(skills)) {
-    for (const [, target] of skill.matchAll(/\]\(\.\.\/([^/)]+)\/SKILL\.md\)/g)) {
-      assert.ok(SKILL_NAMES.includes(target), `${name} links to missing ${target}`);
+    for (const [, target] of skill.matchAll(
+      /\]\(\.\.\/([^/)]+)\/SKILL\.md\)/g,
+    )) {
+      assert.ok(
+        SKILL_NAMES.includes(target),
+        `${name} links to missing ${target}`,
+      );
     }
   }
 });
@@ -81,21 +89,42 @@ test("skill commands run only CLI commands that exist", () => {
     "init",
     "login",
     "logout",
-    "scraper-api",
+    "scrape-html",
+    "scrape-markdown",
+    "get-screenshot",
+    "scrape-brand",
+    "scrape-json",
     "setup",
     "status",
     "web-search",
   ]);
   const documentedCommands = Object.values(skills).flatMap((skill) =>
-    [...skill.matchAll(/^(?:\s*)mrscraper\s+([^\s"\\]+)/gm)].map((match) => match[1]),
+    [...skill.matchAll(/^(?:\s*)mrscraper\s+([^\s"\\]+)/gm)].map(
+      (match) => match[1],
+    ),
   );
 
   assert.deepEqual(
-    [...new Set(documentedCommands.filter((name) => !supportedCommands.has(name)))],
+    [
+      ...new Set(
+        documentedCommands.filter((name) => !supportedCommands.has(name)),
+      ),
+    ],
     [],
   );
-  for (const command of ["scraper-api", "web-search", "status"]) {
-    assert.ok(documentedCommands.includes(command), `missing ${command} example`);
+  for (const command of [
+    "scrape-html",
+    "scrape-markdown",
+    "get-screenshot",
+    "scrape-brand",
+    "scrape-json",
+    "web-search",
+    "status",
+  ]) {
+    assert.ok(
+      documentedCommands.includes(command),
+      `missing ${command} example`,
+    );
   }
 });
 

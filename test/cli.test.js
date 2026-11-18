@@ -59,15 +59,12 @@ test("init never starts authentication when stdin is non-interactive", async (t)
   );
   t.after(() => fs.rmSync(homeDirectory, { recursive: true, force: true }));
 
-  const result = await runCli(
-    ["init", "--skip-install", "--skip-skills"],
-    {
-      HOME: homeDirectory,
-      XDG_CONFIG_HOME: homeDirectory,
-      MRSCRAPER_API_KEY: "",
-      MRSCRAPER_API_TOKEN: "",
-    },
-  );
+  const result = await runCli(["init", "--skip-install", "--skip-skills"], {
+    HOME: homeDirectory,
+    XDG_CONFIG_HOME: homeDirectory,
+    MRSCRAPER_API_KEY: "",
+    MRSCRAPER_API_TOKEN: "",
+  });
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
@@ -88,10 +85,18 @@ test("login --api-key and auth status use ~/.mrscraper/auth.json", async (t) => 
     MRSCRAPER_API_TOKEN: "",
   };
 
-  const login = await runCli(["login", "--api-key", "test-api-key"], environment);
+  const login = await runCli(
+    ["login", "--api-key", "test-api-key"],
+    environment,
+  );
   assert.equal(login.code, 0);
   assert.equal(login.stderr, "");
-  assert.match(login.stdout, new RegExp(`${authHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\/auth\\.json`));
+  assert.match(
+    login.stdout,
+    new RegExp(
+      `${authHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\/auth\\.json`,
+    ),
+  );
   assert.deepEqual(
     JSON.parse(fs.readFileSync(path.join(authHome, "auth.json"), "utf8")),
     {
@@ -145,22 +150,46 @@ test("init dry-run detects installed harnesses without changing the system", asy
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
   assert.match(result.stdout, /Skipping global CLI installation/);
-  assert.match(result.stdout, /for Cursor, Codex, Grok Build: npx -y skills add/);
-  assert.match(result.stdout, /--agent cursor --agent codex --agent grok --yes/);
+  assert.match(
+    result.stdout,
+    /for Cursor, Codex, Grok Build: npx -y skills add/,
+  );
+  assert.match(
+    result.stdout,
+    /--agent cursor --agent codex --agent grok --yes/,
+  );
   assert.doesNotMatch(result.stdout, /MCP/i);
 });
 
 test("setup skills can target one harness without requiring detection", async () => {
-  const result = await runCli(["setup", "skills", "--agent", "codex", "--dry-run"]);
+  const result = await runCli([
+    "setup",
+    "skills",
+    "--agent",
+    "codex",
+    "--dry-run",
+  ]);
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /Would install the MrScraper skill pack for Codex/);
-  assert.match(result.stdout, /--skill mrscraper mrscraper-fetch mrscraper-serp /);
+  assert.match(
+    result.stdout,
+    /Would install the MrScraper skill pack for Codex/,
+  );
+  assert.match(
+    result.stdout,
+    /--skill mrscraper mrscraper-fetch mrscraper-serp /,
+  );
 });
 
 test("setup skills can target Grok without requiring detection", async () => {
-  const result = await runCli(["setup", "skills", "--agent", "grok", "--dry-run"]);
+  const result = await runCli([
+    "setup",
+    "skills",
+    "--agent",
+    "grok",
+    "--dry-run",
+  ]);
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
@@ -183,212 +212,232 @@ test("setup skills can target Hermes without requiring detection", async () => {
   assert.match(result.stdout, /--agent hermes-agent --yes/);
 });
 
-test("scraper-api sends one POST with the SDK query fields and preserves the page body", async (t) => {
-  const requests = [];
+test("six data commands send the documented GET contracts", async (t) => {
+  const sent = [];
   const server = http.createServer(async (request, response) => {
-    requests.push({
+    const body = await readBody(request);
+    const url = new URL(request.url, "http://localhost");
+    sent.push({
       method: request.method,
-      url: new URL(request.url, "http://localhost"),
+      query: Object.fromEntries(url.searchParams),
       headers: request.headers,
-      body: JSON.parse(await readBody(request)),
+      body,
     });
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end("<html><body><h1>Retrieved</h1></body></html>");
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end('{"success":true}');
   });
   const port = await listen(server);
   t.after(() => close(server));
-
-  const result = await runCli(
+  const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
+  const cases = [
     [
-      "scraper-api",
+      "scrape-html",
       "https://target.example",
-      "--token",
-      "test",
-      "--no-html",
-      "--markdown",
+      "--browser-rendering",
       "--super",
+      "--wait-until",
+      "load",
+      "--return-cookie",
+      "--save-result",
+    ],
+    [
+      "scrape-markdown",
+      "https://target.example",
+      "--html",
       "--geo-code",
       "ID",
       "--proxy-country",
-      "SG",
-      "--no-use-proxy",
+      "sg",
       "--proxy",
-      "user:pass@proxy.example:8000",
+      "http://proxy.example",
+      "--block-resources",
       "--wait-for-selector",
       ".ready",
-      "--home-page",
-      "--block-resources",
-      "--bypass-proxy",
-      "--cookie-jar",
-      "domain=example.com",
-      "--headers",
-      '{"Accept-Language":"en"}',
       "--max-retries",
       "0",
-      "--token-cap",
-      "0",
       "--timeout",
-      "300",
-      "--stream",
-      "--discard-token-secret",
-      "discard-me",
+      "60",
     ],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 0);
-  assert.equal(result.stderr, "");
-  assert.equal(
-    JSON.parse(result.stdout).data,
-    "<html><body><h1>Retrieved</h1></body></html>",
-  );
-  assert.equal(requests.length, 1);
-  const [sent] = requests;
-  assert.equal(sent.method, "POST");
-  assert.equal(sent.headers["x-discard-token-secret"], "discard-me");
-  assert.deepEqual(sent.body, {
-    url: "https://target.example",
-    maxRetries: 0,
-    tokenCap: 0,
-  });
-  assert.deepEqual(Object.fromEntries(sent.url.searchParams), {
-    token: "test",
-    timeout: "300",
-    geoCode: "ID",
-    proxyCountry: "SG",
-    super: "true",
-    useProxy: "false",
-    proxy: "user:pass@proxy.example:8000",
-    html: "false",
-    markdown: "true",
-    waitForSelector: ".ready",
-    warmStart: "true",
-    blockResources: "true",
-    bypassProxy: "true",
-    cookieJar: "domain=example.com",
-    headers: '{"Accept-Language":"en"}',
-    stream: "true",
-  });
-});
-
-test("scraper-api leaves browser rendering automatic unless set, and screenshots force it", async (t) => {
-  const sent = [];
-  const server = http.createServer(async (request, response) => {
-    await readBody(request);
-    const params = new URL(request.url, "http://localhost").searchParams;
-    sent.push({
-      browserRendering: params.get("browserRendering"),
-      screenshot: params.get("screenshot"),
-    });
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end("<html><body>ok</body></html>");
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-
-  const cases = [
-    { flags: [], browserRendering: null, screenshot: null },
-    { flags: ["--browser-rendering"], browserRendering: "true", screenshot: null },
-    { flags: ["--no-browser-rendering"], browserRendering: "false", screenshot: null },
-    {
-      flags: ["--screenshot", "--no-browser-rendering"],
-      browserRendering: "true",
-      screenshot: "true",
-    },
+    [
+      "get-screenshot",
+      "https://target.example",
+      "--screenshot",
+      "top",
+      "--no-html",
+      "--markdown",
+    ],
+    [
+      "scrape-json",
+      "https://target.example",
+      "--prompt",
+      "Extract prices",
+      "--html",
+      "--screenshot",
+    ],
+    ["scrape-brand", "https://mrscraper.com/"],
+    [
+      "web-search",
+      "e-menessaptieka.lv linkedin",
+      "--country",
+      "id",
+      "--num-results",
+      "20",
+    ],
   ];
-  for (const { flags } of cases) {
-    const result = await runCli(
-      ["scraper-api", "https://target.example", "--token", "test", ...flags],
-      { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-    );
-    assert.equal(result.code, 0);
+  for (const args of cases) {
+    const result = await runCli([...args, "--token", "test"], environment);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    assert.equal(JSON.parse(result.stdout).status_code, 200);
   }
-
-  assert.deepEqual(
-    sent,
-    cases.map(({ browserRendering, screenshot }) => ({ browserRendering, screenshot })),
+  assert.equal(sent.length, cases.length);
+  for (const request of sent) {
+    assert.equal(request.method, "GET");
+    assert.equal(request.body, "");
+    assert.equal(request.headers["x-api-token"], "test");
+    assert.equal("token" in request.query, false);
+  }
+  const [html, markdown, screenshot, json, brand, search] = sent.map(
+    (request) => request.query,
   );
+  assert.deepEqual(html, {
+    url: "https://target.example",
+    super: "true",
+    waitUntil: "load",
+    timeout: "300",
+    geoCode: "us",
+    proxyCountry: "us",
+    saveResult: "true",
+    blockResources: "false",
+    returnCookie: "true",
+    browserRendering: "true",
+    html: "true",
+    markdown: "false",
+    screenshot: "false",
+  });
+  assert.deepEqual(markdown, {
+    url: "https://target.example",
+    super: "false",
+    waitUntil: "domcontentloaded",
+    timeout: "60",
+    geoCode: "id",
+    proxyCountry: "sg",
+    proxy: "http://proxy.example",
+    maxRetries: "0",
+    saveResult: "false",
+    blockResources: "true",
+    waitForSelector: ".ready",
+    returnCookie: "false",
+    browserRendering: "true",
+    html: "true",
+    markdown: "true",
+    screenshot: "false",
+  });
+  assert.equal(screenshot.screenshot, "top");
+  assert.equal(screenshot.browserRendering, "true");
+  assert.equal(screenshot.html, "false");
+  assert.equal(screenshot.markdown, "true");
+  assert.equal(json.prompt, "Extract prices");
+  assert.equal(json.agent, "general");
+  assert.equal(json.html, "true");
+  assert.equal(json.screenshot, "true");
+  assert.equal(json.super, "false");
+  assert.equal(json.saveResult, "false");
+  assert.deepEqual(brand, {
+    action: "brand-scraping",
+    url: "https://mrscraper.com/",
+    bundle: "none",
+  });
+  assert.deepEqual(search, {
+    action: "websearch",
+    query: "e-menessaptieka.lv linkedin",
+    country: "id",
+    numResults: "20",
+  });
 });
 
-test("scraper-api rejects a timeout above 300 seconds before sending a request", async (t) => {
-  let requestCount = 0;
+test("invalid values and unsupported options fail without a request", async (t) => {
+  let requests = 0;
   const server = http.createServer((_request, response) => {
-    requestCount += 1;
+    requests++;
     response.end();
   });
   const port = await listen(server);
   t.after(() => close(server));
-
-  const result = await runCli(
-    ["scraper-api", "https://target.example", "--token", "test", "--timeout", "301"],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /timeout must be an integer from 1 to 300/);
-  assert.equal(requestCount, 0);
+  const cases = [
+    ["scrape-html", "https://target.example", "--timeout", "301"],
+    ["scrape-html", "file:///tmp/test"],
+    ["scrape-html", "https://target.example", "--geo-code", "usa"],
+    ["scrape-html", "https://target.example", "--token-cap", "1"],
+    ["scrape-html", "https://target.example", "--record"],
+    ["scrape-markdown", "https://target.example", "--screenshot", "full"],
+    ["get-screenshot", "https://target.example", "--screenshot", "invalid"],
+    ["get-screenshot", "https://target.example", "--browser-rendering"],
+    ["scrape-json", "https://target.example", "--wait-for-selector", ".x"],
+    ["scrape-json", "https://target.example", "--block-resources"],
+    ["scrape-json", "https://target.example", "--return-cookie"],
+    ["scrape-json", "https://target.example", "--prompt", " "],
+    ["scrape-brand"],
+    ["scrape-brand", "https://mrscraper.com/", "--bundle", "clean"],
+    ["scrape-brand", "--job-id", "brand-1"],
+    ["web-search", "test", "--num-results", "101"],
+    ["web-search", "test", "--country", "invalid"],
+    ["web-search", "x".repeat(1001)],
+  ];
+  for (const args of cases) {
+    const result = await runCli([...args, "--token", "test"], {
+      MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}`,
+    });
+    assert.equal(result.code, 1, args.join(" "));
+    assert.ok(result.stderr.length > 0);
+  }
+  assert.equal(requests, 0);
 });
 
-test("API failures produce JSON and a non-zero exit code", async (t) => {
+test("HTTP and application failures produce JSON and a non-zero exit code", async (t) => {
+  const page = ["scrape-html", "https://target.example"];
+  const brand = ["scrape-brand", "https://mrscraper.com/"];
+  const cases = [
+    { args: page, status: 500, body: { message: "failed" } },
+    {
+      args: page,
+      status: 200,
+      body: { success: false, error: "Scrape failed" },
+    },
+    { args: page, status: 200, body: { error: "Upstream failed" } },
+    {
+      args: brand,
+      status: 200,
+      body: {
+        data: { job_id: "brand-1", status: "failed", error: "Brand failed" },
+      },
+    },
+    // The API answers 422, unbilled, for a settled job without usable brand data.
+    {
+      args: brand,
+      status: 422,
+      body: {
+        message: "brand job settled",
+        data: { job_id: "brand-2", status: "succeeded", error: null },
+      },
+    },
+  ];
+  let index = 0;
   const server = http.createServer((_request, response) => {
-    response.writeHead(500, { "content-type": "application/json" });
-    response.end('{"message":"failed"}');
+    const { status, body } = cases[index++];
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(JSON.stringify(body));
   });
   const port = await listen(server);
   t.after(() => close(server));
-
-  const result = await runCli(
-    ["scraper-api", "https://target.example", "--token", "test"],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-
-  assert.equal(result.code, 1);
-  assert.equal(result.stderr, "");
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.status_code, 500);
-  assert.equal(output.error, "HTTP 500");
-});
-
-test("web-search asks for parsed JSON and lets explicit options override a Google URL", async (t) => {
-  const bodies = [];
-  const server = http.createServer(async (request, response) => {
-    assert.equal(request.method, "POST");
-    assert.equal(request.url, "/api/google/serp/v2/sync");
-    bodies.push(JSON.parse(await readBody(request)));
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"success":true,"data":{"organic":[]}}');
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-  const environment = { MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}` };
-  const googleUrl = "https://www.google.com/search?q=web+scraping&gl=us&hl=en&start=20";
-
-  const derived = await runCli(["web-search", googleUrl, "--token", "test"], environment);
-  const overridden = await runCli(
-    ["web-search", googleUrl, "--token", "test", "--region", "id", "--format", "html"],
-    environment,
-  );
-
-  assert.equal(derived.code, 0);
-  assert.equal(overridden.code, 0);
-  assert.deepEqual(bodies, [
-    {
-      query: "web scraping",
-      region: "us",
-      language: "en",
-      page: 3,
-      format: "json",
-      renderJs: false,
-    },
-    {
-      query: "web scraping",
-      region: "id",
-      language: "en",
-      page: 3,
-      format: "html",
-      renderJs: false,
-    },
-  ]);
+  for (const { args, status } of cases) {
+    const result = await runCli([...args, "--token", "test"], {
+      MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}`,
+    });
+    assert.equal(result.code, 1);
+    assert.equal(result.stderr, "");
+    assert.equal(JSON.parse(result.stdout).status_code, status);
+  }
 });
 
 test("status summarizes the account without exposing API tokens", async (t) => {

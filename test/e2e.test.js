@@ -28,13 +28,6 @@ function close(server) {
   });
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  const body = Buffer.concat(chunks).toString("utf8");
-  return body ? JSON.parse(body) : null;
-}
-
 function runCli(args, environment) {
   return new Promise((resolve) => {
     execFile(
@@ -56,29 +49,26 @@ function runCli(args, environment) {
   });
 }
 
-test("published CLI workflow reaches every data command with truthful wire contracts", async (t) => {
+test("published CLI workflow reaches all six data commands with saved authentication", async (t) => {
   const requests = [];
-
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://localhost");
-      const body = request.method === "POST" ? await readJsonBody(request) : null;
-      requests.push({ method: request.method, url, body, headers: request.headers });
-
+      const query = Object.fromEntries(url.searchParams);
+      requests.push({ method: request.method, url, query });
       assert.equal(request.headers.authorization, "Bearer e2e-api-key");
       assert.equal(request.headers["x-api-token"], "e2e-api-key");
-
-      if (url.pathname === "/scraper") {
-        response.writeHead(200, { "content-type": "text/html", "x-request-id": "page-1" });
-        response.end("<html><body>token=public-page-value</body></html>");
+      if (query.html === "true" && query.screenshot === "false") {
+        response.writeHead(200, { "content-type": "text/html" });
+        response.end("<html>token=public-page-value</html>");
         return;
       }
-
+      if (query.markdown === "true" && query.screenshot === "false") {
+        response.writeHead(200, { "content-type": "text/markdown" });
+        response.end("# Example");
+        return;
+      }
       response.writeHead(200, { "content-type": "application/json" });
-      if (url.pathname === "/sync/api/google/serp/v2/sync") {
-        response.end(JSON.stringify({ success: true, html: "<html>results</html>" }));
-        return;
-      }
       if (url.pathname === "/api/v1/subscription-accounts") {
         response.end(
           JSON.stringify({
@@ -86,22 +76,19 @@ test("published CLI workflow reaches every data command with truthful wire contr
               tokenLimit: 1000,
               tokenUsage: 125,
               stripeStatus: "active",
-              rateLimit: 30,
-              rateTtl: 60,
-              user: {
-                name: "E2E User",
-                email: "e2e@example.com",
-                latestApiToken: "atk_do_not_print",
-                isVerified: true,
-              },
+              user: { latestApiToken: "atk_do_not_print", isVerified: true },
             },
           }),
         );
         return;
       }
-
-      response.writeHead(404, { "content-type": "application/json" });
-      response.end('{"message":"not found"}');
+      response.end(
+        JSON.stringify({
+          success: true,
+          data: { job_id: "brand-1" },
+          screenshot: "aW1hZ2U=",
+        }),
+      );
     } catch (error) {
       response.writeHead(500, { "content-type": "application/json" });
       response.end(JSON.stringify({ message: error.message }));
@@ -109,8 +96,9 @@ test("published CLI workflow reaches every data command with truthful wire contr
   });
   const port = await listen(server);
   t.after(() => close(server));
-
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mrscraper-e2e-"));
+  const temporaryRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "mrscraper-e2e-"),
+  );
   t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
   const environment = {
     MRSCRAPER_HOME: path.join(temporaryRoot, ".mrscraper"),
@@ -118,102 +106,73 @@ test("published CLI workflow reaches every data command with truthful wire contr
     MRSCRAPER_API_TOKEN: "",
     MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}/scraper`,
     MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
-    MRSCRAPER_SYNC_BASE_URL: `http://127.0.0.1:${port}/sync`,
   };
-
-  const login = await runCli(["login", "--api-key", "e2e-api-key"], environment);
+  const login = await runCli(
+    ["login", "--api-key", "e2e-api-key"],
+    environment,
+  );
   assert.equal(login.code, 0);
   const authStatus = await runCli(["auth", "status", "--json"], environment);
   assert.equal(JSON.parse(authStatus.stdout).credential_configured, true);
 
-  const pageResult = await runCli(
+  const cases = [
     [
-      "scraper-api",
+      "scrape-html",
       "https://example.com/product",
       "--browser-rendering",
-      "--geo-code",
-      "ID",
       "--wait-for-selector",
       ".product",
-      "--home-page",
-      "--block-resources",
-      "--max-retries",
-      "2",
-      "--token-cap",
-      "75",
       "--timeout",
       "5",
     ],
-    environment,
-  );
-  assert.equal(pageResult.code, 0);
-  assert.equal(
-    JSON.parse(pageResult.stdout).data,
-    "<html><body>token=public-page-value</body></html>",
-  );
-
-  const searchResult = await runCli(
+    ["scrape-markdown", "https://example.com/product"],
+    ["get-screenshot", "https://example.com/product", "--screenshot", "full"],
     [
-      "web-search",
-      "iphone 17",
-      "--region",
-      "id",
-      "--language",
-      "id",
-      "--page",
-      "2",
-      "--format",
-      "html",
-      "--render-js",
-      "--timeout",
-      "5",
+      "scrape-json",
+      "https://example.com/product",
+      "--prompt",
+      "Extract prices",
     ],
-    environment,
+    ["scrape-brand", "https://mrscraper.com/"],
+    ["web-search", "iphone 17", "--country", "id", "--num-results", "20"],
+  ];
+  for (const args of cases) {
+    const result = await runCli(args, environment);
+    assert.equal(result.code, 0, result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.status_code, 200);
+    if (args[0] === "scrape-html")
+      assert.equal(payload.data, "<html>token=public-page-value</html>");
+    if (args[0] === "scrape-markdown") assert.equal(payload.data, "# Example");
+  }
+  assert.equal(requests.length, 6);
+  assert.ok(
+    requests.every(
+      ({ method, url }) => method === "GET" && url.pathname === "/scraper",
+    ),
   );
-  assert.equal(searchResult.code, 0);
+  assert.equal(requests[0].query.waitForSelector, ".product");
+  assert.equal(requests[2].query.screenshot, "full");
+  assert.equal(requests[4].query.action, "brand-scraping");
+  assert.deepEqual(requests[5].query, {
+    action: "websearch",
+    query: "iphone 17",
+    country: "id",
+    numResults: "20",
+  });
 
   const statusResult = await runCli(["status", "--json"], environment);
   assert.equal(statusResult.code, 0);
-  const status = JSON.parse(statusResult.stdout);
-  assert.equal(status.kind, "mrscraper-cli-status-summary");
-  assert.equal(status.data.account.token_remaining, 875);
-  assert.doesNotMatch(statusResult.stdout, /atk_do_not_print/);
-
-  const pageRequests = requests.filter(({ url }) => url.pathname === "/scraper");
-  assert.equal(pageRequests.length, 1);
-  const [pageRequest] = pageRequests;
-  assert.equal(pageRequest.method, "POST");
-  assert.deepEqual(pageRequest.body, {
-    url: "https://example.com/product",
-    maxRetries: 2,
-    tokenCap: 75,
-  });
-  assert.deepEqual(Object.fromEntries(pageRequest.url.searchParams), {
-    token: "e2e-api-key",
-    timeout: "5",
-    geoCode: "ID",
-    browserRendering: "true",
-    html: "true",
-    markdown: "false",
-    waitForSelector: ".product",
-    warmStart: "true",
-    blockResources: "true",
-  });
-
-  const searchRequest = requests.find(
-    ({ url }) => url.pathname === "/sync/api/google/serp/v2/sync",
+  assert.equal(
+    JSON.parse(statusResult.stdout).data.account.token_remaining,
+    875,
   );
-  assert.deepEqual(searchRequest.body, {
-    query: "iphone 17",
-    region: "id",
-    language: "id",
-    page: 2,
-    format: "html",
-    renderJs: true,
-  });
-
+  assert.doesNotMatch(statusResult.stdout, /atk_do_not_print/);
   const logout = await runCli(["logout"], environment);
   assert.equal(logout.code, 0);
-  const loggedOutStatus = await runCli(["auth", "status", "--json"], environment);
+  const loggedOutStatus = await runCli(
+    ["auth", "status", "--json"],
+    environment,
+  );
   assert.equal(JSON.parse(loggedOutStatus.stdout).credential_configured, false);
 });
