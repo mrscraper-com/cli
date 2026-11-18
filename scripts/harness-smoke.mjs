@@ -66,8 +66,9 @@ const server = http.createServer(async (request, response) => {
     }
 
     const url = new URL(request.url, "http://localhost");
+    const isScraper = url.pathname === "/scraper" && request.method === "GET";
 
-    if (url.pathname === "/scraper" && request.method === "GET") {
+    if (isScraper && url.searchParams.get("action") !== "websearch") {
       response.writeHead(200, {
         "content-type": "text/html",
         "x-request-id": `${harness}-scrape-html`,
@@ -78,7 +79,7 @@ const server = http.createServer(async (request, response) => {
 
     response.writeHead(200, { "content-type": "application/json" });
 
-    if (url.pathname === "/scraper" && request.method === "POST") {
+    if (isScraper) {
       response.end(
         JSON.stringify({
           success: true,
@@ -149,8 +150,6 @@ try {
       "--block-resources",
       "--max-retries",
       "2",
-      "--token-cap",
-      "75",
       "--timeout",
       "5",
     ],
@@ -164,8 +163,6 @@ try {
       "id",
       "--num-results",
       "20",
-      "--timeout",
-      "5",
     ],
     { environment },
   );

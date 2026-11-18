@@ -7,8 +7,8 @@ description: Discover public URLs with the MrScraper CLI's web-search command. U
 
 Use `mrscraper web-search` for query-first discovery. Use
 [mrscraper](../mrscraper/SKILL.md) for installation, authentication, and account
-status. The command sends POST `https://api.mrscraper.com` with JSON fields
-`action: "websearch"`, `query`, `country`, and `numResults`.
+status. The command sends GET `https://api.mrscraper.com` with query fields
+`action=websearch`, `query`, `country`, and `numResults`.
 
 ## Search and Preserve Results
 
@@ -25,10 +25,9 @@ mrscraper web-search "running shoes" \
 
 | Option | Default | Request mapping |
 | --- | --- | --- |
-| `<query>` | Required | Body `query`. |
-| `--country CODE` | `us` | Body `country`, a two-letter country code. |
-| `--num-results N` | `10` | Body `numResults`, integer from 10 to 100. |
-| `--timeout SECONDS` | `600` | Local deadline; not sent to the API. |
+| `<query>` | Required | `query`, 1–1000 characters. |
+| `--country CODE` | `us` | `country`, a two-letter country code. |
+| `--num-results N` | `10` | `numResults`, integer from 10 to 100. |
 | `--token KEY` | Configured credential | Authentication override. |
 
 The CLI returns a JSON envelope with `status_code`, API response in `data`,
@@ -37,7 +36,7 @@ before using results. Fewer results may be returned than requested. Progress
 and diagnostics appear on stderr.
 
 Google search URL parsing and legacy options `--region`, `--language`,
-`--page`, `--format`, and `--render-js` are not supported.
+`--page`, `--format`, `--render-js`, and `--timeout` are not supported.
 
 ## Continue with Relevant URLs
 
@@ -47,5 +46,5 @@ will inform the answer. Preserve raw responses for analysis. If the user only
 requested URL discovery, finish with the search results.
 
 For weak results, refine the query or country based on the response. Increase
-`--num-results` only when broader coverage is useful, and `--timeout` when the
-local deadline is too short. Use the main skill when authentication fails.
+`--num-results` only when broader coverage is useful. Use the main skill when
+authentication fails.

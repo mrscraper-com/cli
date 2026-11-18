@@ -28,13 +28,6 @@ function close(server) {
   });
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  const body = Buffer.concat(chunks).toString("utf8");
-  return body ? JSON.parse(body) : null;
-}
-
 function runCli(args, environment) {
   return new Promise((resolve) => {
     execFile(
@@ -61,22 +54,16 @@ test("published CLI workflow reaches all six data commands with saved authentica
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://localhost");
-      const body =
-        request.method === "POST" ? await readJsonBody(request) : null;
-      requests.push({ method: request.method, url, body });
+      const query = Object.fromEntries(url.searchParams);
+      requests.push({ method: request.method, url, query });
       assert.equal(request.headers.authorization, "Bearer e2e-api-key");
       assert.equal(request.headers["x-api-token"], "e2e-api-key");
-      if (
-        url.pathname === "/scraper" &&
-        url.searchParams.get("html") === "true" &&
-        request.method === "GET" &&
-        !url.searchParams.has("screenshot")
-      ) {
+      if (query.html === "true" && query.screenshot === "false") {
         response.writeHead(200, { "content-type": "text/html" });
         response.end("<html>token=public-page-value</html>");
         return;
       }
-      if (url.searchParams.get("markdown") === "true") {
+      if (query.markdown === "true" && query.screenshot === "false") {
         response.writeHead(200, { "content-type": "text/markdown" });
         response.end("# Example");
         return;
@@ -139,16 +126,15 @@ test("published CLI workflow reaches all six data commands with saved authentica
       "5",
     ],
     ["scrape-markdown", "https://example.com/product"],
-    ["get-screenshot", "https://example.com/product", "--area", "full"],
+    ["get-screenshot", "https://example.com/product", "--screenshot", "full"],
     [
       "scrape-json",
       "https://example.com/product",
       "--prompt",
       "Extract prices",
     ],
-    ["scrape-brand", "https://example.com/product", "--bundle", "clean"],
+    ["scrape-brand", "https://mrscraper.com/"],
     ["web-search", "iphone 17", "--country", "id", "--num-results", "20"],
-    ["scrape-brand", "--job-id", "brand-1"],
   ];
   for (const args of cases) {
     const result = await runCli(args, environment);
@@ -159,18 +145,21 @@ test("published CLI workflow reaches all six data commands with saved authentica
       assert.equal(payload.data, "<html>token=public-page-value</html>");
     if (args[0] === "scrape-markdown") assert.equal(payload.data, "# Example");
   }
-  assert.equal(requests.length, 7);
-  const search = requests.find(({ body }) => body?.action === "websearch");
-  assert.equal(search.url.pathname, "/scraper");
-  assert.deepEqual(search.body, {
+  assert.equal(requests.length, 6);
+  assert.ok(
+    requests.every(
+      ({ method, url }) => method === "GET" && url.pathname === "/scraper",
+    ),
+  );
+  assert.equal(requests[0].query.waitForSelector, ".product");
+  assert.equal(requests[2].query.screenshot, "full");
+  assert.equal(requests[4].query.action, "brand-scraping");
+  assert.deepEqual(requests[5].query, {
     action: "websearch",
     query: "iphone 17",
     country: "id",
-    numResults: 20,
+    numResults: "20",
   });
-  assert.equal(requests[0].url.searchParams.get("waitForSelector"), ".product");
-  assert.equal(requests[2].url.searchParams.get("screenshot"), "full");
-  assert.equal(requests[6].url.pathname, "/scraper/neo/brand");
 
   const statusResult = await runCli(["status", "--json"], environment);
   assert.equal(statusResult.code, 0);

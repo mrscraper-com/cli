@@ -17,7 +17,7 @@ The CLI has six scraping and search commands, plus account status:
 | `mrscraper scrape-markdown <url>` | Retrieve clean Markdown. |
 | `mrscraper get-screenshot <url>` | Capture the full page or top viewport. |
 | `mrscraper scrape-json <url>` | Extract structured JSON using a prompt. |
-| `mrscraper scrape-brand [url]` | Extract a brand, or retrieve a prior job with `--job-id`. |
+| `mrscraper scrape-brand <url>` | Extract a website's brand as JSON. |
 | `mrscraper web-search <query>` | Search the web using query text. |
 | `mrscraper status` | Show the account's subscription, token usage, and limits. |
 

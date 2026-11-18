@@ -212,18 +212,19 @@ test("setup skills can target Hermes without requiring detection", async () => {
   assert.match(result.stdout, /--agent hermes-agent --yes/);
 });
 
-test("six data commands send the documented wire contracts", async (t) => {
+test("six data commands send the documented GET contracts", async (t) => {
   const sent = [];
   const server = http.createServer(async (request, response) => {
     const body = await readBody(request);
+    const url = new URL(request.url, "http://localhost");
     sent.push({
       method: request.method,
-      url: new URL(request.url, "http://localhost"),
+      query: Object.fromEntries(url.searchParams),
       headers: request.headers,
-      body: body ? JSON.parse(body) : null,
+      body,
     });
     response.writeHead(200, { "content-type": "application/json" });
-    response.end('{"success":true,"data":{"job_id":"brand-1"}}');
+    response.end('{"success":true}');
   });
   const port = await listen(server);
   t.after(() => close(server));
@@ -232,34 +233,35 @@ test("six data commands send the documented wire contracts", async (t) => {
     [
       "scrape-html",
       "https://target.example",
-      "--no-super",
-      "--no-browser-rendering",
+      "--browser-rendering",
+      "--super",
       "--wait-until",
       "load",
       "--return-cookie",
+      "--save-result",
     ],
     [
       "scrape-markdown",
       "https://target.example",
+      "--html",
       "--geo-code",
       "ID",
       "--proxy-country",
-      "SG",
+      "sg",
       "--proxy",
       "http://proxy.example",
       "--block-resources",
       "--wait-for-selector",
       ".ready",
-      "--no-save-result",
       "--max-retries",
       "0",
-      "--token-cap",
-      "1",
+      "--timeout",
+      "60",
     ],
     [
       "get-screenshot",
       "https://target.example",
-      "--area",
+      "--screenshot",
       "top",
       "--no-html",
       "--markdown",
@@ -269,9 +271,10 @@ test("six data commands send the documented wire contracts", async (t) => {
       "https://target.example",
       "--prompt",
       "Extract prices",
-      "--no-html",
+      "--html",
+      "--screenshot",
     ],
-    ["scrape-brand", "https://target.example", "--bundle", "full"],
+    ["scrape-brand", "https://mrscraper.com/"],
     [
       "web-search",
       "e-menessaptieka.lv linkedin",
@@ -280,7 +283,6 @@ test("six data commands send the documented wire contracts", async (t) => {
       "--num-results",
       "20",
     ],
-    ["scrape-brand", "--job-id", "brand-1", "--output", "html"],
   ];
   for (const args of cases) {
     const result = await runCli([...args, "--token", "test"], environment);
@@ -289,52 +291,72 @@ test("six data commands send the documented wire contracts", async (t) => {
     assert.equal(JSON.parse(result.stdout).status_code, 200);
   }
   assert.equal(sent.length, cases.length);
-  for (const request of sent)
+  for (const request of sent) {
+    assert.equal(request.method, "GET");
+    assert.equal(request.body, "");
     assert.equal(request.headers["x-api-token"], "test");
-  assert.deepEqual(
-    sent.map((r) => r.method),
-    ["GET", "GET", "GET", "POST", "POST", "POST", "GET"],
+    assert.equal("token" in request.query, false);
+  }
+  const [html, markdown, screenshot, json, brand, search] = sent.map(
+    (request) => request.query,
   );
-  assert.equal(sent[0].url.searchParams.get("html"), "true");
-  assert.equal(sent[0].url.searchParams.get("super"), "false");
-  assert.equal(sent[0].url.searchParams.get("browserRendering"), "false");
-  assert.equal(sent[0].url.searchParams.get("waitUntil"), "load");
-  assert.equal(sent[0].url.searchParams.get("returnCookie"), "true");
-  assert.equal(sent[1].url.searchParams.get("html"), "false");
-  assert.equal(sent[1].url.searchParams.get("markdown"), "true");
-  for (const [key, value] of Object.entries({
-    geoCode: "ID",
-    proxyCountry: "SG",
+  assert.deepEqual(html, {
+    url: "https://target.example",
+    super: "true",
+    waitUntil: "load",
+    timeout: "300",
+    geoCode: "us",
+    proxyCountry: "us",
+    saveResult: "true",
+    blockResources: "false",
+    returnCookie: "true",
+    browserRendering: "true",
+    html: "true",
+    markdown: "false",
+    screenshot: "false",
+  });
+  assert.deepEqual(markdown, {
+    url: "https://target.example",
+    super: "false",
+    waitUntil: "domcontentloaded",
+    timeout: "60",
+    geoCode: "id",
+    proxyCountry: "sg",
     proxy: "http://proxy.example",
+    maxRetries: "0",
+    saveResult: "false",
     blockResources: "true",
     waitForSelector: ".ready",
-    saveResult: "false",
-    maxRetries: "0",
-    tokenCap: "1",
-  })) {
-    assert.equal(sent[1].url.searchParams.get(key), value);
-  }
-  assert.equal(sent[2].url.searchParams.get("screenshot"), "top");
-  assert.equal(sent[2].url.searchParams.get("browserRendering"), "true");
-  assert.equal(sent[2].url.searchParams.get("html"), "false");
-  assert.deepEqual(sent[3].body, {
-    url: "https://target.example",
-    prompt: "Extract prices",
-    agent: "general",
+    returnCookie: "false",
+    browserRendering: "true",
+    html: "true",
+    markdown: "true",
+    screenshot: "false",
   });
-  assert.equal(sent[4].url.searchParams.get("action"), "brand-scraping");
-  assert.equal(sent[4].url.searchParams.get("bundle"), "full");
-  assert.deepEqual(sent[5].body, {
+  assert.equal(screenshot.screenshot, "top");
+  assert.equal(screenshot.browserRendering, "true");
+  assert.equal(screenshot.html, "false");
+  assert.equal(screenshot.markdown, "true");
+  assert.equal(json.prompt, "Extract prices");
+  assert.equal(json.agent, "general");
+  assert.equal(json.html, "true");
+  assert.equal(json.screenshot, "true");
+  assert.equal(json.super, "false");
+  assert.equal(json.saveResult, "false");
+  assert.deepEqual(brand, {
+    action: "brand-scraping",
+    url: "https://mrscraper.com/",
+    bundle: "none",
+  });
+  assert.deepEqual(search, {
     action: "websearch",
     query: "e-menessaptieka.lv linkedin",
     country: "id",
-    numResults: 20,
+    numResults: "20",
   });
-  assert.equal(sent[6].url.pathname, "/neo/brand");
-  assert.equal(sent[6].url.searchParams.get("id"), "brand-1");
 });
 
-test("invalid options and incompatible brand inputs fail without a request", async (t) => {
+test("invalid values and unsupported options fail without a request", async (t) => {
   let requests = 0;
   const server = http.createServer((_request, response) => {
     requests++;
@@ -344,16 +366,23 @@ test("invalid options and incompatible brand inputs fail without a request", asy
   t.after(() => close(server));
   const cases = [
     ["scrape-html", "https://target.example", "--timeout", "301"],
-    ["scrape-html", "https://target.example", "--token-cap", "0"],
     ["scrape-html", "file:///tmp/test"],
-    ["get-screenshot", "https://target.example", "--area", "invalid"],
-    ["get-screenshot", "https://target.example", "--no-browser-rendering"],
+    ["scrape-html", "https://target.example", "--geo-code", "usa"],
+    ["scrape-html", "https://target.example", "--token-cap", "1"],
+    ["scrape-html", "https://target.example", "--record"],
+    ["scrape-markdown", "https://target.example", "--screenshot", "full"],
+    ["get-screenshot", "https://target.example", "--screenshot", "invalid"],
+    ["get-screenshot", "https://target.example", "--browser-rendering"],
+    ["scrape-json", "https://target.example", "--wait-for-selector", ".x"],
+    ["scrape-json", "https://target.example", "--block-resources"],
+    ["scrape-json", "https://target.example", "--return-cookie"],
+    ["scrape-json", "https://target.example", "--prompt", " "],
+    ["scrape-brand"],
+    ["scrape-brand", "https://mrscraper.com/", "--bundle", "clean"],
+    ["scrape-brand", "--job-id", "brand-1"],
     ["web-search", "test", "--num-results", "101"],
     ["web-search", "test", "--country", "invalid"],
-    ["scrape-brand"],
-    ["scrape-brand", "https://target.example", "--job-id", "brand-1"],
-    ["scrape-brand", "https://target.example", "--output", "html"],
-    ["scrape-brand", "--job-id", "brand-1", "--bundle", "clean"],
+    ["web-search", "x".repeat(1001)],
   ];
   for (const args of cases) {
     const result = await runCli([...args, "--token", "test"], {
@@ -365,41 +394,31 @@ test("invalid options and incompatible brand inputs fail without a request", asy
   assert.equal(requests, 0);
 });
 
-test("brand binary downloads preserve every byte in a base64 envelope", async (t) => {
-  const bytes = Buffer.from([0x50, 0x4b, 0x00, 0xff, 0x80, 0x01]);
-  const server = http.createServer((_request, response) => {
-    response.writeHead(200, { "content-type": "application/zip" });
-    response.end(bytes);
-  });
-  const port = await listen(server);
-  t.after(() => close(server));
-  const result = await runCli(
-    [
-      "scrape-brand",
-      "--job-id",
-      "brand-1",
-      "--output",
-      "bundle",
-      "--token",
-      "test",
-    ],
-    { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-  );
-  assert.equal(result.code, 0);
-  const data = JSON.parse(result.stdout).data;
-  assert.equal(data.encoding, "base64");
-  assert.deepEqual(Buffer.from(data.base64, "base64"), bytes);
-});
-
 test("HTTP and application failures produce JSON and a non-zero exit code", async (t) => {
+  const page = ["scrape-html", "https://target.example"];
+  const brand = ["scrape-brand", "https://mrscraper.com/"];
   const cases = [
-    { status: 500, body: { message: "failed" } },
-    { status: 200, body: { success: false, error: "Scrape failed" } },
-    { status: 200, body: { error: "Upstream failed" } },
+    { args: page, status: 500, body: { message: "failed" } },
     {
+      args: page,
+      status: 200,
+      body: { success: false, error: "Scrape failed" },
+    },
+    { args: page, status: 200, body: { error: "Upstream failed" } },
+    {
+      args: brand,
       status: 200,
       body: {
         data: { job_id: "brand-1", status: "failed", error: "Brand failed" },
+      },
+    },
+    // The API answers 422, unbilled, for a settled job without usable brand data.
+    {
+      args: brand,
+      status: 422,
+      body: {
+        message: "brand job settled",
+        data: { job_id: "brand-2", status: "succeeded", error: null },
       },
     },
   ];
@@ -411,11 +430,10 @@ test("HTTP and application failures produce JSON and a non-zero exit code", asyn
   });
   const port = await listen(server);
   t.after(() => close(server));
-  for (const { status } of cases) {
-    const result = await runCli(
-      ["scrape-html", "https://target.example", "--token", "test"],
-      { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` },
-    );
+  for (const { args, status } of cases) {
+    const result = await runCli([...args, "--token", "test"], {
+      MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}`,
+    });
     assert.equal(result.code, 1);
     assert.equal(result.stderr, "");
     assert.equal(JSON.parse(result.stdout).status_code, status);

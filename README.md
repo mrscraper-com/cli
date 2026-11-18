@@ -223,118 +223,120 @@ setup            install or refresh the skill pack
 scrape-html      retrieve raw page HTML
 scrape-markdown  retrieve clean page Markdown
 get-screenshot   capture a full-page or top viewport screenshot
-scrape-brand     extract a website brand or retrieve an existing brand job
+scrape-brand     extract a website's brand
 scrape-json      extract structured JSON with a natural-language prompt
 web-search       search the web and return ranked results
 status           show the account's subscription, token usage, and limits
 ```
 
-CLI command names use kebab-case; JavaScript exports use camelCase. All six
-commands use `https://api.mrscraper.com`. These CLI changes do not change the
-separately hosted MCP server's tool names.
+CLI command names use kebab-case; JavaScript exports use camelCase. The six
+scraping and search commands send GET requests to `https://api.mrscraper.com`
+and authenticate with the `x-api-token` header, so the API key never appears in
+a request URL. These CLI changes do not change the separately hosted MCP
+server's tool names.
 
 ## `scrape-html` and `scrape-markdown`
 
-Retrieve a page with the documented GET endpoints. HTML and Markdown bodies
-are preserved as strings in the response envelope's `data` field:
+HTML and Markdown bodies are preserved as strings in the response envelope's
+`data` field. `scrape-markdown --html` also returns the page HTML: the page is
+rendered in Chromium (the API requires it for this combination) and `data`
+holds `{ "html": "...", "markdown": "..." }`.
 
 ```bash
 mrscraper scrape-html https://books.toscrape.com/ | jq -r '.data'
 mrscraper scrape-markdown https://books.toscrape.com/ | jq -r '.data'
 mrscraper scrape-markdown https://example.com --browser-rendering \
-  --wait-for-selector '.products' --geo-code ID
+  --wait-for-selector '.products' --geo-code id
 ```
 
+`scrape-html` always sends `html=true&markdown=false&screenshot=false`;
+`scrape-markdown` always sends `markdown=true&screenshot=false`.
 See [Scrape HTML](https://docs.mrscraper.com/docs/api/scraper-api/scrape-html)
 and [Scrape Markdown](https://docs.mrscraper.com/docs/api/scraper-api/scrape-markdown).
 
 ### Page-loading options
 
 These controls are shared by `scrape-html`, `scrape-markdown`, `get-screenshot`,
-and `scrape-json`. Optional settings use the API defaults when omitted.
+and `scrape-json`. The CLI always sends the defaults below; `super` and
+`saveResult` are off unless requested, although the API itself defaults them
+to on.
 
-| Option | Request field | Behavior |
-| --- | --- | --- |
-| `<url>` | `url` | Absolute HTTP or HTTPS target URL. |
-| `--browser-rendering` / `--no-browser-rendering` | `browserRendering` | Enable or disable Chromium rendering. Screenshots require rendering. |
-| `--super` / `--no-super` | `super` | Enable real-device routing (API default) or use standard routing. |
-| `--wait-until <event>` | `waitUntil` | `domcontentloaded`, `load`, `networkidle0`, or `networkidle2`. |
-| `--geo-code <code>` | `geoCode` | Page geolocation country. |
-| `--proxy-country <code>` | `proxyCountry` | Proxy country. |
-| `--proxy <url>` | `proxy` | Custom proxy. |
-| `--block-resources` | `blockResources` | Block images, fonts, and stylesheets. |
-| `--wait-for-selector <selector>` | `waitForSelector` | Wait for a CSS selector. |
-| `--return-cookie` | `returnCookie` | Include browser session cookies in the response. |
-| `--no-save-result` | `saveResult=false` | Do not save the result to the dashboard. |
-| `--max-retries <n>` | `maxRetries` | Nonnegative retry limit; zero disables retries. |
-| `--token-cap <n>` | `tokenCap` | Positive total token budget, including retries. |
-| `--timeout <seconds>` | `timeout` | Page timeout, 1–300 seconds; CLI default 300, plus 30 seconds for transport. |
-| `--token <key>` | authentication | Override configured credentials. |
+| Option | Request field | Default | Behavior |
+| --- | --- | --- | --- |
+| `<url>` | `url` | required | Absolute HTTP or HTTPS target URL. |
+| `--browser-rendering` | `browserRendering` | off | Render the page in Chromium. Not on `get-screenshot`, which always renders. |
+| `--super` | `super` | off | Route the request through real devices. |
+| `--wait-until <event>` | `waitUntil` | `domcontentloaded` | `domcontentloaded`, `load`, `networkidle0`, or `networkidle2`. |
+| `--wait-for-selector <selector>` | `waitForSelector` | — | Wait for a CSS selector. Not on `scrape-json`. |
+| `--block-resources` | `blockResources` | off | Block images, fonts, and stylesheets. Not on `scrape-json`. |
+| `--return-cookie` | `returnCookie` | off | Include browser session cookies. Not on `scrape-json`. |
+| `--timeout <seconds>` | `timeout` | `300` | Page timeout, 1–300 seconds; the request allows 30 more. |
+| `--geo-code <code>` | `geoCode` | `us` | Two-letter country to load the page from. |
+| `--proxy-country <code>` | `proxyCountry` | `us` | Two-letter proxy server country. |
+| `--proxy <url>` | `proxy` | — | Send the request through your own proxy. |
+| `--max-retries <n>` | `maxRetries` | no limit | Nonnegative retry limit; zero disables retries. |
+| `--save-result` | `saveResult` | off | Save the result to the dashboard Result tab. |
+| `--token <key>` | authentication | configured | Override configured credentials. |
 
-Tokens used are reported in the `token_usage` response header. The target
-page's status can be reported in `x-status-code`.
+Country codes are lowercased before sending. Tokens used are reported in the
+`token_usage` response header. The target page's status can be reported in
+`x-status-code`.
 
 ## `get-screenshot`
 
-Use `--area full` (default) for the entire page or `--area top` for the viewport.
-Browser rendering is always enabled. The response JSON is in `data`, with a
-base64 image in `data.screenshot` and HTML included by default:
+Use `--screenshot full` (default) for the entire page or `--screenshot top`
+for the viewport. Browser rendering is always enabled. The response JSON is
+in `data`, with a base64 PNG in `data.screenshot` and the page HTML included by
+default. `--no-html` omits it, and `--markdown` adds `data.markdown`; the API
+returns HTML whenever Markdown is requested.
 
 ```bash
-mrscraper get-screenshot https://example.com --area full --no-html \
-  | jq -r '.data.screenshot' | base64 --decode > page.jpg
-mrscraper get-screenshot https://example.com --area top --markdown
+mrscraper get-screenshot https://example.com --no-html \
+  | jq -r '.data.screenshot' | base64 --decode > page.png
+mrscraper get-screenshot https://example.com --screenshot top --markdown
 ```
 
 See [Get Screenshot](https://docs.mrscraper.com/docs/api/scraper-api/get-screenshot).
 
 ## `scrape-brand`
 
-Extract brand colors, typography, logos, social links, and metadata. The POST
-request uses `action=brand-scraping` and waits for the job to settle.
-`--bundle none` (default) returns brand JSON; `clean` also includes page files
-without scripts, and `full` keeps scripts in the page bundle. Bundled requests
-can take about a minute. Brand data is in `data.data.brand`, and the job ID is
-in `data.data.job_id` (the outer `data` is the CLI envelope).
+Extract brand colors, typography, logos, social links, and metadata. The
+request sends `action=brand-scraping&bundle=none` and returns brand JSON only.
+Brand data is in `data.data.brand`, and the job ID is in `data.data.job_id`
+(the outer `data` is the CLI envelope).
 
 ```bash
-mrscraper scrape-brand https://example.com --bundle clean
-mrscraper scrape-brand --job-id JOB_ID
-mrscraper scrape-brand --job-id JOB_ID --output html | jq -r '.data' > brand.html
-mrscraper scrape-brand --job-id JOB_ID --output bundle \
-  | jq -r '.data.base64' | base64 --decode > brand.zip
+mrscraper scrape-brand https://mrscraper.com/ | jq '.data.data.brand'
 ```
 
-`--job-id` calls GET `/neo/brand` to retrieve a prior job. `--output` accepts
-`html`, `bundle`, `screenshot`, or `screenshot_full` and requires `--job-id`.
-Jobs created with `bundle=none` only have HTML available to download. Binary
-artifacts use `data: { encoding: "base64", content_type, base64 }` so ZIPs and
-images survive JSON output unchanged. `--timeout` is a local request deadline
-(default 300 seconds).
+The page bundles (`bundle=clean` and `bundle=full`) are not available from the
+CLI. When a page has no usable brand data, the API can answer HTTP 422 with a
+settled job and no tokens charged; the CLI prints the response and exits
+non-zero.
 
-See [Scrape Brand](https://docs.mrscraper.com/docs/api/scraper-api/scrape-brand/scrape-brand)
-and [Get Brand](https://docs.mrscraper.com/docs/api/scraper-api/scrape-brand/get-brand).
+See [Scrape Brand](https://docs.mrscraper.com/docs/api/scraper-api/scrape-brand/scrape-brand).
 
 ## `scrape-json`
 
 Describe the structured data to extract with `--prompt`. It defaults to
 `Extract all data as complete as possible.` The `general` agent parses the
 scraped content; the prompt does not control browser navigation. Append
-`Json Schema:` and a schema to shape the output. The CLI uses the documented
-POST variant so long prompts do not exceed URL length limits.
+`Json Schema:` and a schema to shape the output.
 
 ```bash
 mrscraper scrape-json https://books.toscrape.com/ \
-  --prompt 'Extract book titles and prices' --no-html | jq '.data.data'
+  --prompt 'Extract book titles and prices' | jq '.data.data'
 ```
 
-Use `--screenshot` to include a screenshot, or `--no-html` to omit HTML.
+`--html` adds the page HTML and `--screenshot` adds a base64 screenshot; both
+are off by default. The request is a GET. When a long prompt would push the
+URL past the API's 8 KB limit, the CLI sends the documented POST variant
+instead, with `url`, `prompt`, and `agent` in the JSON body.
 See [Scrape JSON](https://docs.mrscraper.com/docs/api/scraper-api/scrape-json).
 
 ## `web-search`
 
-Send query text to the unified API with the body
-`{ "action": "websearch", "query": "...", "country": "us", "numResults": 10 }`:
+Send query text as `GET /?action=websearch&query=...&country=us&numResults=10`:
 
 ```bash
 mrscraper web-search "e-menessaptieka.lv linkedin" --country us --num-results 10
@@ -343,9 +345,9 @@ mrscraper web-search "running shoes" --country id --num-results 20
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--country <code>` | `us` | Two-letter result country code. |
+| `<query>` | required | Search query, 1–1000 characters. |
+| `--country <code>` | `us` | Two-letter country code to search from. |
 | `--num-results <n>` | `10` | Number of results, from 10 to 100. |
-| `--timeout <seconds>` | `600` | Local request deadline; not sent to the API. |
 | `--token <key>` | configured credential | Override authentication. |
 
 The API response is in the envelope's `data` field. Fewer results may be
@@ -384,34 +386,41 @@ This changes the CLI commands and JavaScript exports:
 | --- | --- |
 | `scraper-api URL` / `scraperApi()` | `scrape-html URL` / `scrapeHtml()` |
 | `scraper-api URL --markdown --no-html` | `scrape-markdown URL` / `scrapeMarkdown()` |
-| `scraper-api URL --screenshot` | `get-screenshot URL --area full` / `getScreenshot()` |
+| `scraper-api URL --screenshot` | `get-screenshot URL` / `getScreenshot()` |
 | `webSearchApi({ url, region })` | `webSearch({ query, country, numResults })` |
 | `web-search --region` | `web-search --country` |
 
 The old `scraper-api` command and `scraperApi`/`webSearchApi` exports are removed.
-Legacy search options (`--language`, `--page`, `--format`, `--render-js`) and
-Google URL parsing are removed. Pass search query text to `web-search`.
-Page-loading options now follow the linked API reference; legacy SDK-only
-options such as `--home-page`, `--cookie-jar`, and `--stream` are removed.
+Legacy search options (`--language`, `--page`, `--format`, `--render-js`,
+`--timeout`) and Google URL parsing are removed. Pass search query text to
+`web-search`. Page-loading options now follow the linked API reference;
+`--token-cap` and SDK-only options such as `--home-page`, `--cookie-jar`,
+`--headers`, `--stream`, `--bypass-proxy`, and `--no-use-proxy` are removed.
+
+Requests now send `super=false` and `saveResult=false` unless `--super` or
+`--save-result` is passed. Previously these fields were omitted, so the API
+defaults (both on) applied.
 
 ## Programmatic API
 
 ```js
 import {
   scrapeHtml, scrapeMarkdown, getScreenshot,
-  scrapeBrand, getBrand, scrapeJson, webSearch,
+  scrapeBrand, scrapeJson, webSearch,
   getSubscriptionAccountApi,
 } from "@mrscraper/cli";
 
 const token = process.env.MRSCRAPER_API_KEY;
 const page = await scrapeHtml({ token, url: "https://example.com" });
+const shot = await getScreenshot({ token, url: "https://example.com", screenshot: "top" });
 const search = await webSearch({ token, query: "MrScraper", country: "us", numResults: 10 });
-const brand = await getBrand({ token, jobId: "JOB_ID" });
 ```
 
-Options use camelCase, such as `browserRendering`, `waitForSelector`,
-`superMode`, `maxRetries`, and `tokenCap`. All functions return the same JSON
-envelope as the CLI. Credential helpers and `request` remain exported.
+Options use the request field names in camelCase, such as `browserRendering`,
+`waitForSelector`, `maxRetries`, and `saveResult`; `super` is `superMode`.
+Inputs are validated before any request, and fields a command does not
+support are never sent. All functions return the same JSON envelope as the
+CLI. Credential helpers and `request` remain exported.
 
 ## Development
 
