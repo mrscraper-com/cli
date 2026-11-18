@@ -255,7 +255,8 @@ Check remaining tokens before a large batch of page retrievals.
   result count.
 - **Unknown option or command** — run `mrscraper <command> --help`. The `fetch`,
   `scrape`, `serp`, `rerun`, `results`, and `result` commands were replaced by
-  the six commands above and `status`. The old `scraper-api` command is removed.
+  the six commands above and `status`. The old `scraper-api`, `scraperAPI`,
+  `webSearch`, and `account` commands are removed; `account` is now `status`.
 
 ## Limits
 

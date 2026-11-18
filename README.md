@@ -378,28 +378,37 @@ source endpoints.
 | `--no-color` | off | Disable ANSI color in the dashboard. |
 | `--token <key>` | — | Override configured authentication with an API key. |
 
-## Migration
+## Migration to 0.7.0
 
-This changes the CLI commands and JavaScript exports:
+0.7.0 replaces the 0.6.0 commands and exports:
 
-| Previous interface | Replacement |
+| 0.6.0 | 0.7.0 |
 | --- | --- |
-| `scraper-api URL` / `scraperApi()` | `scrape-html URL` / `scrapeHtml()` |
-| `scraper-api URL --markdown --no-html` | `scrape-markdown URL` / `scrapeMarkdown()` |
-| `scraper-api URL --screenshot` | `get-screenshot URL` / `getScreenshot()` |
-| `webSearchApi({ url, region })` | `webSearch({ query, country, numResults })` |
-| `web-search --region` | `web-search --country` |
+| `scraperAPI URL` / `scraperAPI()` | `scrape-html URL` / `scrapeHtml()` |
+| `scraperAPI URL --markdown --no-html` | `scrape-markdown URL` / `scrapeMarkdown()` |
+| `scraperAPI URL --screenshot` | `get-screenshot URL` / `getScreenshot()` |
+| — | `scrape-json URL` / `scrapeJson()` |
+| — | `scrape-brand URL` / `scrapeBrand()` |
+| `webSearch QUERY` | `web-search QUERY` / `webSearch()` |
+| `account` / `account()` | `status` / `getSubscriptionAccountApi()` with `summarizeSubscriptionAccount()` |
 
-The old `scraper-api` command and `scraperApi`/`webSearchApi` exports are removed.
-Legacy search options (`--language`, `--page`, `--format`, `--render-js`,
-`--timeout`) and Google URL parsing are removed. Pass search query text to
-`web-search`. Page-loading options now follow the linked API reference;
-`--token-cap` and SDK-only options such as `--home-page`, `--cookie-jar`,
-`--headers`, `--stream`, `--bypass-proxy`, and `--no-use-proxy` are removed.
+From 0.3.x, `scraper-api` maps to the same commands as `scraperAPI`, and
+`web-search --region` becomes `web-search --country`; Google search URLs and
+`--language`, `--page`, `--format`, and `--render-js` are removed.
 
-Requests now send `super=false` and `saveResult=false` unless `--super` or
-`--save-result` is passed. Previously these fields were omitted, so the API
-defaults (both on) applied.
+Removed options: `--save <path>` (redirect stdout instead), `--token-cap`,
+`--home-page`, `--cookie-jar`, `--headers`, `--stream`, `--bypass-proxy`,
+`--no-use-proxy`, `--discard-token-secret`, and `--timeout` on the search and
+account commands.
+
+Changed defaults:
+
+- `super=false` and `saveResult=false` are sent unless `--super` or
+  `--save-result` is passed. Results no longer appear in the dashboard Result
+  tab by default.
+- `--max-retries` is no longer 3 by default; when omitted, the API applies no
+  retry limit.
+- `web-search --country` defaults to `us`.
 
 ## Programmatic API
 
