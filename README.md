@@ -286,9 +286,9 @@ Country codes are lowercased before sending. Tokens used are reported in the
 
 Use `--screenshot full` (default) for the entire page or `--screenshot top`
 for the viewport. Browser rendering is always enabled. The response JSON is
-in `data`, with a base64 PNG in `data.screenshot` and the page HTML included by
-default. `--no-html` omits it, and `--markdown` adds `data.markdown`; the API
-returns HTML whenever Markdown is requested.
+in `data`, with a base64 PNG in `data.screenshot` and the page HTML in
+`data.html`. `--no-html` sends `html=false`, although the API currently still
+returns the HTML. `--markdown` adds `data.markdown`.
 
 ```bash
 mrscraper get-screenshot https://example.com --no-html \

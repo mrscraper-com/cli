@@ -328,16 +328,21 @@ test("invalid inputs fail before fetching", async () => {
   assert.equal(requests, 0);
 });
 
-test("network errors never echo the API key", async () => {
-  globalThis.fetch = async (url) => {
-    throw new Error(`connect ECONNREFUSED while requesting ${url}`);
+test("network errors report their cause without echoing the API key", async () => {
+  globalThis.fetch = async () => {
+    throw new TypeError("fetch failed", {
+      cause: new Error("other side closed by atk_networkerrorsecret1234"),
+    });
   };
   const result = await scrapeHtml({
     token: "atk_networkerrorsecret1234",
     url: "https://target.example",
   });
   assert.equal(result.status_code, null);
-  assert.doesNotMatch(result.error, /networkerrorsecret/);
+  assert.equal(
+    result.error,
+    "fetch failed (other side closed by [REDACTED_API_TOKEN])",
+  );
 });
 
 test("JSON extraction falls back to the POST body only for prompts too long for a URL", async () => {

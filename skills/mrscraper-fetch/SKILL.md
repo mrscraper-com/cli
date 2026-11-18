@@ -19,7 +19,7 @@ interactive browser session.
 | --- | --- |
 | `scrape-html URL` | Raw HTML string in `data`. |
 | `scrape-markdown URL` | Clean Markdown string in `data`; `--html` renders the page and returns `data.html` and `data.markdown`. |
-| `get-screenshot URL` | JSON with base64 `data.screenshot`; HTML included unless `--no-html`. |
+| `get-screenshot URL` | JSON with base64 `data.screenshot` and the page HTML in `data.html`. |
 | `scrape-json URL --prompt TEXT` | API JSON with extracted fields in `data.data`. |
 | `scrape-brand URL` | Brand in `data.data.brand`, job ID in `data.data.job_id`. |
 
