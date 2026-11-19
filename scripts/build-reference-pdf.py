@@ -20,6 +20,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    KeepTogether,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -186,19 +187,20 @@ def main():
         Spacer(1, 8),
         p("Service directory", "SectionRef"),
     ]
-    rows = [["Service", "Standard description", "Page"]]
-    for index, service in enumerate(reference["services"], 2):
-        rows.append([service["title"], service["description"], str(index)])
+    rows = [["Service", "Standard description"]]
+    for service in reference["services"]:
+        rows.append([service["title"], service["description"]])
     story += [
-        table(rows, [98, 377, 30]),
+        table(rows, [98, 407]),
         Spacer(1, 15),
         p("How to use this reference", "SectionRef"),
         p(
             "Copy the description text exactly for the same service and parameter. Adapt only names, language-specific types, authentication setup, and example syntax. Parameter defaults and meanings stay the same."
         ),
         p(
-            "All sample target URLs use https://example.com. Function and parameter naming equivalents are listed on page 9."
+            "All sample target URLs use https://example.com. Function and parameter naming equivalents are listed at the end of this reference."
         ),
+        p(reference["response_examples_note"], "SmallRef"),
         p(
             "Screenshot has two service-specific forms: full/top for page capture, and a boolean for JSON extraction. These forms have distinct descriptions because their types and meanings differ.",
             "SmallRef",
@@ -210,7 +212,7 @@ def main():
             "url": "https://example.com",
             "browserRendering": True,
             "warmStart": True,
-            "waitForSelector": ".content",
+            "waitForSelector": "body",
             "timeout": 120,
         },
         "scrape-markdown": {
@@ -227,7 +229,7 @@ def main():
         "scrape-brand": {"url": "https://example.com"},
         "scrape-json": {
             "url": "https://example.com",
-            "prompt": "Extract the page title.",
+            "prompt": 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}',
             "browserRendering": True,
         },
         "web-search": {
@@ -297,36 +299,19 @@ def main():
             p("Example input", "SectionRef"),
             code(json.dumps(examples[service["name"]], indent=2)),
             Spacer(1, 10),
-            p("Response", "SectionRef"),
-            p(service["response"]),
         ]
-        if service["name"] == "status":
-            story += [
-                Spacer(1, 8),
-                p("Illustrative response envelope", "SectionRef"),
-                code(
-                    json.dumps(
-                        {
-                            "status_code": 200,
-                            "data": {
-                                "message": "OK",
-                                "data": {
-                                    "tokenLimit": "1000",
-                                    "tokenUsage": 125,
-                                    "user": {"name": "Example user"},
-                                },
-                            },
-                            "headers": {"content-type": "application/json"},
-                        },
-                        indent=2,
-                    )
-                ),
-                Spacer(1, 8),
-                p(
-                    "The API body can include additional fields. Preserve their names, nesting, values, and types. Do not add token_remaining or usage_percent to the returned body.",
-                    "SmallRef",
-                ),
+        for example_index, example in enumerate(service["response_examples"]):
+            response_block = [
+                p("Response - " + service["title"], "SectionRef"),
             ]
+            if example_index == 0:
+                response_block.append(p(service["response"]))
+            response_block += [
+                p(example["label"], "SmallRef"),
+                code(json.dumps(example["value"], indent=2)),
+                Spacer(1, 8),
+            ]
+            story.append(KeepTogether(response_block))
     story += [
         PageBreak(),
         p("CROSS-SURFACE NAMING", "KickerRef"),
@@ -370,13 +355,20 @@ def main():
             "For screenshot capture, the CLI uses --no-html to set the html field to false. The CLI also accepts status --json as an output-format flag; it is not an API service parameter. Authentication follows each surface's setup.",
             "SmallRef",
         ),
+        p(
+            "Response examples use the common response envelope. MCP returns this envelope in structuredContent and as JSON text in content. LangChain returns the envelope as a JSON string. Decode that string to access the illustrated fields.",
+            "SmallRef",
+        ),
     ]
     doc.build(story)
     from pypdf import PdfReader
 
-    assert len(PdfReader(args.output).pages) == 9, (
-        "Update pagination before publishing this reference."
-    )
+    pdf = PdfReader(args.output)
+    text = "\n".join(page.extract_text() for page in pdf.pages)
+    for service in reference["services"]:
+        assert "Response - " + service["title"] in text
+    for key in ["subscriptionItem", "scraperAllowance", "token_usage", "tokenUsage"]:
+        assert key in text, f"Missing response field: {key}"
     print(args.output)
 
 

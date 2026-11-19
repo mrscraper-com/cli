@@ -1,7 +1,11 @@
 """Render the same README structure for the CLI, SDKs, and integrations."""
 
 from __future__ import annotations
-import argparse, json, re, subprocess
+
+import argparse
+import json
+import re
+import subprocess
 from pathlib import Path
 
 
@@ -116,7 +120,7 @@ def main():
             "url": "https://example.com",
             "browserRendering": True,
             "warmStart": True,
-            "waitForSelector": ".content",
+            "waitForSelector": "body",
             "timeout": 120,
             "maxRetries": 0,
         },
@@ -134,7 +138,7 @@ def main():
         "scrape-brand": {"url": "https://example.com"},
         "scrape-json": {
             "url": "https://example.com",
-            "prompt": 'Extract the page title. Json Schema: {"type":"object","properties":{"title":{"type":"string"}}}',
+            "prompt": 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}',
             "browserRendering": True,
         },
         "web-search": {
@@ -145,11 +149,11 @@ def main():
     }
     cli_examples = {
         "status": "mrscraper status",
-        "scrape-html": "mrscraper scrape-html https://example.com --browser-rendering --warm-start \\\n  --wait-for-selector '.content' --timeout 120 --max-retries 0",
+        "scrape-html": "mrscraper scrape-html https://example.com --browser-rendering --warm-start \\\n  --wait-for-selector 'body' --timeout 120 --max-retries 0",
         "scrape-markdown": "mrscraper scrape-markdown https://example.com --html --warm-start",
         "get-screenshot": "mrscraper get-screenshot https://example.com --screenshot top --no-html --markdown",
         "scrape-brand": "mrscraper scrape-brand https://example.com",
-        "scrape-json": """mrscraper scrape-json https://example.com --browser-rendering \\\n  --prompt 'Extract the page title. Json Schema: {"type":"object","properties":{"title":{"type":"string"}}}' """,
+        "scrape-json": """mrscraper scrape-json https://example.com --browser-rendering \\\n  --prompt 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}' """,
         "web-search": 'mrscraper web-search "site:example.com documentation" --country id --num-results 20',
     }
 
@@ -198,6 +202,33 @@ def main():
             + ", ".join(arguments)
             + ");\nconsole.log(result.data);\n```"
         )
+
+    def response_example(repo, value):
+        if repo == "mrscraper-mcp":
+            value = {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "[Formatted JSON matching structuredContent]",
+                    }
+                ],
+                "structuredContent": value,
+            }
+        return "```json\n" + json.dumps(value, indent=2) + "\n```"
+
+    def response_blocks(repo, service):
+        blocks = []
+        if repo == "langchain-mrscraper":
+            blocks.append("Decoded response after `json.loads(tool.invoke(...))`:")
+        elif repo == "mrscraper-mcp":
+            blocks.append(
+                "MCP tool result; the API response envelope is in `structuredContent`:"
+            )
+        for item in service["response_examples"]:
+            blocks.extend(
+                ["**" + item["label"] + "**", response_example(repo, item["value"])]
+            )
+        return blocks
 
     install = {
         "cli": """Requires Node.js 20 or newer.
@@ -509,6 +540,8 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             "## Quickstart",
             example(repo, ref["services"][1]),
             "Examples use `example.com` as the sample target. Replace it for your use case. Live scraping and search calls consume account quota.",
+            ref["response_examples_note"]
+            + " See [live response verification](docs/response-verification.json).",
             "## Shared parameters",
             "### Page controls",
             "HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `geoCode`, `proxyCountry`, `super`, `waitUntil`, `proxy`, `maxRetries`, and `saveResult` (using the naming style shown below). Page defaults are 300 seconds, US geolocation/proxy country, real-device routing off, and dashboard saving off. Omitted retry limits mean no limit. Exact types, defaults, and standard descriptions appear in each service table.",
@@ -544,10 +577,11 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
                 "#### Response",
                 service["response"],
             ]
+            blocks += response_blocks(repo, service)
         blocks += [
             "## Response format",
             "Successful services use an envelope containing `status_code`, `data`, and `headers`. The `data` field contains the API response body; its field names are not converted to the SDK's naming style. Status preserves the complete body without adding summary fields.",
-            '```json\n{"status_code":200,"data":"<html><body>Example</body></html>","headers":{"content-type":"text/html"}}\n```',
+            response_example(repo, ref["services"][1]["response_examples"][0]["value"]),
         ]
         extra = {
             "cli": "The CLI prints the envelope as JSON to stdout. It filters credential-bearing response headers and redacts known credential metadata in scraping/search JSON; status body fields are preserved.",
@@ -587,6 +621,7 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             parts = [
                 "# MrScraper API reference",
                 "The public descriptions below use the same standard as the CLI, SDKs, and integrations. Authentication is sent in headers. Account status uses the platform subscription-accounts endpoint; scraping and search use the Scraper API.",
+                ref["response_examples_note"],
             ]
             for service in ref["services"]:
                 parts += [
@@ -594,6 +629,7 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
                     service["description"],
                     table(repo, service),
                     service["response"],
+                    *response_blocks(repo, service),
                 ]
             parts += [
                 "## Transport",
@@ -624,6 +660,10 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
                     "## Response",
                     "",
                     service["response"],
+                    "",
+                    ref["response_examples_note"],
+                    "",
+                    *response_blocks(repo, service),
                     "",
                     "Returns a JSON string with status_code, data, and headers. See the [README](../../README.md) for authentication and integration details.",
                 ]
