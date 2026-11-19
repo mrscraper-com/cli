@@ -1,430 +1,367 @@
-# @mrscraper/cli
+# MrScraper CLI
 
 ![MrScraper](./assets/mrscraper.jpeg)
 
-Official command-line client for [MrScraper](https://app.mrscraper.com). It retrieves pages as HTML, Markdown, screenshots, brand data, or extracted JSON through the Scraper API, searches the web, and reports account usage.
+Command-line access to the seven MrScraper services, with browser sign-in and optional agent skill setup.
 
-The scraping, search, and status commands return a consistent JSON envelope
-containing `status_code`, the response in `data`, and non-sensitive response
-`headers`. The `status` command preserves the account API response without
-summarizing it. Progress uses stderr, and failed API calls exit non-zero.
+## Overview
 
-## Install
+Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. The standard reference is maintained in [docs/service-reference.json](docs/service-reference.json).
+
+| Service                             | Public name       | Description                                                                                                                     |
+| ----------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [Status](#status)                   | `status`          | Return the raw account status API response without summarizing, redacting body fields, or adding calculated fields.             |
+| [Scrape HTML](#scrape-html)         | `scrape-html`     | Retrieve the raw HTML of a page. Browser rendering is optional.                                                                 |
+| [Scrape Markdown](#scrape-markdown) | `scrape-markdown` | Retrieve a page as Markdown. Including HTML also enables browser rendering and returns both outputs as JSON.                    |
+| [Get screenshot](#get-screenshot)   | `get-screenshot`  | Capture a base64 screenshot of the full page or top viewport. Browser rendering is always enabled.                              |
+| [Scrape brand](#scrape-brand)       | `scrape-brand`    | Extract a website's colors, typography, logos, and social links as JSON.                                                        |
+| [Scrape JSON](#scrape-json)         | `scrape-json`     | Extract structured JSON from a page using a natural-language prompt. Append Json Schema: and a JSON schema to shape the output. |
+| [Web search](#web-search)           | `web-search`      | Search the web and return ranked results with titles, URLs, descriptions, and sources.                                          |
+
+## Installation
 
 Requires Node.js 20 or newer.
 
-One interactive command installs the CLI globally and copies all three
-MrScraper skills into every supported agent harness detected on the machine:
+```bash
+npm install -g @mrscraper/cli@latest
+```
+
+For the CLI and optional agent skill pack:
 
 ```bash
 npx -y @mrscraper/cli@latest init --all
 ```
 
-If no credential exists, this human-facing command starts browser sign-in. An
-existing `~/.mrscraper/auth.json` or `MRSCRAPER_API_KEY` is reused by the CLI.
-
-Agents use the non-interactive form so setup never waits for secret input, then
-launch browser login only when authentication is still missing:
-
-```bash
-npx -y @mrscraper/cli@latest init --all --yes --skip-auth
-mrscraper auth status --json
-mrscraper login
-```
-
-The agent keeps `mrscraper login` running while the user approves access in the
-browser. The CLI exchanges that approval for a dedicated API key and saves it
-locally. In headless automation, set `MRSCRAPER_API_KEY` instead.
-
-For a CLI-only installation:
-
-```bash
-npm install -g @mrscraper/cli@latest
-mrscraper login
-```
-
-You can also run the current checkout:
-
-```bash
-npm install
-node bin/mrscraper.js --help
-```
-
-### Agent onboarding
-
-The bootstrap installs three focused skills through the public `skills`
-installer:
-
-- [`mrscraper`](./skills/mrscraper/SKILL.md) — onboarding, authentication,
-  routing, shared output rules, account status, troubleshooting, and limits;
-- [`mrscraper-fetch`](./skills/mrscraper-fetch/SKILL.md) — page retrieval with
-  `scrape-html`, `scrape-markdown`, `get-screenshot`, `scrape-json`, and
-  `scrape-brand`, including page-loading controls; and
-- [`mrscraper-serp`](./skills/mrscraper-serp/SKILL.md) — query-first web
-  discovery with `web-search` and handoff to page retrieval.
-
-Raw onboarding URL:
-
-```text
-https://raw.githubusercontent.com/mrscraper-com/cli/main/skills/mrscraper/SKILL.md
-```
-
-Copyable AI setup prompt:
-
-```text
-Install MrScraper for this coding agent. Detect the client from the environment,
-then run `npx -y @mrscraper/cli@latest init --agent <client> --yes --skip-auth`
-yourself. This installs the CLI and all three MrScraper skills without waiting
-for authentication. Never ask me to paste an API key into chat. Check
-`mrscraper auth status --json`; if no credential is configured and this is a local
-interactive session, run `mrscraper login`, keep it running, and let me approve
-the browser request. In a headless session, tell me to configure
-MRSCRAPER_API_KEY instead. Then confirm the CLI works and report which
-MrScraper skills were installed.
-```
-
-MrScraper also offers an optional hosted MCP server; see
-[Hosted MCP](#hosted-mcp-optional).
-
-### Install for one agent
-
-Use the same `npx` bootstrap for a specific agent. In an interactive terminal,
-it starts browser sign-in when authentication is missing:
-
-```bash
-# Claude Code
-npx -y @mrscraper/cli@latest init --agent claude-code
-
-# Cursor
-npx -y @mrscraper/cli@latest init --agent cursor
-
-# Codex
-npx -y @mrscraper/cli@latest init --agent codex
-
-# Grok Build
-npx -y @mrscraper/cli@latest init --agent grok
-
-# Hermes Agent
-npx -y @mrscraper/cli@latest init --agent hermes
-
-# OpenCode
-npx -y @mrscraper/cli@latest init --agent opencode
-
-# OpenClaw
-npx -y @mrscraper/cli@latest init --agent openclaw
-
-# Pi
-npx -y @mrscraper/cli@latest init --agent pi
-
-# Oh My Pi
-npx -y @mrscraper/cli@latest init --agent omp
-```
-
-A local agent should append `--yes --skip-auth`, then run `mrscraper login`
-separately and wait for the user to approve in the browser. For a headless host,
-use `--skip-auth` and provide `MRSCRAPER_API_KEY`, or run
-`mrscraper login --no-browser` in a human-controlled terminal.
-
-### What `init` does
-
-`mrscraper init` sets up the CLI workflow:
-
-1. Installs the MrScraper CLI.
-2. Reuses existing authentication or starts browser login when needed.
-3. Installs all three MrScraper skills.
-
-It supports Claude Code, Cursor, Codex, Grok Build, Hermes Agent, OpenCode,
-OpenClaw, Pi, and Oh My Pi. Agent-specific setup is handled automatically.
-
-Useful variants:
-
-```bash
-mrscraper init --agent codex --yes --skip-auth
-mrscraper init --agent hermes --yes --skip-auth
-mrscraper init --agent openclaw --yes --skip-auth
-mrscraper init --all --yes --skip-auth
-mrscraper init --all --yes --skip-auth --dry-run
-mrscraper setup skills
-mrscraper setup skills --agent codex
-mrscraper setup skills --agent grok
-```
-
-`--all` installs only into detected harnesses. `setup skills` refreshes the
-complete pack without changing authentication. The bootstrap does not install
-MCP, add templates, or select default provider settings. Interactive `init`
-starts browser login when no credential exists; non-interactive input, `--yes`,
-or `--skip-auth` leaves it for an explicit `mrscraper login`. Package-runner
-flags such as `npx -y` approve package execution only; they do not authenticate
-the CLI.
-
-### Agent plugins (separate repositories)
-
-Native agent plugins are maintained separately from this CLI repository:
-
-- [MrScraper for ChatGPT and Codex](https://github.com/mrscraper-com/mrscraper-chatgpt-plugin)
-- [MrScraper for Claude](https://github.com/mrscraper-com/mrscraper-claude-plugin)
-
-Those plugins package MCP-oriented skills with the hosted MrScraper MCP server.
-Use `mrscraper init` when you want this repository's CLI-oriented skill pack
-instead.
-
-## Hosted MCP (optional)
-
-MCP setup is separate from the CLI and skill bootstrap. The hosted server at
-`https://mcp.mrscraper.com/mcp` exposes the same capabilities as the CLI through
-the `scraperAPI`, `webSearch`, and `status` tools. Clients that support OAuth
-sign in through the browser; other clients send an
-[API key](https://app.mrscraper.com/api-tokens) as a bearer token:
-
-```text
-URL: https://mcp.mrscraper.com/mcp
-Authorization: Bearer <MRSCRAPER_API_KEY>
-```
-
-To run the server yourself, see
-[`@mrscraper/mcp`](https://github.com/mrscraper-com/mrscraper-mcp).
+For automated setup, use `npx -y @mrscraper/cli@latest init --all --yes --skip-auth`, then run browser login explicitly when needed.
 
 ## Authentication
 
-Browser sign-in is the interactive default:
+Obtain an API key from [the MrScraper app](https://app.mrscraper.com/api-tokens). API key used to authenticate the request.
 
 ```bash
 mrscraper login
 mrscraper auth status
 ```
 
-Use `mrscraper login --no-open` to print the URL without launching a browser. An
-agent may launch `mrscraper login` when the user and browser are on the same
-machine, but the user must approve the request. It never falls back to a secret
-prompt; `--no-browser` is an explicit human-only API-key prompt.
+Browser sign-in saves a dedicated API key in `~/.mrscraper/auth.json`. Keep `mrscraper login` running until browser approval completes. `--no-open` prints the sign-in URL. `--no-browser` is an explicit interactive API-key prompt.
 
-API keys remain supported for CI and other non-interactive environments:
+For automation, set `MRSCRAPER_API_KEY`. `--token` overrides configured authentication for one service call; it is sent in headers, never in the request URL.
 
 ```bash
-mrscraper login --api-key "your-key"
-export MRSCRAPER_API_KEY="your-key"
-mrscraper scrape-html https://example.com --token "your-key"
+export MRSCRAPER_API_KEY="YOUR_TOKEN"
 ```
 
-Get API keys from
-[app.mrscraper.com/api-tokens](https://app.mrscraper.com/api-tokens). Avoid
-putting secrets directly in shell history; environment variables are preferred
-for automation.
-
-## Command Summary
-
-```text
-init             bootstrap the CLI and detected agent skill pack
-login            use browser sign-in or explicitly save an API key
-auth             inspect local credential configuration
-logout           remove local credentials
-setup            install or refresh the skill pack
-scrape-html      retrieve raw page HTML
-scrape-markdown  retrieve clean page Markdown
-get-screenshot   capture a full-page or top viewport screenshot
-scrape-brand     extract a website's brand
-scrape-json      extract structured JSON with a natural-language prompt
-web-search       search the web and return ranked results
-status           show the account's subscription, token usage, and limits
-```
-
-CLI command names use kebab-case; JavaScript exports use camelCase. The six
-scraping and search commands send GET requests to `https://api.mrscraper.com`
-and authenticate with the `x-api-token` header, so the API key never appears in
-a request URL. These CLI changes do not change the separately hosted MCP
-server's tool names.
-
-## `scrape-html` and `scrape-markdown`
-
-HTML and Markdown bodies are preserved as strings in the response envelope's
-`data` field. `scrape-markdown --html` also returns the page HTML: the page is
-rendered in a browser (the API requires it for this combination) and `data`
-holds `{ "html": "...", "markdown": "..." }`.
+## Quickstart
 
 ```bash
-mrscraper scrape-html https://example.com | jq -r '.data'
-mrscraper scrape-markdown https://example.com | jq -r '.data'
-mrscraper scrape-markdown https://example.com --browser-rendering \
-  --wait-for-selector '.products' --geo-code id
+mrscraper scrape-html https://example.com --browser-rendering --warm-start \
+  --wait-for-selector '.content' --timeout 120 --max-retries 0
 ```
 
-`scrape-html` always sends `html=true&markdown=false&screenshot=false`;
-`scrape-markdown` always sends `markdown=true&screenshot=false`.
-See [Scrape HTML](https://docs.mrscraper.com/docs/api/scraper-api/scrape-html)
-and [Scrape Markdown](https://docs.mrscraper.com/docs/api/scraper-api/scrape-markdown).
+Examples use `example.com` as the sample target. Replace it for your use case. Live scraping and search calls consume account quota.
 
-### Page-loading options
+## Shared parameters
 
-These controls are shared by `scrape-html`, `scrape-markdown`, `get-screenshot`,
-and `scrape-json`. The CLI always sends the defaults below; `super` and
-`saveResult` are off unless requested, although the API itself defaults them
-to on.
+### Page controls
 
-| Option | Request field | Default | Behavior |
-| --- | --- | --- | --- |
-| `<url>` | `url` | required | Absolute HTTP or HTTPS target URL. |
-| `--browser-rendering` | `browserRendering` | off | Render the page in a browser. Not on `get-screenshot`, which always renders. |
-| `--super` | `super` | off | Route the request through real devices. |
-| `--wait-until <event>` | `waitUntil` | `domcontentloaded` | `domcontentloaded`, `load`, `networkidle0`, or `networkidle2`. |
-| `--wait-for-selector <selector>` | `waitForSelector` | — | Wait for a CSS selector. Not on `scrape-json`. |
-| `--block-resources` | `blockResources` | off | Block images, fonts, and stylesheets. Not on `scrape-json`. |
-| `--return-cookie` | `returnCookie` | off | Include browser session cookies. Not on `scrape-json`. |
-| `--timeout <seconds>` | `timeout` | `300` | Page timeout, 1–300 seconds; the request allows 30 more. |
-| `--geo-code <code>` | `geoCode` | `us` | Two-letter country to load the page from. |
-| `--proxy-country <code>` | `proxyCountry` | `us` | Two-letter proxy server country. |
-| `--proxy <url>` | `proxy` | — | Send the request through your own proxy. |
-| `--max-retries <n>` | `maxRetries` | no limit | Nonnegative retry limit; zero disables retries. |
-| `--save-result` | `saveResult` | off | Save the result to the dashboard Result tab. |
-| `--token <key>` | authentication | configured | Override configured credentials. |
+HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `geoCode`, `proxyCountry`, `super`, `waitUntil`, `proxy`, `maxRetries`, and `saveResult` (using the naming style shown below). Page defaults are 300 seconds, US geolocation/proxy country, real-device routing off, and dashboard saving off. Omitted retry limits mean no limit. Exact types, defaults, and standard descriptions appear in each service table.
 
-Country codes are lowercased before sending. Tokens used are reported in the
-`token_usage` response header. The target page's status can be reported in
-`x-status-code`.
+### Loading controls
 
-## `get-screenshot`
+HTML, Markdown, and screenshots additionally accept `blockResources`, `waitForSelector`, and `returnCookie`. JSON extraction does not accept these controls. Browser rendering is optional for HTML, Markdown, and JSON; screenshots always enable it. Markdown with HTML also enables browser rendering.
 
-Use `--screenshot full` (default) for the entire page or `--screenshot top`
-for the viewport. Browser rendering is always enabled. The response JSON is
-in `data`, with a base64 PNG in `data.screenshot` and the page HTML in
-`data.html`. `--no-html` sends `html=false`, although the API currently still
-returns the HTML. `--markdown` adds `data.markdown`.
+## Service reference
 
-```bash
-mrscraper get-screenshot https://example.com --no-html \
-  | jq -r '.data.screenshot' | base64 --decode > page.png
-mrscraper get-screenshot https://example.com --screenshot top --markdown
-```
+### Status
 
-See [Get Screenshot](https://docs.mrscraper.com/docs/api/scraper-api/get-screenshot).
+#### Description
 
-## `scrape-brand`
+Return the raw account status API response without summarizing, redacting body fields, or adding calculated fields.
 
-Extract brand colors, typography, logos, social links, and metadata. The
-request sends `action=brand-scraping&bundle=none` and returns brand JSON only.
-Brand data is in `data.data.brand`, and the job ID is in `data.data.job_id`
-(the outer `data` is the CLI envelope).
+#### Parameters
 
-```bash
-mrscraper scrape-brand https://example.com | jq '.data.data.brand'
-```
+This service takes no service parameters. Authentication is configured separately.
 
-The page bundles (`bundle=clean` and `bundle=full`) are not available from the
-CLI. When a page has no usable brand data, the API can answer HTTP 422 with a
-settled job and no tokens charged; the CLI prints the response and exits
-non-zero.
+The HTTP deadline is fixed at 600 seconds. It is not a service parameter.
 
-See [Scrape Brand](https://docs.mrscraper.com/docs/api/scraper-api/scrape-brand/scrape-brand).
-
-## `scrape-json`
-
-Describe the structured data to extract with `--prompt`. It defaults to
-`Extract all data as complete as possible.` The `general` agent parses the
-scraped content; the prompt does not control browser navigation. Append
-`Json Schema:` and a schema to shape the output.
-
-```bash
-mrscraper scrape-json https://example.com \
-  --prompt 'Extract book titles and prices' | jq '.data.data'
-```
-
-`--html` adds the page HTML and `--screenshot` adds a base64 screenshot; both
-are off by default. The request is a GET. When a long prompt would push the
-URL past the API's 8 KB limit, the CLI sends the documented POST variant
-instead, with `url`, `prompt`, and `agent` in the JSON body.
-See [Scrape JSON](https://docs.mrscraper.com/docs/api/scraper-api/scrape-json).
-
-## `web-search`
-
-Send query text as `GET /?action=websearch&query=...&country=us&numResults=10`:
-
-```bash
-mrscraper web-search "e-menessaptieka.lv linkedin" --country us --num-results 10
-mrscraper web-search "running shoes" --country id --num-results 20
-```
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `<query>` | required | Search query, 1–1000 characters. |
-| `--country <code>` | `us` | Two-letter country code to search from. |
-| `--num-results <n>` | `10` | Number of results, from 10 to 100. |
-| `--token <key>` | configured credential | Override authentication. |
-
-The API response is in the envelope's `data` field. Fewer results may be
-returned than requested.
-
-## `status`
-
-Return the raw account status API response:
+#### Example
 
 ```bash
 mrscraper status
-mrscraper status --json
 ```
 
-The CLI reads `/subscription-accounts` and prints JSON in both terminals and
-redirected output. The API response body is preserved in the envelope's
-`data` field, including all account fields returned by the API. It is not
-summarized, redacted, or augmented with calculated fields.
+#### Response
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `--json` | on | Print JSON (also the default without this flag). |
-| `--token <key>` | — | Override configured authentication with an API key. |
+The complete account API response body is preserved inside data. If the API wraps account details in data, those details are available at data.data. Sensitive response headers are removed.
 
-## Migration to 0.7.0
+### Scrape HTML
 
-0.7.0 replaces the 0.6.0 commands and exports:
+#### Description
 
-| 0.6.0 | 0.7.0 |
-| --- | --- |
-| `scraperAPI URL` / `scraperAPI()` | `scrape-html URL` / `scrapeHtml()` |
-| `scraperAPI URL --markdown --no-html` | `scrape-markdown URL` / `scrapeMarkdown()` |
-| `scraperAPI URL --screenshot` | `get-screenshot URL` / `getScreenshot()` |
-| — | `scrape-json URL` / `scrapeJson()` |
-| — | `scrape-brand URL` / `scrapeBrand()` |
-| `webSearch QUERY` | `web-search QUERY` / `webSearch()` |
-| `account` / `account()` | `status` / `getSubscriptionAccountApi()` |
+Retrieve the raw HTML of a page. Browser rendering is optional.
 
-From 0.3.x, `scraper-api` maps to the same commands as `scraperAPI`, and
-`web-search --region` becomes `web-search --country`; Search URLs and
-`--language`, `--page`, `--format`, and `--render-js` are removed.
+#### Parameters
 
-Removed options: `--save <path>` (redirect stdout instead), `--token-cap`,
-`--home-page`, `--cookie-jar`, `--headers`, `--stream`, `--bypass-proxy`,
-`--no-use-proxy`, `--discard-token-secret`, and `--timeout` on the search and
-account commands.
+| Parameter             | HTTP field         | Type                                                               | Default              | Description                                                                                     |
+| --------------------- | ------------------ | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
+| `<url>`               | `url`              | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
+| `--timeout`           | `timeout`          | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
+| `--geo-code`          | `geoCode`          | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
+| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
+| `--super`             | `super`            | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
+| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
+| `--proxy`             | `proxy`            | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
+| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
+| `--save-result`       | `saveResult`       | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
+| `--block-resources`   | `blockResources`   | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
+| `--wait-for-selector` | `waitForSelector`  | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
+| `--return-cookie`     | `returnCookie`     | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
+| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`              | Whether to render the page in a browser before returning the result.                            |
+| `--warm-start`        | `warmStart`        | boolean                                                            | `false`              | Whether to enable warm start for more reliable scraping, at the cost of additional latency.     |
 
-Changed defaults:
+#### Example
 
-- `super=false` and `saveResult=false` are sent unless `--super` or
-  `--save-result` is passed. Results no longer appear in the dashboard Result
-  tab by default.
-- `--max-retries` is no longer 3 by default; when omitted, the API applies no
-  retry limit.
-- `web-search --country` defaults to `us`.
+```bash
+mrscraper scrape-html https://example.com --browser-rendering --warm-start \
+  --wait-for-selector '.content' --timeout 120 --max-retries 0
+```
 
-## Programmatic API
+#### Response
+
+The default response body is HTML text. Additional controls can cause the API to return JSON; the returned structure is preserved.
+
+### Scrape Markdown
+
+#### Description
+
+Retrieve a page as Markdown. Including HTML also enables browser rendering and returns both outputs as JSON.
+
+#### Parameters
+
+| Parameter             | HTTP field         | Type                                                               | Default              | Description                                                                                     |
+| --------------------- | ------------------ | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
+| `<url>`               | `url`              | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
+| `--timeout`           | `timeout`          | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
+| `--geo-code`          | `geoCode`          | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
+| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
+| `--super`             | `super`            | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
+| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
+| `--proxy`             | `proxy`            | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
+| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
+| `--save-result`       | `saveResult`       | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
+| `--block-resources`   | `blockResources`   | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
+| `--wait-for-selector` | `waitForSelector`  | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
+| `--return-cookie`     | `returnCookie`     | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
+| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`              | Whether to render the page in a browser before returning the result.                            |
+| `--warm-start`        | `warmStart`        | boolean                                                            | `false`              | Whether to enable warm start for more reliable scraping, at the cost of additional latency.     |
+| `--html`              | `html`             | boolean                                                            | `false`              | Whether to include the page HTML in the response.                                               |
+
+#### Example
+
+```bash
+mrscraper scrape-markdown https://example.com --html --warm-start
+```
+
+#### Response
+
+The default response body is Markdown text. Enabling HTML returns JSON containing both HTML and Markdown.
+
+### Get screenshot
+
+#### Description
+
+Capture a base64 screenshot of the full page or top viewport. Browser rendering is always enabled.
+
+#### Parameters
+
+| Parameter                     | HTTP field        | Type                                                               | Default              | Description                                                                                     |
+| ----------------------------- | ----------------- | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
+| `<url>`                       | `url`             | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
+| `--timeout`                   | `timeout`         | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
+| `--geo-code`                  | `geoCode`         | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
+| `--proxy-country`             | `proxyCountry`    | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
+| `--super`                     | `super`           | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
+| `--wait-until`                | `waitUntil`       | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
+| `--proxy`                     | `proxy`           | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
+| `--max-retries`               | `maxRetries`      | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
+| `--save-result`               | `saveResult`      | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
+| `--block-resources`           | `blockResources`  | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
+| `--wait-for-selector`         | `waitForSelector` | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
+| `--return-cookie`             | `returnCookie`    | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
+| `--screenshot`                | `screenshot`      | string: `full`, `top`                                              | `"full"`             | Screenshot area to capture: full for the entire page or top for the top viewport.               |
+| `--no-html (sets html=false)` | `html`            | boolean                                                            | `true`               | Whether to include the page HTML in the response.                                               |
+| `--markdown`                  | `markdown`        | boolean                                                            | `false`              | Whether to include the page Markdown in the response.                                           |
+
+#### Example
+
+```bash
+mrscraper get-screenshot https://example.com --screenshot top --no-html --markdown
+```
+
+#### Response
+
+The response body contains a base64 screenshot and requested page outputs. The API can still include HTML when HTML output is disabled.
+
+### Scrape brand
+
+#### Description
+
+Extract a website's colors, typography, logos, and social links as JSON.
+
+#### Parameters
+
+| Parameter | HTTP field | Type   | Default  | Description                                        |
+| --------- | ---------- | ------ | -------- | -------------------------------------------------- |
+| `<url>`   | `url`      | string | Required | Absolute HTTP or HTTPS URL of the page to process. |
+
+The HTTP deadline is fixed at 120 seconds. It is not a service parameter.
+
+The request uses `action=brand-scraping` and `bundle=none`; page controls are not accepted.
+
+#### Example
+
+```bash
+mrscraper scrape-brand https://example.com
+```
+
+#### Response
+
+The response body preserves the API brand result. Brand data is typically available at data.data.brand in the response envelope.
+
+### Scrape JSON
+
+#### Description
+
+Extract structured JSON from a page using a natural-language prompt. Append Json Schema: and a JSON schema to shape the output.
+
+#### Parameters
+
+| Parameter             | HTTP field         | Type                                                               | Default                                       | Description                                                                                             |
+| --------------------- | ------------------ | ------------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `<url>`               | `url`              | string                                                             | Required                                      | Absolute HTTP or HTTPS URL of the page to process.                                                      |
+| `--timeout`           | `timeout`          | integer                                                            | `300`                                         | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.             |
+| `--geo-code`          | `geoCode`          | string                                                             | `"us"`                                        | Two-letter country code to load the page from, sent in lowercase.                                       |
+| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`                                        | Two-letter country code of the proxy server, sent in lowercase.                                         |
+| `--super`             | `super`            | boolean                                                            | `false`                                       | Whether to route the request through real devices.                                                      |
+| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"`                          | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2.         |
+| `--proxy`             | `proxy`            | string                                                             | Omitted                                       | Custom proxy URL used to load the page.                                                                 |
+| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted                                       | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                  |
+| `--save-result`       | `saveResult`       | boolean                                                            | `false`                                       | Whether to save the result to the dashboard Result tab.                                                 |
+| `--prompt`            | `prompt`           | string                                                             | `"Extract all data as complete as possible."` | Instructions describing the data to extract. Append Json Schema: and a JSON schema to shape the output. |
+| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`                                       | Whether to render the page in a browser before returning the result.                                    |
+| `--html`              | `html`             | boolean                                                            | `false`                                       | Whether to include the page HTML in the response.                                                       |
+| `--screenshot`        | `screenshot`       | boolean                                                            | `false`                                       | Whether to include a base64 screenshot in the response.                                                 |
+
+The request uses `agent=general` and GET. If the encoded URL exceeds 8,000 characters, it switches to POST with `url`, `prompt`, and `agent` in the body; page controls remain in the query.
+
+#### Example
+
+```bash
+mrscraper scrape-json https://example.com --browser-rendering \
+  --prompt 'Extract the page title. Json Schema: {"type":"object","properties":{"title":{"type":"string"}}}'
+```
+
+#### Response
+
+The response body contains the extraction result in the API's original structure. Optional HTML and screenshot outputs may add fields.
+
+### Web search
+
+#### Description
+
+Search the web and return ranked results with titles, URLs, descriptions, and sources.
+
+#### Parameters
+
+| Parameter       | HTTP field   | Type    | Default  | Description                                                                                       |
+| --------------- | ------------ | ------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `<query>`       | `query`      | string  | Required | Search query text, trimmed before sending, containing 1 to 1000 characters.                       |
+| `--country`     | `country`    | string  | `"us"`   | Two-letter country code to search from, sent in lowercase.                                        |
+| `--num-results` | `numResults` | integer | `10`     | Number of search results to request, as an integer from 10 to 100. Fewer results may be returned. |
+
+The HTTP deadline is fixed at 120 seconds. It is not a service parameter.
+
+#### Example
+
+```bash
+mrscraper web-search "site:example.com documentation" --country id --num-results 20
+```
+
+#### Response
+
+The response body contains success, message, and a data array. Each result includes rank, title, url, description, and source.
+
+## Response format
+
+Successful services use an envelope containing `status_code`, `data`, and `headers`. The `data` field contains the API response body; its field names are not converted to the SDK's naming style. Status preserves the complete body without adding summary fields.
+
+```json
+{
+  "status_code": 200,
+  "data": "<html><body>Example</body></html>",
+  "headers": { "content-type": "text/html" }
+}
+```
+
+The CLI prints the envelope as JSON to stdout. It filters credential-bearing response headers and redacts known credential metadata in scraping/search JSON; status body fields are preserved.
+
+## Error handling
+
+Failed API calls print a JSON envelope with `error` and set a nonzero exit code. HTTP status remains in `status_code`; network failures use `null`. Progress is written to stderr so stdout stays machine-readable. Invalid arguments fail before the request.
+
+```bash
+mrscraper scrape-html https://example.com > result.json
+```
+
+## Integration features
+
+### Configuration
+
+The CLI also provides `init`, `login`, `auth status`, `logout`, and `setup skills`. Service options use kebab-case. `status --json` is accepted for compatibility; JSON is already the default.
+
+Agent setup supports Claude Code, Cursor, Codex, Grok Build, Hermes Agent, OpenCode, OpenClaw, Pi, and Oh My Pi. `init --all` targets detected harnesses; `init --agent NAME` targets one. `--yes`, `--skip-auth`, and noninteractive input leave authentication for an explicit login.
+
+```bash
+mrscraper init --agent codex --yes --skip-auth
+mrscraper init --all --yes --skip-auth --dry-run
+mrscraper setup skills
+mrscraper setup skills --agent hermes
+```
+
+### Advanced usage
+
+Three repository-hosted skills cover setup and account usage, page retrieval, and search:
+
+- [mrscraper](./skills/mrscraper/SKILL.md)
+- [mrscraper-fetch](./skills/mrscraper-fetch/SKILL.md)
+- [mrscraper-serp](./skills/mrscraper-serp/SKILL.md)
+
+For programmatic JavaScript usage, import `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, `webSearch`, or `getSubscriptionAccountApi` from `@mrscraper/cli`. These low-level exports accept options objects; the internal JavaScript option for `super` is `superMode`.
 
 ```js
-import {
-  scrapeHtml, scrapeMarkdown, getScreenshot,
-  scrapeBrand, scrapeJson, webSearch,
-  getSubscriptionAccountApi,
-} from "@mrscraper/cli";
-
-const token = process.env.MRSCRAPER_API_KEY;
-const page = await scrapeHtml({ token, url: "https://example.com" });
-const shot = await getScreenshot({ token, url: "https://example.com", screenshot: "top" });
-const search = await webSearch({ token, query: "MrScraper", country: "us", numResults: 10 });
+import { scrapeHtml } from "@mrscraper/cli";
+const result = await scrapeHtml({
+  token: process.env.MRSCRAPER_API_KEY,
+  url: "https://example.com",
+});
+console.log(result.data);
 ```
 
-Options use the request field names in camelCase, such as `browserRendering`,
-`waitForSelector`, `maxRetries`, and `saveResult`; `super` is `superMode`.
-Inputs are validated before any request, and fields a command does not
-support are never sent. All functions return the same JSON envelope as the
-CLI. Credential helpers and `request` remain exported.
+Hosted MCP setup is separate from the CLI and agent skill bootstrap. [MrScraper MCP](https://github.com/mrscraper-com/mrscraper-mcp) exposes `status`, `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, and `webSearch`. Native agent plugins are maintained separately for [ChatGPT and Codex](https://github.com/mrscraper-com/mrscraper-chatgpt-plugin) and [Claude](https://github.com/mrscraper-com/mrscraper-claude-plugin).
 
-## Development
+### Troubleshooting
+
+For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 300 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
+
+## Migration
+
+Replace `account` with `status`. Replace combined `scraperAPI` / `scraper-api` calls with `scrape-html`, `scrape-markdown`, or `get-screenshot`. Search uses `web-search` with `country` and `num-results`. Legacy locale, header, token-budget, result, rerun, and bundle controls are outside the seven-service interface. `super` and `saveResult` default to false; omitted `maxRetries` means no limit.
+
+## Development and testing
+
+### Automated checks
+
+The automated suite checks service behavior without production API calls.
 
 ```bash
 npm install
@@ -432,15 +369,16 @@ npm test
 node bin/mrscraper.js --help
 ```
 
-Run the package and skill bootstrap smoke test inside Docker so global npm and
-agent-directory writes stay out of the host environment:
+### Manual checks
+
+The following commands call the live API using your credentials and consume quota.
 
 ```bash
-docker build --file test/bootstrap.Dockerfile .
+mrscraper status
+mrscraper scrape-html https://example.com
+mrscraper web-search "site:example.com documentation"
 ```
-
-For local integration tests, API hosts may be overridden with `MRSCRAPER_API_BASE_URL` and `MRSCRAPER_FETCH_BASE_URL`.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

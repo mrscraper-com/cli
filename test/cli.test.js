@@ -234,6 +234,7 @@ test("six data commands send the documented GET contracts", async (t) => {
       "scrape-html",
       "https://target.example",
       "--browser-rendering",
+      "--warm-start",
       "--super",
       "--wait-until",
       "load",
@@ -244,6 +245,7 @@ test("six data commands send the documented GET contracts", async (t) => {
       "scrape-markdown",
       "https://target.example",
       "--html",
+      "--warm-start",
       "--geo-code",
       "ID",
       "--proxy-country",
@@ -311,6 +313,7 @@ test("six data commands send the documented GET contracts", async (t) => {
     blockResources: "false",
     returnCookie: "true",
     browserRendering: "true",
+    warmStart: "true",
     html: "true",
     markdown: "false",
     screenshot: "false",
@@ -329,6 +332,7 @@ test("six data commands send the documented GET contracts", async (t) => {
     waitForSelector: ".ready",
     returnCookie: "false",
     browserRendering: "true",
+    warmStart: "true",
     html: "true",
     markdown: "true",
     screenshot: "false",
@@ -477,7 +481,11 @@ test("status returns the raw account API response", async (t) => {
 
   assert.equal(result.code, 0);
   const output = JSON.parse(result.stdout);
-  assert.deepEqual(Object.keys(output).sort(), ["data", "headers", "status_code"]);
+  assert.deepEqual(Object.keys(output).sort(), [
+    "data",
+    "headers",
+    "status_code",
+  ]);
   assert.equal(output.status_code, 200);
   assert.deepEqual(output.data, accountResponse);
   assert.equal(output.headers["content-type"], "application/json");
@@ -499,10 +507,9 @@ test("status --json preserves an account list without creating a summary", async
   const port = await listen(server);
   t.after(() => close(server));
 
-  const result = await runCli(
-    ["status", "--json", "--token", "test"],
-    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
-  );
+  const result = await runCli(["status", "--json", "--token", "test"], {
+    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
+  });
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
@@ -527,4 +534,18 @@ test("status reports an API failure as JSON with a non-zero exit code", async (t
   assert.match(output.error, /Unauthorized/);
   assert.deepEqual(output.data, { message: "Unauthenticated." });
   assert.equal(output.kind, undefined);
+});
+
+test("warm-start is not accepted by screenshot or JSON commands", async () => {
+  for (const command of ["get-screenshot", "scrape-json"]) {
+    const result = await runCli([
+      command,
+      "https://example.com",
+      "--warm-start",
+      "--token",
+      "test",
+    ]);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /unknown option.*warm-start/);
+  }
 });

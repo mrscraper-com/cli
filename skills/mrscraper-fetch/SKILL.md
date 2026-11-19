@@ -67,6 +67,12 @@ HTML, Markdown, screenshot, and JSON commands share these options:
 | `--timeout SECONDS` | Page timeout 1–300, default 300; transport allows 30 more seconds. |
 | `--token KEY` | Override configured authentication. |
 
+HTML and Markdown also support `--warm-start`, which defaults to off:
+
+| Option | Behavior |
+| --- | --- |
+| `--warm-start` | Whether to enable warm start for more reliable scraping, at the cost of additional latency. |
+
 ```bash
 mrscraper scrape-markdown "https://example.com" \
   --browser-rendering --wait-for-selector '.products' --geo-code id \
