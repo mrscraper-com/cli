@@ -234,6 +234,7 @@ test("six data commands send the documented GET contracts", async (t) => {
       "scrape-html",
       "https://target.example",
       "--browser-rendering",
+      "--warm-start",
       "--super",
       "--wait-until",
       "load",
@@ -244,6 +245,7 @@ test("six data commands send the documented GET contracts", async (t) => {
       "scrape-markdown",
       "https://target.example",
       "--html",
+      "--warm-start",
       "--geo-code",
       "ID",
       "--proxy-country",
@@ -311,6 +313,7 @@ test("six data commands send the documented GET contracts", async (t) => {
     blockResources: "false",
     returnCookie: "true",
     browserRendering: "true",
+    warmStart: "true",
     html: "true",
     markdown: "false",
     screenshot: "false",
@@ -329,6 +332,7 @@ test("six data commands send the documented GET contracts", async (t) => {
     waitForSelector: ".ready",
     returnCookie: "false",
     browserRendering: "true",
+    warmStart: "true",
     html: "true",
     markdown: "true",
     screenshot: "false",
@@ -440,30 +444,33 @@ test("HTTP and application failures produce JSON and a non-zero exit code", asyn
   }
 });
 
-test("status summarizes the account without exposing API tokens", async (t) => {
+test("status returns the raw account API response", async (t) => {
+  const accountResponse = {
+    message: "Successful operation!",
+    data: {
+      tokenLimit: "100",
+      tokenUsage: "20",
+      stripeStatus: "active",
+      stripeSubscriptionId: "sub_example",
+      rateLimit: 10,
+      rateTtl: 60,
+      isAutoRenew: true,
+      customField: { enabled: false, value: null },
+      user: {
+        name: "Ada",
+        email: "ada@example.com",
+        latestApiToken: "atk_example",
+        isVerified: true,
+      },
+    },
+  };
   const server = http.createServer((request, response) => {
     assert.equal(request.url, "/api/v1/subscription-accounts");
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(
-      JSON.stringify({
-        message: "Successful operation!",
-        data: {
-          tokenLimit: 100,
-          tokenUsage: 20,
-          stripeStatus: "active",
-          stripeSubscriptionId: "sub_secret",
-          rateLimit: 10,
-          rateTtl: 60,
-          isAutoRenew: true,
-          user: {
-            name: "Ada",
-            email: "ada@example.com",
-            latestApiToken: "atk_secret",
-            isVerified: true,
-          },
-        },
-      }),
-    );
+    response.writeHead(200, {
+      "content-type": "application/json",
+      "x-request-id": "status-1",
+    });
+    response.end(JSON.stringify(accountResponse));
   });
   const port = await listen(server);
   t.after(() => close(server));
@@ -474,50 +481,39 @@ test("status summarizes the account without exposing API tokens", async (t) => {
 
   assert.equal(result.code, 0);
   const output = JSON.parse(result.stdout);
-  assert.equal(output.kind, "mrscraper-cli-status-summary");
-  assert.deepEqual(output.source_endpoints, ["/subscription-accounts"]);
-  assert.equal(output.data.account.token_remaining, 80);
-  assert.equal(output.data.account.subscription_status, "active");
-  assert.doesNotMatch(result.stdout, /atk_secret|sub_secret/);
+  assert.deepEqual(Object.keys(output).sort(), [
+    "data",
+    "headers",
+    "status_code",
+  ]);
+  assert.equal(output.status_code, 200);
+  assert.deepEqual(output.data, accountResponse);
+  assert.equal(output.headers["content-type"], "application/json");
+  assert.equal(output.headers["x-request-id"], "status-1");
 });
 
-test("status --pretty renders a human dashboard instead of bare JSON", async (t) => {
+test("status --json preserves an account list without creating a summary", async (t) => {
+  const accountResponse = {
+    data: [
+      { tokenLimit: 1000, tokenUsage: 250, stripeStatus: "active" },
+      { tokenLimit: null, tokenUsage: 0, stripeStatus: "trialing" },
+    ],
+    meta: { total: 2 },
+  };
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(
-      JSON.stringify({
-        data: {
-          tokenLimit: 1000,
-          tokenUsage: 250,
-          stripeStatus: "active",
-          rateLimit: 30,
-          rateTtl: 60,
-          isAutoRenew: true,
-          user: {
-            name: "Ada",
-            email: "ada@example.com",
-            isVerified: true,
-          },
-        },
-      }),
-    );
+    response.end(JSON.stringify(accountResponse));
   });
   const port = await listen(server);
   t.after(() => close(server));
 
-  const result = await runCli(
-    ["status", "--pretty", "--no-color", "--token", "test"],
-    { MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` },
-  );
+  const result = await runCli(["status", "--json", "--token", "test"], {
+    MRSCRAPER_API_BASE_URL: `http://127.0.0.1:${port}/api/v1`,
+  });
 
   assert.equal(result.code, 0);
   assert.equal(result.stderr, "");
-  assert.match(result.stdout, /MrScraper  ACCOUNT & USAGE/);
-  assert.match(result.stdout, /● ACTIVE/);
-  assert.match(result.stdout, /250 used\s+·\s+750 remaining/);
-  assert.match(result.stdout, /Tip: pass --json/);
-  assert.doesNotMatch(result.stdout, /^\s*\{/);
-  assert.doesNotMatch(result.stdout, /\x1b\[/);
+  assert.deepEqual(JSON.parse(result.stdout).data, accountResponse);
 });
 
 test("status reports an API failure as JSON with a non-zero exit code", async (t) => {
@@ -536,5 +532,20 @@ test("status reports an API failure as JSON with a non-zero exit code", async (t
   const output = JSON.parse(result.stdout);
   assert.equal(output.status_code, 401);
   assert.match(output.error, /Unauthorized/);
+  assert.deepEqual(output.data, { message: "Unauthenticated." });
   assert.equal(output.kind, undefined);
+});
+
+test("warm-start is not accepted by screenshot or JSON commands", async () => {
+  for (const command of ["get-screenshot", "scrape-json"]) {
+    const result = await runCli([
+      command,
+      "https://example.com",
+      "--warm-start",
+      "--token",
+      "test",
+    ]);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /unknown option.*warm-start/);
+  }
 });

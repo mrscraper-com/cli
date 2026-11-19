@@ -1,0 +1,116 @@
+{
+  "verified_on": "2026-11-19",
+  "live_target": "https://books.toscrape.com/",
+  "scope": "Seven live API services, plus combined Markdown variants. Captured successful bodies were replayed through all five adapters without additional production calls.",
+  "services": [
+    {
+      "service": "status",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_kind": "object",
+      "assertions_passed": [
+        "HTTP 200",
+        "Raw body contains message and data",
+        "Account quota uses numeric fields",
+        "Subscription and allowance objects are present"
+      ]
+    },
+    {
+      "service": "scrape-html",
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "body_kind": "string",
+      "assertions_passed": ["HTTP 200", "Body is nonempty HTML text"]
+    },
+    {
+      "service": "scrape-markdown",
+      "http_status": 200,
+      "content_type": "text/markdown; charset=utf-8",
+      "body_kind": "string",
+      "assertions_passed": ["HTTP 200", "Body is nonempty Markdown text"]
+    },
+    {
+      "service": "get-screenshot",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_kind": "object",
+      "assertions_passed": [
+        "HTTP 200",
+        "Body has HTML, Markdown and screenshot fields",
+        "Screenshot decodes to a PNG"
+      ]
+    },
+    {
+      "service": "scrape-brand",
+      "http_status": 200,
+      "content_type": "application/json",
+      "body_kind": "object",
+      "assertions_passed": [
+        "HTTP 200",
+        "Settled job contains brand data",
+        "Job has no error"
+      ]
+    },
+    {
+      "service": "scrape-json",
+      "http_status": 200,
+      "content_type": "application/json",
+      "body_kind": "object",
+      "assertions_passed": [
+        "HTTP 200",
+        "Extraction succeeded",
+        "Requested extraction schema is preserved",
+        "Execution metadata uses observed key spellings"
+      ]
+    },
+    {
+      "service": "web-search",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_kind": "object",
+      "assertions_passed": [
+        "HTTP 200",
+        "Search returned ranked results",
+        "Search rows have documented fields",
+        "Usage field is camelCase"
+      ]
+    }
+  ],
+  "combined_markdown": [
+    {
+      "html": true,
+      "warmStart": false,
+      "maxRetries": 1,
+      "http_status": 200,
+      "body_keys": ["html", "markdown"]
+    },
+    {
+      "html": true,
+      "warmStart": true,
+      "maxRetries": 1,
+      "http_status": 200,
+      "body_keys": ["html", "markdown"]
+    }
+  ],
+  "transient_failure": {
+    "service": "scrape-markdown",
+    "html": true,
+    "warmStart": true,
+    "maxRetries": 0,
+    "http_status": 500,
+    "body_keys": ["detail"],
+    "recheck_http_status": 200
+  },
+  "postman_status_assertions": {
+    "passed": 3,
+    "failed": 0
+  },
+  "captured_response_replays": {
+    "CLI": 7,
+    "Python SDK": 7,
+    "Node SDK": 7,
+    "LangChain": 7,
+    "MCP": 7
+  },
+  "privacy": "No API credentials, account values, page bodies, or image data are included. Documentation values are placeholders."
+}

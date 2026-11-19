@@ -1,6 +1,6 @@
 {
   "name": "@mrscraper/cli",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "MrScraper CLI for HTML, Markdown, screenshots, brand scraping, JSON extraction, web search, account usage, and agent skill setup.",
   "license": "MIT",
   "author": "MrScraper",

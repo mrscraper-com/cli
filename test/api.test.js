@@ -188,6 +188,7 @@ test("page commands send documented defaults and forced fields over GET", async 
         ...PAGE_DEFAULTS,
         ...LOADING_DEFAULTS,
         browserRendering: "false",
+        warmStart: "false",
         html: "true",
         markdown: "false",
         screenshot: "false",
@@ -196,6 +197,7 @@ test("page commands send documented defaults and forced fields over GET", async 
         ...PAGE_DEFAULTS,
         ...LOADING_DEFAULTS,
         browserRendering: "false",
+        warmStart: "false",
         html: "false",
         markdown: "true",
         screenshot: "false",
@@ -226,6 +228,7 @@ test("page options map to their documented query fields", async () => {
     token: "test-token",
     url: "https://target.example",
     html: true,
+    warmStart: true,
     browserRendering: true,
     superMode: true,
     waitUntil: "networkidle0",
@@ -265,6 +268,7 @@ test("page options map to their documented query fields", async () => {
     waitForSelector: ".ready",
     returnCookie: "true",
     browserRendering: "true",
+    warmStart: "true",
     html: "true",
     markdown: "true",
     screenshot: "false",
@@ -388,8 +392,17 @@ test("brand and web search send only their documented GET fields", async () => {
   assert.deepEqual(
     calls.map((call) => call.query),
     [
-      { action: "brand-scraping", url: "https://mrscraper.com/", bundle: "none" },
-      { action: "websearch", query: "mrscraper", country: "us", numResults: "10" },
+      {
+        action: "brand-scraping",
+        url: "https://mrscraper.com/",
+        bundle: "none",
+      },
+      {
+        action: "websearch",
+        query: "mrscraper",
+        country: "us",
+        numResults: "10",
+      },
       {
         action: "websearch",
         query: "e-menessaptieka.lv linkedin",
@@ -415,5 +428,31 @@ test("the public package exports the six operations", async () => {
   }
   for (const name of ["scraperApi", "webSearchApi", "getBrand"]) {
     assert.equal(exports[name], undefined, name);
+  }
+});
+
+test("warmStart is a boolean HTML/Markdown control and preserves false", async () => {
+  const calls = captureRequests();
+  for (const operation of [scrapeHtml, scrapeMarkdown]) {
+    for (const warmStart of [false, true]) {
+      await operation({ token: "test", url: "https://example.com", warmStart });
+      assert.equal(calls.at(-1).query.warmStart, String(warmStart));
+    }
+    const sent = calls.length;
+    for (const warmStart of ["true", 1, null]) {
+      await assert.rejects(
+        operation({ token: "test", url: "https://example.com", warmStart }),
+        /warmStart must be a boolean/,
+      );
+    }
+    assert.equal(calls.length, sent);
+  }
+  for (const operation of [getScreenshot, scrapeJson]) {
+    await operation({
+      token: "test",
+      url: "https://example.com",
+      warmStart: true,
+    });
+    assert.ok(!("warmStart" in calls.at(-1).query));
   }
 });

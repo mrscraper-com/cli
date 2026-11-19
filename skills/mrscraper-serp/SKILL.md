@@ -35,7 +35,7 @@ and sanitized `headers`. Check the exit code and inspect the saved response
 before using results. Fewer results may be returned than requested. Progress
 and diagnostics appear on stderr.
 
-Google search URL parsing and legacy options `--region`, `--language`,
+Search URL parsing and legacy options `--region`, `--language`,
 `--page`, `--format`, `--render-js`, and `--timeout` are not supported.
 
 ## Continue with Relevant URLs
