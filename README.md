@@ -4,11 +4,10 @@
 
 Official command-line client for [MrScraper](https://app.mrscraper.com). It retrieves pages as HTML, Markdown, screenshots, brand data, or extracted JSON through the Scraper API, searches the web, and reports account usage.
 
-The six scraping and search commands return a consistent JSON envelope
+The scraping, search, and status commands return a consistent JSON envelope
 containing `status_code`, the response in `data`, and non-sensitive response
-`headers`. The `status` command summarizes the account and renders a dashboard
-in an interactive terminal. Progress uses stderr, and failed API calls exit
-non-zero.
+`headers`. The `status` command preserves the account API response without
+summarizing it. Progress uses stderr, and failed API calls exit non-zero.
 
 ## Install
 
@@ -204,7 +203,7 @@ API keys remain supported for CI and other non-interactive environments:
 ```bash
 mrscraper login --api-key "your-key"
 export MRSCRAPER_API_KEY="your-key"
-mrscraper scrape-html https://www.scrapethissite.com/pages/simple/ --token "your-key"
+mrscraper scrape-html https://example.com --token "your-key"
 ```
 
 Get API keys from
@@ -239,12 +238,12 @@ server's tool names.
 
 HTML and Markdown bodies are preserved as strings in the response envelope's
 `data` field. `scrape-markdown --html` also returns the page HTML: the page is
-rendered in Chromium (the API requires it for this combination) and `data`
+rendered in a browser (the API requires it for this combination) and `data`
 holds `{ "html": "...", "markdown": "..." }`.
 
 ```bash
-mrscraper scrape-html https://books.toscrape.com/ | jq -r '.data'
-mrscraper scrape-markdown https://books.toscrape.com/ | jq -r '.data'
+mrscraper scrape-html https://example.com | jq -r '.data'
+mrscraper scrape-markdown https://example.com | jq -r '.data'
 mrscraper scrape-markdown https://example.com --browser-rendering \
   --wait-for-selector '.products' --geo-code id
 ```
@@ -264,7 +263,7 @@ to on.
 | Option | Request field | Default | Behavior |
 | --- | --- | --- | --- |
 | `<url>` | `url` | required | Absolute HTTP or HTTPS target URL. |
-| `--browser-rendering` | `browserRendering` | off | Render the page in Chromium. Not on `get-screenshot`, which always renders. |
+| `--browser-rendering` | `browserRendering` | off | Render the page in a browser. Not on `get-screenshot`, which always renders. |
 | `--super` | `super` | off | Route the request through real devices. |
 | `--wait-until <event>` | `waitUntil` | `domcontentloaded` | `domcontentloaded`, `load`, `networkidle0`, or `networkidle2`. |
 | `--wait-for-selector <selector>` | `waitForSelector` | — | Wait for a CSS selector. Not on `scrape-json`. |
@@ -306,7 +305,7 @@ Brand data is in `data.data.brand`, and the job ID is in `data.data.job_id`
 (the outer `data` is the CLI envelope).
 
 ```bash
-mrscraper scrape-brand https://mrscraper.com/ | jq '.data.data.brand'
+mrscraper scrape-brand https://example.com | jq '.data.data.brand'
 ```
 
 The page bundles (`bundle=clean` and `bundle=full`) are not available from the
@@ -324,7 +323,7 @@ scraped content; the prompt does not control browser navigation. Append
 `Json Schema:` and a schema to shape the output.
 
 ```bash
-mrscraper scrape-json https://books.toscrape.com/ \
+mrscraper scrape-json https://example.com \
   --prompt 'Extract book titles and prices' | jq '.data.data'
 ```
 
@@ -355,27 +354,21 @@ returned than requested.
 
 ## `status`
 
-Show subscription and token usage:
+Return the raw account status API response:
 
 ```bash
 mrscraper status
 mrscraper status --json
 ```
 
-In a terminal, the default dashboard shows subscription health, account
-verification, a token-usage progress bar, rate limits, renewal state, and the
-subscription end date. Redirected output is JSON so scripts and agents can
-parse it reliably. Use `--pretty` or `--json` to select either format
-explicitly. The CLI reads `/subscription-accounts`, removes credential and
-billing metadata, and calculates `token_remaining` and `usage_percent`. JSON
-output is labeled with `kind: "mrscraper-cli-status-summary"` and lists its
-source endpoints.
+The CLI reads `/subscription-accounts` and prints JSON in both terminals and
+redirected output. The API response body is preserved in the envelope's
+`data` field, including all account fields returned by the API. It is not
+summarized, redacted, or augmented with calculated fields.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--json` | automatic | Print the account summary as JSON. |
-| `--pretty` | automatic | Always render the account dashboard. |
-| `--no-color` | off | Disable ANSI color in the dashboard. |
+| `--json` | on | Print JSON (also the default without this flag). |
 | `--token <key>` | — | Override configured authentication with an API key. |
 
 ## Migration to 0.7.0
@@ -390,10 +383,10 @@ source endpoints.
 | — | `scrape-json URL` / `scrapeJson()` |
 | — | `scrape-brand URL` / `scrapeBrand()` |
 | `webSearch QUERY` | `web-search QUERY` / `webSearch()` |
-| `account` / `account()` | `status` / `getSubscriptionAccountApi()` with `summarizeSubscriptionAccount()` |
+| `account` / `account()` | `status` / `getSubscriptionAccountApi()` |
 
 From 0.3.x, `scraper-api` maps to the same commands as `scraperAPI`, and
-`web-search --region` becomes `web-search --country`; Google search URLs and
+`web-search --region` becomes `web-search --country`; Search URLs and
 `--language`, `--page`, `--format`, and `--render-js` are removed.
 
 Removed options: `--save <path>` (redirect stdout instead), `--token-cap`,

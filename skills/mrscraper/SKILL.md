@@ -197,8 +197,7 @@ Data commands print JSON to stdout:
 ```
 
 API failures exit nonzero and add `error`. Progress and diagnostics use
-stderr. Request `status --json` explicitly because an interactive terminal
-otherwise displays the account dashboard.
+stderr. The `status` command also prints JSON in interactive terminals.
 
 Save substantial artifacts under the current project's `./.mrscraper/`
 folder:
@@ -222,18 +221,15 @@ Request machine-readable account status:
 mrscraper status --json
 ```
 
-The response summarizes the subscription status, token limit, token usage,
-remaining tokens, usage percentage, rate limit, auto-renewal, renewal date, and
-the account's name, email, and verification state. It never includes the API
-key.
+The raw `/subscription-accounts` response body is preserved in the envelope's
+`data` field, including all account fields returned by the API. The CLI does
+not summarize, redact, or add calculated fields to this response.
 
 ### Status parameters
 
 | Parameter | Default | Use |
 | --- | --- | --- |
-| `--json` | automatic when piped | Print JSON. Agents should include it. |
-| `--pretty` | automatic in a terminal | Print the account dashboard. |
-| `--no-color` | off | Disable dashboard color. |
+| `--json` | on | Print JSON (also the default without this flag). |
 | `--token <key>` | configured credential | Override authentication. |
 
 Check remaining tokens before a large batch of page retrievals.

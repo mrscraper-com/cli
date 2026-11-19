@@ -76,7 +76,7 @@ test("published CLI workflow reaches all six data commands with saved authentica
               tokenLimit: 1000,
               tokenUsage: 125,
               stripeStatus: "active",
-              user: { latestApiToken: "atk_do_not_print", isVerified: true },
+              user: { latestApiToken: "atk_example", isVerified: true },
             },
           }),
         );
@@ -164,10 +164,13 @@ test("published CLI workflow reaches all six data commands with saved authentica
   const statusResult = await runCli(["status", "--json"], environment);
   assert.equal(statusResult.code, 0);
   assert.equal(
-    JSON.parse(statusResult.stdout).data.account.token_remaining,
-    875,
+    JSON.parse(statusResult.stdout).data.data.tokenUsage,
+    125,
   );
-  assert.doesNotMatch(statusResult.stdout, /atk_do_not_print/);
+  assert.equal(
+    JSON.parse(statusResult.stdout).data.data.user.latestApiToken,
+    "atk_example",
+  );
   const logout = await runCli(["logout"], environment);
   assert.equal(logout.code, 0);
   const loggedOutStatus = await runCli(

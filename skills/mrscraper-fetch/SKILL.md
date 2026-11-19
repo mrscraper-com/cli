@@ -27,13 +27,13 @@ Save substantial responses in the current project:
 
 ```bash
 mkdir -p ./.mrscraper
-mrscraper scrape-html "https://books.toscrape.com/" > ./.mrscraper/page.json
-mrscraper scrape-markdown "https://books.toscrape.com/" | jq -r '.data'
+mrscraper scrape-html "https://example.com" > ./.mrscraper/page.json
+mrscraper scrape-markdown "https://example.com" | jq -r '.data'
 mrscraper get-screenshot "https://example.com" --screenshot full --no-html \
   > ./.mrscraper/screenshot.json
 jq -r '.data.screenshot' ./.mrscraper/screenshot.json \
   | base64 --decode > ./.mrscraper/page.png
-mrscraper scrape-json "https://books.toscrape.com/" \
+mrscraper scrape-json "https://example.com" \
   --prompt 'Extract book titles and prices' > ./.mrscraper/books.json
 mrscraper scrape-brand "https://mrscraper.com/" > ./.mrscraper/brand.json
 ```
@@ -54,7 +54,7 @@ HTML, Markdown, screenshot, and JSON commands share these options:
 
 | Option | Behavior |
 | --- | --- |
-| `--browser-rendering` | Render in Chromium. Off by default; not on `get-screenshot`, which always renders. |
+| `--browser-rendering` | Render in a browser. Off by default; not on `get-screenshot`, which always renders. |
 | `--super` | Route through real devices. Off by default. |
 | `--wait-until EVENT` | `domcontentloaded` (default), `load`, `networkidle0`, or `networkidle2`. |
 | `--wait-for-selector SELECTOR` | Wait for delayed content. Not on `scrape-json`. |
