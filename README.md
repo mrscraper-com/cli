@@ -6,7 +6,7 @@ Command-line access to the seven MrScraper services, with browser sign-in and op
 
 ## Overview
 
-Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. The standard reference is maintained in [docs/service-reference.json](docs/service-reference.json).
+Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. See the [API Reference](https://docs.mrscraper.com/docs/api/overview).
 
 | Service                             | Public name       | Description                                                                                                                     |
 | ----------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -60,7 +60,7 @@ mrscraper scrape-html https://example.com --browser-rendering --warm-start \
 
 Examples use `example.com` as the sample target. Replace it for your use case. Live scraping and search calls consume account quota.
 
-Response examples show selected keys and types observed in live API responses. Values are placeholders; page content, base64 images, and arrays are abbreviated. Actual responses may contain additional fields. See [live response verification](docs/response-verification.json).
+Response examples show selected keys and types observed in live API responses. Values are placeholders; page content, base64 images, and arrays are abbreviated. Actual responses may contain additional fields.
 
 ## Shared parameters
 
