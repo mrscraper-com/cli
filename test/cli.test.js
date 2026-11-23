@@ -178,7 +178,7 @@ test("setup skills can target one harness without requiring detection", async ()
   );
   assert.match(
     result.stdout,
-    /--skill mrscraper mrscraper-fetch mrscraper-serp /,
+    /--skill mrscraper mrscraper-scrape-html mrscraper-scrape-markdown mrscraper-get-screenshot mrscraper-scrape-brand mrscraper-scrape-json mrscraper-web-search /,
   );
 });
 
@@ -230,28 +230,36 @@ test("six data commands send the documented GET contracts", async (t) => {
   t.after(() => close(server));
   const environment = { MRSCRAPER_FETCH_BASE_URL: `http://127.0.0.1:${port}` };
   const cases = [
+    ["scrape-html", "https://target.example"],
+    [
+      "scrape-html",
+      "https://target.example",
+      "--no-browser-rendering",
+      "--screenshot",
+      "top",
+    ],
     [
       "scrape-html",
       "https://target.example",
       "--browser-rendering",
       "--warm-start",
-      "--super",
-      "--wait-until",
-      "load",
-      "--return-cookie",
-      "--save-result",
+      "--action",
+      "analytics",
+      "--no-save-result",
+      "--max-age",
+      "3600000",
+      "--token-cap",
+      "30",
+      "--screenshot",
+      "1280x800-75",
     ],
     [
       "scrape-markdown",
       "https://target.example",
-      "--html",
+      "--no-browser-rendering",
       "--warm-start",
       "--geo-code",
       "ID",
-      "--proxy-country",
-      "sg",
-      "--proxy",
-      "http://proxy.example",
       "--block-resources",
       "--wait-for-selector",
       ".ready",
@@ -263,20 +271,37 @@ test("six data commands send the documented GET contracts", async (t) => {
     [
       "get-screenshot",
       "https://target.example",
-      "--screenshot",
-      "top",
-      "--no-html",
-      "--markdown",
+      "--wait-for-selector",
+      "body",
+      "--geo-code",
+      "gb",
+      "--timeout",
+      "330",
+      "--save-result",
     ],
     [
       "scrape-json",
       "https://target.example",
       "--prompt",
       "Extract prices",
-      "--html",
+      "--no-html",
       "--screenshot",
+      "--warm-start",
+      "--block-resources",
+      "--wait-for-selector",
+      ".x",
     ],
     ["scrape-brand", "https://mrscraper.com/"],
+    [
+      "scrape-brand",
+      "https://mrscraper.com/",
+      "--timeout",
+      "120",
+      "--warm-start",
+      "--geo-code",
+      "GB",
+    ],
+    ["web-search", "mrscraper"],
     [
       "web-search",
       "e-menessaptieka.lv linkedin",
@@ -299,58 +324,107 @@ test("six data commands send the documented GET contracts", async (t) => {
     assert.equal(request.headers["x-api-token"], "test");
     assert.equal("token" in request.query, false);
   }
-  const [html, markdown, screenshot, json, brand, search] = sent.map(
-    (request) => request.query,
-  );
+  const [
+    htmlDefaults,
+    htmlScreenshot,
+    html,
+    markdown,
+    screenshot,
+    json,
+    brand,
+    brandOptions,
+    searchDefaults,
+    search,
+  ] = sent.map((request) => request.query);
+  assert.deepEqual(htmlDefaults, {
+    url: "https://target.example",
+    html: "true",
+    timeout: "300",
+    warmStart: "false",
+    blockResources: "false",
+    saveResult: "true",
+    maxAge: "0",
+    screenshot: "false",
+  });
+  assert.deepEqual(htmlScreenshot, {
+    url: "https://target.example",
+    html: "true",
+    browserRendering: "true",
+    timeout: "300",
+    warmStart: "false",
+    blockResources: "false",
+    saveResult: "true",
+    maxAge: "0",
+    screenshot: "top",
+  });
   assert.deepEqual(html, {
     url: "https://target.example",
-    super: "true",
-    waitUntil: "load",
-    timeout: "300",
-    geoCode: "us",
-    proxyCountry: "us",
-    saveResult: "true",
-    blockResources: "false",
-    returnCookie: "true",
-    browserRendering: "true",
-    warmStart: "true",
     html: "true",
-    markdown: "false",
-    screenshot: "false",
+    browserRendering: "true",
+    timeout: "300",
+    warmStart: "true",
+    blockResources: "false",
+    action: "analytics",
+    saveResult: "false",
+    maxAge: "3600000",
+    tokenCap: "30",
+    screenshot: "1280x800-75",
   });
   assert.deepEqual(markdown, {
     url: "https://target.example",
-    super: "false",
-    waitUntil: "domcontentloaded",
+    markdown: "true",
+    browserRendering: "false",
     timeout: "60",
-    geoCode: "id",
-    proxyCountry: "sg",
-    proxy: "http://proxy.example",
-    maxRetries: "0",
-    saveResult: "false",
+    warmStart: "true",
     blockResources: "true",
     waitForSelector: ".ready",
-    returnCookie: "false",
-    browserRendering: "true",
-    warmStart: "true",
-    html: "true",
-    markdown: "true",
-    screenshot: "false",
+    geoCode: "id",
+    saveResult: "true",
+    maxAge: "0",
+    maxRetries: "0",
   });
-  assert.equal(screenshot.screenshot, "top");
-  assert.equal(screenshot.browserRendering, "true");
-  assert.equal(screenshot.html, "false");
-  assert.equal(screenshot.markdown, "true");
-  assert.equal(json.prompt, "Extract prices");
-  assert.equal(json.agent, "general");
-  assert.equal(json.html, "true");
-  assert.equal(json.screenshot, "true");
-  assert.equal(json.super, "false");
-  assert.equal(json.saveResult, "false");
+  assert.deepEqual(screenshot, {
+    url: "https://target.example",
+    screenshot: "full",
+    browserRendering: "true",
+    timeout: "330",
+    waitForSelector: "body",
+    geoCode: "gb",
+    saveResult: "true",
+    maxAge: "0",
+  });
+  assert.deepEqual(json, {
+    url: "https://target.example",
+    prompt: "Extract prices",
+    agent: "general",
+    html: "false",
+    timeout: "300",
+    warmStart: "true",
+    blockResources: "true",
+    waitForSelector: ".x",
+    saveResult: "true",
+    maxAge: "0",
+    screenshot: "true",
+  });
   assert.deepEqual(brand, {
     action: "brand-scraping",
     url: "https://mrscraper.com/",
     bundle: "none",
+    timeout: "300",
+    warmStart: "false",
+  });
+  assert.deepEqual(brandOptions, {
+    action: "brand-scraping",
+    url: "https://mrscraper.com/",
+    bundle: "none",
+    timeout: "120",
+    warmStart: "true",
+    geoCode: "gb",
+  });
+  assert.deepEqual(searchDefaults, {
+    action: "websearch",
+    query: "mrscraper",
+    numResults: "10",
   });
   assert.deepEqual(search, {
     action: "websearch",
@@ -368,21 +442,41 @@ test("invalid values and unsupported options fail without a request", async (t) 
   });
   const port = await listen(server);
   t.after(() => close(server));
+  const page = "https://target.example";
   const cases = [
-    ["scrape-html", "https://target.example", "--timeout", "301"],
+    ["scrape-html", page, "--timeout", "331"],
     ["scrape-html", "file:///tmp/test"],
-    ["scrape-html", "https://target.example", "--geo-code", "usa"],
-    ["scrape-html", "https://target.example", "--token-cap", "1"],
-    ["scrape-html", "https://target.example", "--record"],
-    ["scrape-markdown", "https://target.example", "--screenshot", "full"],
-    ["get-screenshot", "https://target.example", "--screenshot", "invalid"],
-    ["get-screenshot", "https://target.example", "--browser-rendering"],
-    ["scrape-json", "https://target.example", "--wait-for-selector", ".x"],
-    ["scrape-json", "https://target.example", "--block-resources"],
-    ["scrape-json", "https://target.example", "--return-cookie"],
-    ["scrape-json", "https://target.example", "--prompt", " "],
+    ["scrape-html", page, "--geo-code", "usa"],
+    ["scrape-html", page, "--token-cap", "0"],
+    ["scrape-html", page, "--max-age", "604800001"],
+    ["scrape-html", page, "--max-age", "-1"],
+    ["scrape-html", page, "--screenshot", "true"],
+    ["scrape-html", page, "--screenshot", "99x800"],
+    ["scrape-html", page, "--wait-for-selector", "a".repeat(501)],
+    ["scrape-html", page, "--record"],
+    // Removed: these fields are not in the Scraper API reference.
+    ["scrape-html", page, "--super"],
+    ["scrape-html", page, "--wait-until", "load"],
+    ["scrape-html", page, "--proxy-country", "sg"],
+    ["scrape-html", page, "--proxy", "http://proxy.example"],
+    ["scrape-html", page, "--return-cookie"],
+    ["scrape-markdown", page, "--html"],
+    ["scrape-markdown", page, "--screenshot", "full"],
+    ["get-screenshot", page, "--screenshot", "top"],
+    ["get-screenshot", page, "--browser-rendering"],
+    ["get-screenshot", page, "--no-html"],
+    ["get-screenshot", page, "--markdown"],
+    ["get-screenshot", page, "--block-resources"],
+    ["get-screenshot", page, "--action", "analytics"],
+    ["scrape-json", page, "--action", "analytics"],
+    ["scrape-json", page, "--return-cookie"],
+    ["scrape-json", page, "--prompt", " "],
     ["scrape-brand"],
     ["scrape-brand", "https://mrscraper.com/", "--bundle", "clean"],
+    ["scrape-brand", "https://mrscraper.com/", "--max-age", "0"],
+    ["scrape-brand", "https://mrscraper.com/", "--timeout", "331"],
+    ["scrape-brand", "https://mrscraper.com/", "--geo-code", "usa"],
+    ["scrape-brand", "https://mrscraper.com/", "--browser-rendering"],
     ["scrape-brand", "--job-id", "brand-1"],
     ["web-search", "test", "--num-results", "101"],
     ["web-search", "test", "--country", "invalid"],
@@ -536,16 +630,14 @@ test("status reports an API failure as JSON with a non-zero exit code", async (t
   assert.equal(output.kind, undefined);
 });
 
-test("warm-start is not accepted by screenshot or JSON commands", async () => {
-  for (const command of ["get-screenshot", "scrape-json"]) {
-    const result = await runCli([
-      command,
-      "https://example.com",
-      "--warm-start",
-      "--token",
-      "test",
-    ]);
-    assert.equal(result.code, 1);
-    assert.match(result.stderr, /unknown option.*warm-start/);
-  }
+test("warm-start is accepted by HTML, Markdown, and JSON, not screenshots", async () => {
+  const result = await runCli([
+    "get-screenshot",
+    "https://example.com",
+    "--warm-start",
+    "--token",
+    "test",
+  ]);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /unknown option.*warm-start/);
 });

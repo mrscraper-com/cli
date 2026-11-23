@@ -142,7 +142,7 @@ def main():
         canvas.drawString(45, A4[1] - 28, "MRSCRAPER / STANDARD SERVICE REFERENCE")
         canvas.setFillColor(MUTED)
         canvas.setFont(regular, 8)
-        canvas.drawString(45, 27, "Reference v1.0  |  19 November 2026")
+        canvas.drawString(45, 27, "Reference v1.1  |  23 November 2026")
         canvas.drawRightString(A4[0] - 45, 27, f"{doc.page:02d}")
         canvas.restoreState()
 
@@ -202,7 +202,11 @@ def main():
         ),
         p(reference["response_examples_note"], "SmallRef"),
         p(
-            "Screenshot has two service-specific forms: full/top for page capture, and a boolean for JSON extraction. These forms have distinct descriptions because their types and meanings differ.",
+            "Screenshot has two service-specific forms: false, full, top, or a custom viewport for Scrape HTML, and a boolean for JSON extraction. Get screenshot always captures the full page and takes no screenshot parameter. These forms have distinct descriptions because their types and meanings differ.",
+            "SmallRef",
+        ),
+        p(
+            "Each service adds its documented fixed request fields automatically: html=true (plus browserRendering=true when a screenshot is set), markdown=true, screenshot=full with browserRendering=true, action=brand-scraping with bundle=none, agent=general, and action=websearch. Fixed fields are not service parameters.",
             "SmallRef",
         ),
     ]
@@ -217,16 +221,15 @@ def main():
         },
         "scrape-markdown": {
             "url": "https://example.com",
-            "html": True,
             "warmStart": True,
+            "maxAge": 86400000,
         },
         "get-screenshot": {
             "url": "https://example.com",
-            "screenshot": "top",
-            "html": False,
-            "markdown": True,
+            "waitForSelector": "body",
+            "timeout": 120,
         },
-        "scrape-brand": {"url": "https://example.com"},
+        "scrape-brand": {"url": "https://example.com", "geoCode": "gb"},
         "scrape-json": {
             "url": "https://example.com",
             "prompt": 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}',
@@ -280,13 +283,15 @@ def main():
                     "SmallRef",
                 ),
             ]
-        if service["name"] == "scrape-brand":
-            story += [
-                p(
-                    "Request selection: action=brand-scraping, bundle=none. Page controls are not accepted.",
-                    "SmallRef",
-                )
-            ]
+        selections = {
+            "scrape-html": "Request selection: html=true. Setting the optional screenshot also sends browserRendering=true and returns JSON with html and screenshot.",
+            "scrape-markdown": "Request selection: markdown=true.",
+            "get-screenshot": "Request selection: screenshot=full, browserRendering=true. The area and rendering are not service parameters.",
+            "scrape-brand": "Request selection: action=brand-scraping, bundle=none. The HTTP request allows the timeout plus 30 seconds.",
+            "web-search": "Request selection: action=websearch. country is omitted unless set.",
+        }
+        if service["name"] in selections:
+            story += [Spacer(1, 4), p(selections[service["name"]], "SmallRef")]
         if service["name"] == "scrape-json":
             story += [
                 p(
@@ -341,10 +346,15 @@ def main():
             if name in seen:
                 continue
             seen.add(name)
+            flag = re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
             cli = (
                 "<" + name + ">"
                 if name in ["url", "query"]
-                else "--" + re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
+                else (
+                    "--" + flag + " / --no-" + flag
+                    if field["type"] == "boolean" and field["default"] in [None, True]
+                    else "--" + flag
+                )
             )
             py = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
             rows.append([name, cli, py])
@@ -352,7 +362,7 @@ def main():
         table(rows, [170, 170, 165], compact=True),
         Spacer(1, 8),
         p(
-            "For screenshot capture, the CLI uses --no-html to set the html field to false. The CLI also accepts status --json as an output-format flag; it is not an API service parameter. Authentication follows each surface's setup.",
+            "Paired CLI flags set browserRendering, saveResult, and the JSON extraction html field to true or false; leaving both out keeps the documented default. The CLI also accepts status --json as an output-format flag; it is not an API service parameter. Authentication follows each surface's setup.",
             "SmallRef",
         ),
         p(

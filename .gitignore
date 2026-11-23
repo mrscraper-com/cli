@@ -4,3 +4,5 @@ node_modules/
 build/
 dist/
 *.egg-info/
+# Live API test results contain response data; keep them local.
+test-results/

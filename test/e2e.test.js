@@ -58,12 +58,16 @@ test("published CLI workflow reaches all six data commands with saved authentica
       requests.push({ method: request.method, url, query });
       assert.equal(request.headers.authorization, "Bearer e2e-api-key");
       assert.equal(request.headers["x-api-token"], "e2e-api-key");
-      if (query.html === "true" && query.screenshot === "false") {
+      if (
+        query.html === "true" &&
+        query.screenshot === "false" &&
+        query.agent === undefined
+      ) {
         response.writeHead(200, { "content-type": "text/html" });
         response.end("<html>token=public-page-value</html>");
         return;
       }
-      if (query.markdown === "true" && query.screenshot === "false") {
+      if (query.markdown === "true") {
         response.writeHead(200, { "content-type": "text/markdown" });
         response.end("# Example");
         return;
@@ -126,7 +130,7 @@ test("published CLI workflow reaches all six data commands with saved authentica
       "5",
     ],
     ["scrape-markdown", "https://example.com/product"],
-    ["get-screenshot", "https://example.com/product", "--screenshot", "full"],
+    ["get-screenshot", "https://example.com/product"],
     [
       "scrape-json",
       "https://example.com/product",
@@ -153,6 +157,9 @@ test("published CLI workflow reaches all six data commands with saved authentica
   );
   assert.equal(requests[0].query.waitForSelector, ".product");
   assert.equal(requests[2].query.screenshot, "full");
+  assert.equal(requests[2].query.browserRendering, "true");
+  assert.equal(requests[3].query.agent, "general");
+  assert.equal(requests[3].query.html, "true");
   assert.equal(requests[4].query.action, "brand-scraping");
   assert.deepEqual(requests[5].query, {
     action: "websearch",

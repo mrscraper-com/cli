@@ -1,25 +1,30 @@
 ---
 name: mrscraper
-description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, output handling, account usage, and troubleshooting. Use for CLI-wide or multi-step work; use the focused skills to retrieve a known page or to search the web.
+description: Set up and operate the MrScraper CLI, including installation, authentication, command routing, output handling, account usage, and troubleshooting. Use for CLI-wide or multi-step work; use the focused command skills to scrape a known page or to search the web.
 ---
 
 # MrScraper CLI
 
 Use this skill for setup, authentication, command selection, shared output
-handling, account status, and troubleshooting. Load the focused skills for
-page retrieval and web search.
+handling, account status, and troubleshooting. Load the focused skill for the
+command you run; each one lists that command's options and defaults.
 
 The CLI has six scraping and search commands, plus account status:
 
-| Command | Purpose |
-| --- | --- |
-| `mrscraper scrape-html <url>` | Retrieve raw page HTML. |
-| `mrscraper scrape-markdown <url>` | Retrieve clean Markdown. |
-| `mrscraper get-screenshot <url>` | Capture the full page or top viewport. |
-| `mrscraper scrape-json <url>` | Extract structured JSON using a prompt. |
-| `mrscraper scrape-brand <url>` | Extract a website's brand as JSON. |
-| `mrscraper web-search <query>` | Search the web using query text. |
-| `mrscraper status` | Show the account's subscription, token usage, and limits. |
+| Command | Purpose | Skill |
+| --- | --- | --- |
+| `mrscraper scrape-html <url>` | Retrieve raw page HTML, optionally with a screenshot. | [mrscraper-scrape-html](../mrscraper-scrape-html/SKILL.md) |
+| `mrscraper scrape-markdown <url>` | Retrieve clean Markdown. | [mrscraper-scrape-markdown](../mrscraper-scrape-markdown/SKILL.md) |
+| `mrscraper get-screenshot <url>` | Capture a full-page PNG screenshot. | [mrscraper-get-screenshot](../mrscraper-get-screenshot/SKILL.md) |
+| `mrscraper scrape-brand <url>` | Extract a website's brand as JSON. | [mrscraper-scrape-brand](../mrscraper-scrape-brand/SKILL.md) |
+| `mrscraper scrape-json <url>` | Extract structured JSON using a prompt. | [mrscraper-scrape-json](../mrscraper-scrape-json/SKILL.md) |
+| `mrscraper web-search <query>` | Search the web using query text. | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) |
+| `mrscraper status` | Show the account's subscription, token usage, and limits. | This skill |
+
+The commands send only the parameters documented in the
+[Scraper API reference](https://docs.mrscraper.com/docs/api/scraper-api/scrape-html).
+Fixed request fields, such as `html=true` for Scrape HTML or `agent=general`
+for Scrape JSON, are added automatically.
 
 ## Step 1 — Verify or Install MrScraper
 
@@ -29,7 +34,7 @@ Check whether the CLI is available:
 command -v mrscraper && mrscraper --version
 ```
 
-When an agent performs first-time setup, install the CLI and all three skills
+When an agent performs first-time setup, install the CLI and all seven skills
 without starting an interactive authentication step:
 
 ```bash
@@ -86,8 +91,7 @@ mrscraper setup skills --dry-run
 harness, and `--dry-run` to preview the installation.
 
 The bootstrap installs the CLI and skills. MCP is available separately at
-`https://mcp.mrscraper.com/mcp` with the same capabilities as the `scraperAPI`,
-`webSearch`, and `status` tools.
+`https://mcp.mrscraper.com/mcp` and exposes the same seven services as tools.
 
 ## Step 2 — Authenticate
 
@@ -154,8 +158,12 @@ credential files. Use `mrscraper logout` to remove saved local credentials.
 
 | User outcome | Command or skill |
 | --- | --- |
-| Acquire and preserve a known public page for any downstream task | [mrscraper-fetch](../mrscraper-fetch/SKILL.md) with `mrscraper scrape-html` |
-| Discover relevant pages from a search query | [mrscraper-serp](../mrscraper-serp/SKILL.md) with `mrscraper web-search`, then retrieve selected pages |
+| Preserve a known page's markup for a parser, archive, or audit | [mrscraper-scrape-html](../mrscraper-scrape-html/SKILL.md) with `mrscraper scrape-html` |
+| Read, summarize, or quote a known page | [mrscraper-scrape-markdown](../mrscraper-scrape-markdown/SKILL.md) with `mrscraper scrape-markdown` |
+| See how a page looks | [mrscraper-get-screenshot](../mrscraper-get-screenshot/SKILL.md) with `mrscraper get-screenshot` |
+| Get a website's colors, fonts, logos, and social links | [mrscraper-scrape-brand](../mrscraper-scrape-brand/SKILL.md) with `mrscraper scrape-brand` |
+| Extract named fields from one page | [mrscraper-scrape-json](../mrscraper-scrape-json/SKILL.md) with `mrscraper scrape-json` |
+| Discover relevant pages from a search query | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) with `mrscraper web-search`, then retrieve selected pages |
 | Check the plan, token usage, or remaining tokens | `mrscraper status --json` |
 
 ### Retrieve first, extract locally
@@ -241,18 +249,22 @@ Check remaining tokens before a large batch of page retrievals.
 - **CLI missing** — run the agent-safe `npx ... init` command from Step 1.
 - **Skills missing** — run `mrscraper setup skills --dry-run`, then target the
   current harness with `--agent <id>`.
-- **Page blocked, incomplete, or missing dynamic content** — load
-  [mrscraper-fetch](../mrscraper-fetch/SKILL.md) and retry with page-loading
-  options appropriate to the target.
+- **Page blocked, incomplete, or missing dynamic content** — load the
+  command's focused skill, such as
+  [mrscraper-scrape-html](../mrscraper-scrape-html/SKILL.md), and retry with
+  page-loading options appropriate to the target.
 - **Structured output is incomplete** — inspect the saved raw content and
   improve the local extraction logic.
 - **Search results are weak** — load
-  [mrscraper-serp](../mrscraper-serp/SKILL.md) and refine the query, locale, or
-  result count.
+  [mrscraper-web-search](../mrscraper-web-search/SKILL.md) and refine the
+  query, country, or result count.
 - **Unknown option or command** — run `mrscraper <command> --help`. The `fetch`,
   `scrape`, `serp`, `rerun`, `results`, and `result` commands were replaced by
   the six commands above and `status`. The old `scraper-api`, `scraperAPI`,
   `webSearch`, and `account` commands are removed; `account` is now `status`.
+  The `--super`, `--wait-until`, `--proxy-country`, `--proxy`, and
+  `--return-cookie` options were removed because the Scraper API reference no
+  longer lists them.
 
 ## Limits
 

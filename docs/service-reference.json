@@ -24,60 +24,38 @@
       "default": null,
       "required": true
     },
+    "prompt": {
+      "name": "prompt",
+      "type": "string",
+      "description": "Instructions describing the data to extract. Append Json Schema: and a JSON schema to shape the output.",
+      "default": "Extract all data as complete as possible.",
+      "required": false
+    },
+    "html": {
+      "name": "html",
+      "type": "boolean",
+      "description": "Whether to include the page HTML in the response.",
+      "default": true,
+      "required": false
+    },
+    "browserRendering": {
+      "name": "browserRendering",
+      "type": "boolean",
+      "description": "Whether to load the page in a browser: true always does and false never does. Omit it to load the page without a browser first and switch to a browser automatically if the request is blocked.",
+      "default": null,
+      "required": false
+    },
     "timeout": {
       "name": "timeout",
       "type": "integer",
-      "description": "Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.",
+      "description": "Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds.",
       "default": 300,
       "required": false
     },
-    "geoCode": {
-      "name": "geoCode",
-      "type": "string",
-      "description": "Two-letter country code to load the page from, sent in lowercase.",
-      "default": "us",
-      "required": false
-    },
-    "proxyCountry": {
-      "name": "proxyCountry",
-      "type": "string",
-      "description": "Two-letter country code of the proxy server, sent in lowercase.",
-      "default": "us",
-      "required": false
-    },
-    "super": {
-      "name": "super",
+    "warmStart": {
+      "name": "warmStart",
       "type": "boolean",
-      "description": "Whether to route the request through real devices.",
-      "default": false,
-      "required": false
-    },
-    "waitUntil": {
-      "name": "waitUntil",
-      "type": "string",
-      "description": "Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2.",
-      "default": "domcontentloaded",
-      "required": false,
-      "enum": ["domcontentloaded", "load", "networkidle0", "networkidle2"]
-    },
-    "proxy": {
-      "name": "proxy",
-      "type": "string",
-      "description": "Custom proxy URL used to load the page.",
-      "default": null,
-      "required": false
-    },
-    "maxRetries": {
-      "name": "maxRetries",
-      "type": "integer",
-      "description": "Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.",
-      "default": null,
-      "required": false
-    },
-    "saveResult": {
-      "name": "saveResult",
-      "type": "boolean",
-      "description": "Whether to save the result to the dashboard Result tab.",
+      "description": "Whether to open the site's home page first to warm the session before loading the target URL.",
       "default": false,
       "required": false
     },
@@ -91,58 +69,64 @@
     "waitForSelector": {
       "name": "waitForSelector",
       "type": "string",
-      "description": "Wait for the page to contain the specified CSS selector before returning the result.",
+      "description": "CSS selector or text to wait for on the page before returning the result, up to 500 characters.",
       "default": null,
       "required": false
     },
-    "returnCookie": {
-      "name": "returnCookie",
-      "type": "boolean",
-      "description": "Whether to include browser session cookies in the response.",
-      "default": false,
-      "required": false
-    },
-    "browserRendering": {
-      "name": "browserRendering",
-      "type": "boolean",
-      "description": "Whether to render the page in a browser before returning the result.",
-      "default": false,
-      "required": false
-    },
-    "html": {
-      "name": "html",
-      "type": "boolean",
-      "description": "Whether to include the page HTML in the response.",
-      "default": false,
-      "required": false
-    },
-    "markdown": {
-      "name": "markdown",
-      "type": "boolean",
-      "description": "Whether to include the page Markdown in the response.",
-      "default": false,
-      "required": false
-    },
-    "screenshotArea": {
-      "name": "screenshot",
+    "action": {
+      "name": "action",
       "type": "string",
-      "description": "Screenshot area to capture: full for the entire page or top for the top viewport.",
-      "default": "full",
-      "required": false,
-      "enum": ["full", "top"]
+      "description": "Scraper action that routes the request or simply flags it, useful for separating analytics per domain.",
+      "default": null,
+      "required": false
+    },
+    "geoCode": {
+      "name": "geoCode",
+      "type": "string",
+      "description": "Two-letter country code to load the page from, sent in lowercase.",
+      "default": null,
+      "required": false
+    },
+    "saveResult": {
+      "name": "saveResult",
+      "type": "boolean",
+      "description": "Whether to save the result to the dashboard Result tab.",
+      "default": true,
+      "required": false
+    },
+    "maxAge": {
+      "name": "maxAge",
+      "type": "integer",
+      "description": "Return a cached result of the same request when it is newer than the selected age. A cached result costs the same tokens as the original scrape.",
+      "default": 0,
+      "required": false
+    },
+    "tokenCap": {
+      "name": "tokenCap",
+      "type": "integer",
+      "description": "Maximum total tokens the scrape and its retries can use, as a positive integer. Omit this parameter for no limit.",
+      "default": null,
+      "required": false
+    },
+    "maxRetries": {
+      "name": "maxRetries",
+      "type": "integer",
+      "description": "Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.",
+      "default": null,
+      "required": false
+    },
+    "screenshotCapture": {
+      "name": "screenshot",
+      "type": "false | string",
+      "description": "Screenshot to capture with the HTML: false for none, full for the entire page, top for the first viewport, or a WIDTHxHEIGHT viewport from 100 to 3840 pixels with an optional -ZOOM percent from 25 to 300, such as 1280x800 or 1920x1080-75. Setting a screenshot also sends browserRendering=true.",
+      "default": false,
+      "required": false
     },
     "includeScreenshot": {
       "name": "screenshot",
       "type": "boolean",
       "description": "Whether to include a base64 screenshot in the response.",
       "default": false,
-      "required": false
-    },
-    "prompt": {
-      "name": "prompt",
-      "type": "string",
-      "description": "Instructions describing the data to extract. Append Json Schema: and a JSON schema to shape the output.",
-      "default": "Extract all data as complete as possible.",
       "required": false
     },
     "query": {
@@ -156,7 +140,7 @@
       "name": "country",
       "type": "string",
       "description": "Two-letter country code to search from, sent in lowercase.",
-      "default": "us",
+      "default": null,
       "required": false
     },
     "numResults": {
@@ -171,13 +155,6 @@
       "type": "string",
       "description": "API key used to authenticate the request.",
       "default": null,
-      "required": false
-    },
-    "warmStart": {
-      "name": "warmStart",
-      "type": "boolean",
-      "description": "Whether to enable warm start for more reliable scraping, at the cost of additional latency.",
-      "default": false,
       "required": false
     }
   },
@@ -227,7 +204,7 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     },
     {
       "name": "scrape-html",
@@ -235,26 +212,25 @@
       "description": "Retrieve the raw HTML of a page. Browser rendering is optional.",
       "parameters": [
         "url",
+        "browserRendering",
         "timeout",
-        "geoCode",
-        "proxyCountry",
-        "super",
-        "waitUntil",
-        "proxy",
-        "maxRetries",
-        "saveResult",
+        "warmStart",
         "blockResources",
         "waitForSelector",
-        "returnCookie",
-        "browserRendering",
-        "warmStart"
+        "action",
+        "geoCode",
+        "saveResult",
+        "maxAge",
+        "tokenCap",
+        "maxRetries",
+        "screenshotCapture"
       ],
-      "response": "The default response body is HTML text. Additional controls can cause the API to return JSON; the returned structure is preserved.",
+      "response": "The response body is HTML text. With a screenshot, the API returns JSON containing html and a base64 screenshot.",
       "transport_timeout_seconds": null,
       "defaults": {},
       "response_examples": [
         {
-          "label": "Success response",
+          "label": "Default HTML text",
           "value": {
             "status_code": 200,
             "data": "<html><body>Example page content...</body></html>",
@@ -262,48 +238,45 @@
               "content-type": "text/html; charset=utf-8"
             }
           }
-        }
-      ],
-      "response_examples_verified_on": "2026-11-19"
-    },
-    {
-      "name": "scrape-markdown",
-      "title": "Scrape Markdown",
-      "description": "Retrieve a page as Markdown. Including HTML also enables browser rendering and returns both outputs as JSON.",
-      "parameters": [
-        "url",
-        "timeout",
-        "geoCode",
-        "proxyCountry",
-        "super",
-        "waitUntil",
-        "proxy",
-        "maxRetries",
-        "saveResult",
-        "blockResources",
-        "waitForSelector",
-        "returnCookie",
-        "browserRendering",
-        "warmStart",
-        "html"
-      ],
-      "response": "The default response body is Markdown text. Enabling HTML returns JSON containing both HTML and Markdown.",
-      "transport_timeout_seconds": null,
-      "defaults": {},
-      "response_examples": [
+        },
         {
-          "label": "With html enabled",
+          "label": "With a screenshot",
           "value": {
             "status_code": 200,
             "data": {
               "html": "<html>...</html>",
-              "markdown": "# Example page\n\n..."
+              "screenshot": "BASE64_IMAGE_DATA"
             },
             "headers": {
-              "content-type": "application/json"
+              "content-type": "application/json; charset=utf-8"
             }
           }
-        },
+        }
+      ],
+      "response_examples_verified_on": "2026-11-23"
+    },
+    {
+      "name": "scrape-markdown",
+      "title": "Scrape Markdown",
+      "description": "Retrieve a page as clean Markdown. Browser rendering is optional.",
+      "parameters": [
+        "url",
+        "browserRendering",
+        "timeout",
+        "warmStart",
+        "blockResources",
+        "waitForSelector",
+        "action",
+        "geoCode",
+        "saveResult",
+        "maxAge",
+        "tokenCap",
+        "maxRetries"
+      ],
+      "response": "The response body is Markdown text.",
+      "transport_timeout_seconds": null,
+      "defaults": {},
+      "response_examples": [
         {
           "label": "Default Markdown text",
           "value": {
@@ -315,34 +288,25 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     },
     {
       "name": "get-screenshot",
       "title": "Get screenshot",
-      "description": "Capture a base64 screenshot of the full page or top viewport. Browser rendering is always enabled.",
+      "description": "Capture a base64 PNG screenshot of the full page. Browser rendering is always enabled.",
       "parameters": [
         "url",
         "timeout",
-        "geoCode",
-        "proxyCountry",
-        "super",
-        "waitUntil",
-        "proxy",
-        "maxRetries",
-        "saveResult",
-        "blockResources",
         "waitForSelector",
-        "returnCookie",
-        "screenshotArea",
-        "html",
-        "markdown"
+        "geoCode",
+        "saveResult",
+        "maxAge",
+        "tokenCap",
+        "maxRetries"
       ],
-      "response": "The response body contains a base64 screenshot and requested page outputs. The API can still include HTML when HTML output is disabled.",
+      "response": "The response body is JSON containing a base64 PNG screenshot of the full page and the page HTML.",
       "transport_timeout_seconds": null,
-      "defaults": {
-        "html": true
-      },
+      "defaults": {},
       "response_examples": [
         {
           "label": "Success response",
@@ -350,8 +314,7 @@
             "status_code": 200,
             "data": {
               "html": "<html>...</html>",
-              "screenshot": "BASE64_PNG_DATA",
-              "markdown": "# Example page\n\n..."
+              "screenshot": "BASE64_PNG_DATA"
             },
             "headers": {
               "content-type": "application/json; charset=utf-8"
@@ -359,15 +322,15 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     },
     {
       "name": "scrape-brand",
       "title": "Scrape brand",
       "description": "Extract a website's colors, typography, logos, and social links as JSON.",
-      "parameters": ["url"],
+      "parameters": ["url", "timeout", "warmStart", "geoCode"],
       "response": "The API body contains message and a data object with job_id, status, url, final_url, brand, and error. Brand details are available at data.data.brand in the response envelope.",
-      "transport_timeout_seconds": 120,
+      "transport_timeout_seconds": null,
       "defaults": {},
       "response_examples": [
         {
@@ -403,7 +366,7 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     },
     {
       "name": "scrape-json",
@@ -411,20 +374,21 @@
       "description": "Extract structured JSON from a page using a natural-language prompt. Append Json Schema: and a JSON schema to shape the output.",
       "parameters": [
         "url",
-        "timeout",
-        "geoCode",
-        "proxyCountry",
-        "super",
-        "waitUntil",
-        "proxy",
-        "maxRetries",
-        "saveResult",
         "prompt",
-        "browserRendering",
         "html",
+        "browserRendering",
+        "timeout",
+        "warmStart",
+        "blockResources",
+        "waitForSelector",
+        "geoCode",
+        "saveResult",
+        "maxAge",
+        "tokenCap",
+        "maxRetries",
         "includeScreenshot"
       ],
-      "response": "Extraction results are in the API body's data field and follow the requested schema. Response metadata includes thread_id, token_usage, status, error, runtime, and cookies. html, markdown, and screenshot can be empty strings when not requested.",
+      "response": "Extraction results are in the API body's data field and follow the requested schema. Response metadata includes thread_id, token_usage, status, error, runtime, and cookies. html contains the page HTML unless disabled; markdown and screenshot can be empty strings.",
       "transport_timeout_seconds": null,
       "defaults": {},
       "response_examples": [
@@ -442,7 +406,7 @@
               ],
               "thread_id": "THREAD_ID",
               "token_usage": 1,
-              "html": "",
+              "html": "<html>...</html>",
               "markdown": "",
               "screenshot": "",
               "status": "Results ready",
@@ -456,7 +420,7 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     },
     {
       "name": "web-search",
@@ -491,7 +455,7 @@
           }
         }
       ],
-      "response_examples_verified_on": "2026-11-19"
+      "response_examples_verified_on": "2026-11-23"
     }
   ],
   "response_examples_note": "Response examples show selected keys and types observed in live API responses. Values are placeholders; page content, base64 images, and arrays are abbreviated. Actual responses may contain additional fields."

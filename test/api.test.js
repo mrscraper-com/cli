@@ -144,36 +144,37 @@ function captureRequests(body = "<html></html>", contentType = "text/html") {
   return calls;
 }
 
-const PAGE_DEFAULTS = {
-  url: "https://target.example/?q=a&b=c",
-  super: "false",
-  waitUntil: "domcontentloaded",
-  timeout: "300",
-  geoCode: "us",
-  proxyCountry: "us",
-  saveResult: "false",
+const PAGE_URL = "https://target.example/?q=a&b=c";
+const SHARED_DEFAULTS = { timeout: "300", saveResult: "true", maxAge: "0" };
+const LOADING_DEFAULTS = { warmStart: "false", blockResources: "false" };
+// Fields that earlier releases sent but the Scraper API reference no longer lists.
+const UNDOCUMENTED = {
+  record: true,
+  super: true,
+  superMode: true,
+  waitUntil: "load",
+  proxyCountry: "sg",
+  proxy: "http://user:pass@proxy.example:8080",
+  returnCookie: true,
+  markdown: true,
+  bundle: "full",
 };
-const LOADING_DEFAULTS = { blockResources: "false", returnCookie: "false" };
 
 test("page commands send documented defaults and forced fields over GET", async () => {
   const calls = captureRequests("Authorization: Bearer documentation-example");
-  // Disabled fields must never reach the wire, even from programmatic callers.
-  const options = {
-    token: "test-token",
-    url: PAGE_DEFAULTS.url,
-    tokenCap: 1,
-    record: true,
-    action: "custom",
-  };
+  const options = { token: "test-token", url: PAGE_URL, ...UNDOCUMENTED };
   const html = await scrapeHtml(options);
-  await scrapeMarkdown(options);
-  await getScreenshot({ ...options, browserRendering: false });
-  await scrapeJson({
+  await scrapeMarkdown({ ...options, html: true, screenshot: "top" });
+  await getScreenshot({
     ...options,
-    waitForSelector: ".ignored",
+    browserRendering: false,
+    screenshot: "top",
+    html: false,
+    warmStart: true,
     blockResources: true,
-    returnCookie: true,
+    action: "custom",
   });
+  await scrapeJson({ ...options, action: "custom" });
 
   assert.equal(html.data, "Authorization: Bearer documentation-example");
   for (const call of calls) {
@@ -185,98 +186,205 @@ test("page commands send documented defaults and forced fields over GET", async 
     calls.map((call) => call.query),
     [
       {
-        ...PAGE_DEFAULTS,
-        ...LOADING_DEFAULTS,
-        browserRendering: "false",
-        warmStart: "false",
+        url: PAGE_URL,
         html: "true",
-        markdown: "false",
+        ...LOADING_DEFAULTS,
+        ...SHARED_DEFAULTS,
         screenshot: "false",
       },
       {
-        ...PAGE_DEFAULTS,
-        ...LOADING_DEFAULTS,
-        browserRendering: "false",
-        warmStart: "false",
-        html: "false",
+        url: PAGE_URL,
         markdown: "true",
-        screenshot: "false",
-      },
-      {
-        ...PAGE_DEFAULTS,
         ...LOADING_DEFAULTS,
-        browserRendering: "true",
-        screenshot: "full",
-        html: "true",
-        markdown: "false",
+        ...SHARED_DEFAULTS,
       },
       {
-        ...PAGE_DEFAULTS,
-        browserRendering: "false",
-        html: "false",
-        screenshot: "false",
-        agent: "general",
+        url: PAGE_URL,
+        screenshot: "full",
+        browserRendering: "true",
+        ...SHARED_DEFAULTS,
+      },
+      {
+        url: PAGE_URL,
         prompt: "Extract all data as complete as possible.",
+        agent: "general",
+        html: "true",
+        ...LOADING_DEFAULTS,
+        ...SHARED_DEFAULTS,
+        screenshot: "false",
       },
     ],
   );
 });
 
-test("page options map to their documented query fields", async () => {
+test("page options map to their documented query fields in order", async () => {
   const calls = captureRequests();
-  await scrapeMarkdown({
+  const url = "https://target.example";
+  const options = {
     token: "test-token",
-    url: "https://target.example",
-    html: true,
+    url,
+    browserRendering: false,
+    timeout: 330,
     warmStart: true,
-    browserRendering: true,
-    superMode: true,
-    waitUntil: "networkidle0",
-    waitForSelector: " .ready ",
-    timeout: 60,
     blockResources: true,
+    waitForSelector: " .ready ",
     geoCode: "ID",
-    proxyCountry: "SG",
-    returnCookie: true,
-    proxy: "http://user:pass@proxy.example:8080",
+    saveResult: false,
+    maxAge: 604800000,
+    tokenCap: 25,
     maxRetries: 0,
-    saveResult: true,
-  });
-  await getScreenshot({
-    token: "test-token",
-    url: "https://target.example",
-    screenshot: "top",
-    html: false,
-    markdown: true,
+  };
+  await scrapeHtml({
+    ...options,
+    action: " analytics ",
+    screenshot: "1920x1080-75",
   });
   await scrapeMarkdown({
-    token: "test-token",
-    url: "https://target.example",
-    html: true,
+    ...options,
+    browserRendering: true,
+    action: "analytics",
   });
-  assert.deepEqual(calls[0].query, {
-    url: "https://target.example",
-    super: "true",
-    waitUntil: "networkidle0",
-    timeout: "60",
-    geoCode: "id",
-    proxyCountry: "sg",
-    proxy: "http://user:pass@proxy.example:8080",
-    maxRetries: "0",
-    saveResult: "true",
-    blockResources: "true",
+  await getScreenshot(options);
+  await scrapeJson({
+    ...options,
+    prompt: "Extract prices",
+    html: false,
+    screenshot: true,
+  });
+
+  const loading = { warmStart: "true", blockResources: "true" };
+  const shared = {
+    timeout: "330",
     waitForSelector: ".ready",
-    returnCookie: "true",
-    browserRendering: "true",
-    warmStart: "true",
+    geoCode: "id",
+    saveResult: "false",
+    maxAge: "604800000",
+    tokenCap: "25",
+    maxRetries: "0",
+  };
+  // A screenshot needs a rendered page, so it overrides browserRendering=false.
+  assert.deepEqual(calls[0].query, {
+    url,
     html: "true",
-    markdown: "true",
-    screenshot: "false",
+    browserRendering: "true",
+    ...loading,
+    action: "analytics",
+    ...shared,
+    screenshot: "1920x1080-75",
   });
-  assert.equal(calls[1].query.screenshot, "top");
-  assert.equal(calls[1].query.html, "false");
-  assert.equal(calls[1].query.markdown, "true");
-  assert.equal(calls[2].query.browserRendering, "true");
+  assert.deepEqual(calls[1].query, {
+    url,
+    markdown: "true",
+    browserRendering: "true",
+    ...loading,
+    action: "analytics",
+    ...shared,
+  });
+  assert.deepEqual(calls[2].query, {
+    url,
+    screenshot: "full",
+    browserRendering: "true",
+    ...shared,
+  });
+  assert.deepEqual(calls[3].query, {
+    url,
+    prompt: "Extract prices",
+    agent: "general",
+    html: "false",
+    browserRendering: "false",
+    ...loading,
+    ...shared,
+    screenshot: "true",
+  });
+  assert.deepEqual(Object.keys(calls[0].query), [
+    "url",
+    "html",
+    "browserRendering",
+    "timeout",
+    "warmStart",
+    "blockResources",
+    "waitForSelector",
+    "action",
+    "geoCode",
+    "saveResult",
+    "maxAge",
+    "tokenCap",
+    "maxRetries",
+    "screenshot",
+  ]);
+});
+
+test("browser rendering is omitted unless set and preserves false", async () => {
+  const calls = captureRequests();
+  for (const operation of [scrapeHtml, scrapeMarkdown, scrapeJson]) {
+    for (const browserRendering of [undefined, null, true, false]) {
+      await operation({
+        token: "test",
+        url: "https://example.com",
+        browserRendering,
+      });
+      assert.equal(
+        calls.at(-1).query.browserRendering,
+        browserRendering == null ? undefined : String(browserRendering),
+      );
+    }
+  }
+});
+
+test("Scrape HTML accepts every documented screenshot capture", async () => {
+  const calls = captureRequests();
+  const accepted = [
+    false,
+    "full",
+    "top",
+    "100x100",
+    "1280x800",
+    "3840x3840",
+    "1280x800-25",
+    "1920x1080-300",
+  ];
+  for (const screenshot of accepted) {
+    for (const browserRendering of [undefined, true, false]) {
+      await scrapeHtml({
+        token: "test",
+        url: "https://example.com",
+        screenshot,
+        browserRendering,
+      });
+      const { query } = calls.at(-1);
+      assert.equal(query.screenshot, String(screenshot));
+      // Any screenshot sends browserRendering=true; without one it is untouched.
+      assert.equal(
+        query.browserRendering,
+        screenshot === false
+          ? browserRendering === undefined
+            ? undefined
+            : String(browserRendering)
+          : "true",
+        `${screenshot} with browserRendering ${browserRendering}`,
+      );
+    }
+  }
+  for (const screenshot of [
+    true,
+    "",
+    "FULL",
+    "bottom",
+    "99x800",
+    "1280x3841",
+    "12345x800",
+    "1280x800-24",
+    "1280x800-301",
+    "1280x800-",
+    1280,
+  ]) {
+    await assert.rejects(
+      scrapeHtml({ token: "test", url: "https://example.com", screenshot }),
+      /screenshot must be false, full, top/,
+      String(screenshot),
+    );
+  }
+  assert.equal(calls.length, accepted.length * 3);
 });
 
 test("invalid inputs fail before fetching", async () => {
@@ -286,36 +394,69 @@ test("invalid inputs fail before fetching", async () => {
     return mockResponse("");
   };
   const options = { token: "test-token", url: "https://target.example" };
-  for (const timeout of [0, 301, 1.5]) {
-    await assert.rejects(scrapeHtml({ ...options, timeout }), /timeout/);
+  for (const operation of [scrapeHtml, scrapeMarkdown, getScreenshot, scrapeJson]) {
+    for (const timeout of [0, 331, 1.5, null]) {
+      await assert.rejects(operation({ ...options, timeout }), /timeout/);
+    }
+    for (const maxAge of [-1, 604800001, 1.5, null]) {
+      await assert.rejects(operation({ ...options, maxAge }), /max age/);
+    }
+    for (const tokenCap of [0, -1, 1.5]) {
+      await assert.rejects(operation({ ...options, tokenCap }), /token cap/);
+    }
+    await assert.rejects(
+      operation({ ...options, maxRetries: -1 }),
+      /max retries/,
+    );
+    await assert.rejects(
+      operation({ ...options, url: "file:///tmp/test" }),
+      /HTTP/,
+    );
+    await assert.rejects(operation({ ...options, geoCode: "usa" }), /geo code/);
+    for (const waitForSelector of [" ", "a".repeat(501)]) {
+      await assert.rejects(
+        operation({ ...options, waitForSelector }),
+        /wait for selector/,
+      );
+    }
+    await assert.rejects(
+      operation({ ...options, saveResult: "false" }),
+      /saveResult must be a boolean/,
+    );
   }
-  await assert.rejects(
-    scrapeHtml({ ...options, maxRetries: -1 }),
-    /max retries/,
-  );
-  await assert.rejects(
-    scrapeHtml({ ...options, url: "file:///tmp/test" }),
-    /HTTP/,
-  );
-  await assert.rejects(
-    scrapeHtml({ ...options, waitUntil: "invalid" }),
-    /wait until/,
-  );
-  await assert.rejects(scrapeHtml({ ...options, geoCode: "usa" }), /geo code/);
-  await assert.rejects(
-    scrapeMarkdown({ ...options, proxyCountry: "1" }),
-    /proxy country/,
-  );
-  await assert.rejects(
-    scrapeHtml({ ...options, waitForSelector: " " }),
-    /wait for selector/,
-  );
-  await assert.rejects(
-    getScreenshot({ ...options, screenshot: "invalid" }),
-    /screenshot/,
-  );
+  for (const operation of [scrapeHtml, scrapeMarkdown, scrapeJson]) {
+    await assert.rejects(
+      operation({ ...options, browserRendering: "true" }),
+      /browserRendering must be a boolean/,
+    );
+    await assert.rejects(
+      operation({ ...options, blockResources: 1 }),
+      /blockResources must be a boolean/,
+    );
+  }
+  for (const operation of [scrapeHtml, scrapeMarkdown]) {
+    await assert.rejects(operation({ ...options, action: " " }), /action/);
+  }
   await assert.rejects(scrapeJson({ ...options, prompt: " " }), /prompt/);
+  await assert.rejects(
+    scrapeJson({ ...options, html: "true" }),
+    /html must be a boolean/,
+  );
+  await assert.rejects(
+    scrapeJson({ ...options, screenshot: "full" }),
+    /screenshot must be a boolean/,
+  );
   await assert.rejects(scrapeBrand({ ...options, url: "example.com" }), /HTTP/);
+  for (const timeout of [0, 331, 1.5, null]) {
+    await assert.rejects(scrapeBrand({ ...options, timeout }), /timeout/);
+  }
+  for (const warmStart of ["true", 1, null]) {
+    await assert.rejects(
+      scrapeBrand({ ...options, warmStart }),
+      /warmStart must be a boolean/,
+    );
+  }
+  await assert.rejects(scrapeBrand({ ...options, geoCode: "usa" }), /geo code/);
   for (const numResults of [0, 9, 101, 10.5]) {
     await assert.rejects(
       webSearch({ token: "test-token", query: "test", numResults }),
@@ -325,10 +466,12 @@ test("invalid inputs fail before fetching", async () => {
   for (const query of [" ", "x".repeat(1001), undefined]) {
     await assert.rejects(webSearch({ token: "test-token", query }), /query/);
   }
-  await assert.rejects(
-    webSearch({ token: "test-token", query: "test", country: "usa" }),
-    /country/,
-  );
+  for (const country of ["usa", "", "1a"]) {
+    await assert.rejects(
+      webSearch({ token: "test-token", query: "test", country }),
+      /country/,
+    );
+  }
   assert.equal(requests, 0);
 });
 
@@ -380,6 +523,15 @@ test("brand and web search send only their documented GET fields", async () => {
     token: "test-token",
     url: "https://mrscraper.com/",
     bundle: "full",
+    maxAge: 3600000,
+    saveResult: false,
+  });
+  await scrapeBrand({
+    token: "test-token",
+    url: "https://mrscraper.com/",
+    timeout: 120,
+    warmStart: true,
+    geoCode: "GB",
   });
   await webSearch({ token: "test-token", query: " mrscraper " });
   await webSearch({
@@ -396,11 +548,20 @@ test("brand and web search send only their documented GET fields", async () => {
         action: "brand-scraping",
         url: "https://mrscraper.com/",
         bundle: "none",
+        timeout: "300",
+        warmStart: "false",
+      },
+      {
+        action: "brand-scraping",
+        url: "https://mrscraper.com/",
+        bundle: "none",
+        timeout: "120",
+        warmStart: "true",
+        geoCode: "gb",
       },
       {
         action: "websearch",
         query: "mrscraper",
-        country: "us",
         numResults: "10",
       },
       {
@@ -431,9 +592,9 @@ test("the public package exports the six operations", async () => {
   }
 });
 
-test("warmStart is a boolean HTML/Markdown control and preserves false", async () => {
+test("warmStart is a boolean HTML, Markdown, and JSON control and preserves false", async () => {
   const calls = captureRequests();
-  for (const operation of [scrapeHtml, scrapeMarkdown]) {
+  for (const operation of [scrapeHtml, scrapeMarkdown, scrapeJson]) {
     for (const warmStart of [false, true]) {
       await operation({ token: "test", url: "https://example.com", warmStart });
       assert.equal(calls.at(-1).query.warmStart, String(warmStart));
@@ -447,12 +608,10 @@ test("warmStart is a boolean HTML/Markdown control and preserves false", async (
     }
     assert.equal(calls.length, sent);
   }
-  for (const operation of [getScreenshot, scrapeJson]) {
-    await operation({
-      token: "test",
-      url: "https://example.com",
-      warmStart: true,
-    });
-    assert.ok(!("warmStart" in calls.at(-1).query));
-  }
+  await getScreenshot({
+    token: "test",
+    url: "https://example.com",
+    warmStart: true,
+  });
+  assert.ok(!("warmStart" in calls.at(-1).query));
 });
