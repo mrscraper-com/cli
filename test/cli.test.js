@@ -245,11 +245,8 @@ test("six data commands send the documented GET contracts", async (t) => {
       "--warm-start",
       "--action",
       "analytics",
-      "--no-save-result",
       "--max-age",
       "3600000",
-      "--token-cap",
-      "30",
       "--screenshot",
       "1280x800-75",
     ],
@@ -277,7 +274,6 @@ test("six data commands send the documented GET contracts", async (t) => {
       "gb",
       "--timeout",
       "330",
-      "--save-result",
     ],
     [
       "scrape-json",
@@ -339,6 +335,7 @@ test("six data commands send the documented GET contracts", async (t) => {
   assert.deepEqual(htmlDefaults, {
     url: "https://target.example",
     html: "true",
+    markdown: "false",
     timeout: "300",
     warmStart: "false",
     blockResources: "false",
@@ -349,6 +346,7 @@ test("six data commands send the documented GET contracts", async (t) => {
   assert.deepEqual(htmlScreenshot, {
     url: "https://target.example",
     html: "true",
+    markdown: "false",
     browserRendering: "true",
     timeout: "300",
     warmStart: "false",
@@ -360,19 +358,21 @@ test("six data commands send the documented GET contracts", async (t) => {
   assert.deepEqual(html, {
     url: "https://target.example",
     html: "true",
+    markdown: "false",
     browserRendering: "true",
     timeout: "300",
     warmStart: "true",
     blockResources: "false",
     action: "analytics",
-    saveResult: "false",
+    saveResult: "true",
     maxAge: "3600000",
-    tokenCap: "30",
     screenshot: "1280x800-75",
   });
   assert.deepEqual(markdown, {
     url: "https://target.example",
     markdown: "true",
+    html: "false",
+    screenshot: "false",
     browserRendering: "false",
     timeout: "60",
     warmStart: "true",
@@ -386,6 +386,8 @@ test("six data commands send the documented GET contracts", async (t) => {
   assert.deepEqual(screenshot, {
     url: "https://target.example",
     screenshot: "full",
+    html: "false",
+    markdown: "false",
     browserRendering: "true",
     timeout: "330",
     waitForSelector: "body",
@@ -410,7 +412,6 @@ test("six data commands send the documented GET contracts", async (t) => {
     action: "brand-scraping",
     url: "https://mrscraper.com/",
     bundle: "none",
-    timeout: "300",
     warmStart: "false",
   });
   assert.deepEqual(brandOptions, {
@@ -447,7 +448,12 @@ test("invalid values and unsupported options fail without a request", async (t) 
     ["scrape-html", page, "--timeout", "331"],
     ["scrape-html", "file:///tmp/test"],
     ["scrape-html", page, "--geo-code", "usa"],
-    ["scrape-html", page, "--token-cap", "0"],
+    // Results are always saved and tokenCap is never sent, so neither is an option.
+    ["scrape-html", page, "--token-cap", "30"],
+    ["scrape-html", page, "--save-result"],
+    ["scrape-html", page, "--no-save-result"],
+    ["get-screenshot", page, "--no-save-result"],
+    ["scrape-json", page, "--token-cap", "30"],
     ["scrape-html", page, "--max-age", "604800001"],
     ["scrape-html", page, "--max-age", "-1"],
     ["scrape-html", page, "--screenshot", "true"],

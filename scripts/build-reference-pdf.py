@@ -206,7 +206,7 @@ def main():
             "SmallRef",
         ),
         p(
-            "Each service adds its documented fixed request fields automatically: html=true (plus browserRendering=true when a screenshot is set), markdown=true, screenshot=full with browserRendering=true, action=brand-scraping with bundle=none, agent=general, and action=websearch. Fixed fields are not service parameters.",
+            "Each service adds its documented fixed request fields automatically: html=true and markdown=false (plus browserRendering=true when a screenshot is set), markdown=true with html=false and screenshot=false, screenshot=full with html=false, markdown=false, and browserRendering=true, action=brand-scraping with bundle=none, agent=general, and action=websearch. HTML, Markdown, screenshots, and JSON extraction always send saveResult=true, and tokenCap is never sent. Fixed fields are not service parameters.",
             "SmallRef",
         ),
     ]
@@ -284,10 +284,10 @@ def main():
                 ),
             ]
         selections = {
-            "scrape-html": "Request selection: html=true. Setting the optional screenshot also sends browserRendering=true and returns JSON with html and screenshot.",
-            "scrape-markdown": "Request selection: markdown=true.",
-            "get-screenshot": "Request selection: screenshot=full, browserRendering=true. The area and rendering are not service parameters.",
-            "scrape-brand": "Request selection: action=brand-scraping, bundle=none. The HTTP request allows the timeout plus 30 seconds.",
+            "scrape-html": "Request selection: html=true, markdown=false, saveResult=true. Setting the optional screenshot also sends browserRendering=true and returns JSON with html and screenshot.",
+            "scrape-markdown": "Request selection: markdown=true, html=false, screenshot=false, saveResult=true.",
+            "get-screenshot": "Request selection: screenshot=full, browserRendering=true, html=false, markdown=false, saveResult=true. These are not service parameters; the API still includes the page HTML.",
+            "scrape-brand": "Request selection: action=brand-scraping, bundle=none, warmStart always sent. timeout and geoCode are sent only when set; the HTTP request allows the timeout plus 30 seconds, or 330 seconds without one.",
             "web-search": "Request selection: action=websearch. country is omitted unless set.",
         }
         if service["name"] in selections:
@@ -295,7 +295,7 @@ def main():
         if service["name"] == "scrape-json":
             story += [
                 p(
-                    "Request selection: agent=general. GET changes to POST above an 8,000-character encoded URL; url, prompt, and agent move to the body.",
+                    "Request selection: agent=general, saveResult=true. GET changes to POST above an 8,000-character encoded URL; url, prompt, and agent move to the body.",
                     "SmallRef",
                 )
             ]
@@ -362,7 +362,7 @@ def main():
         table(rows, [170, 170, 165], compact=True),
         Spacer(1, 8),
         p(
-            "Paired CLI flags set browserRendering, saveResult, and the JSON extraction html field to true or false; leaving both out keeps the documented default. The CLI also accepts status --json as an output-format flag; it is not an API service parameter. Authentication follows each surface's setup.",
+            "Paired CLI flags set browserRendering and the JSON extraction html field to true or false; leaving both out keeps the documented default. The CLI also accepts status --json as an output-format flag; it is not an API service parameter. Authentication follows each surface's setup.",
             "SmallRef",
         ),
         p(

@@ -1,7 +1,7 @@
 {
   "verified_on": "2026-11-23",
   "live_targets": ["https://example.com", "https://books.toscrape.com/"],
-  "scope": "Seven live API services through the CLI with the 2026-11-23 parameter set, plus direct requests that checked fixed fields, defaults, and edge cases.",
+  "scope": "Seven live API services through the CLI with the final 2026-11-23 parameter set and the outgoing request captured, plus direct requests that checked fixed fields, defaults, and edge cases.",
   "services": [
     {
       "service": "status",
@@ -116,7 +116,17 @@
     {
       "check": "Scrape Brand with timeout, warmStart, and geoCode",
       "http_status": 200,
-      "result": "Sent in the order action, url, bundle, timeout, warmStart, geoCode; every job settled with brand data."
+      "result": "Defaults send action, url, bundle, and warmStart=false; timeout and geoCode are sent only when set. Every job settled with brand data."
+    },
+    {
+      "check": "Fixed output fields",
+      "http_status": 200,
+      "result": "Scrape HTML with markdown=false, Scrape Markdown with html=false and screenshot=false, and Get screenshot with html=false and markdown=false succeed; Get screenshot still includes the page HTML."
+    },
+    {
+      "check": "saveResult and tokenCap",
+      "http_status": 200,
+      "result": "Every HTML, Markdown, screenshot, and JSON request sends saveResult=true; tokenCap is never sent."
     }
   ],
   "observations": [

@@ -7,7 +7,9 @@ description: Convert a known public URL into clean Markdown with the MrScraper C
 
 `mrscraper scrape-markdown <url>` returns the page as clean Markdown, without
 navigation, scripts, or ads. It sends `GET https://api.mrscraper.com` with
-`markdown=true` added automatically, so there is no Markdown option to pass.
+`markdown=true`, `html=false`, `screenshot=false`, and `saveResult=true` added
+automatically, so there is no option for them; results are always saved to the
+dashboard Result tab.
 See [mrscraper](../mrscraper/SKILL.md) for installation, authentication, and
 account status. Use [mrscraper-web-search](../mrscraper-web-search/SKILL.md)
 when no URL is known.
@@ -44,9 +46,7 @@ structure matters.
 | `--wait-for-selector SELECTOR` | Omitted | `waitForSelector`: CSS selector or text to wait for, up to 500 characters. |
 | `--action NAME` | Omitted | `action`: route the request to a scraper action or flag it for analytics. |
 | `--geo-code CODE` | Omitted | `geoCode`: two-letter country to load the page from. The API uses the United States when omitted. |
-| `--save-result` / `--no-save-result` | Saved | `saveResult`: save the result to the dashboard Result tab. |
 | `--max-age MILLISECONDS` | `0` | `maxAge`: return a cached result of the same request when it is newer than this age, up to 604800000 (7 days). A cached result costs the same tokens as the original scrape. `0` always scrapes fresh. |
-| `--token-cap TOKENS` | Omitted | `tokenCap`: positive cap on tokens for the scrape and its retries. Omit for no limit. |
 | `--max-retries N` | Omitted | `maxRetries`: nonnegative retry limit. Omit for no limit. |
 | `--token KEY` | Configured credential | Authentication override, sent in headers. |
 

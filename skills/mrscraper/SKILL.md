@@ -24,7 +24,9 @@ The CLI has six scraping and search commands, plus account status:
 The commands send only the parameters documented in the
 [Scraper API reference](https://docs.mrscraper.com/docs/api/scraper-api/scrape-html).
 Fixed request fields, such as `html=true` for Scrape HTML or `agent=general`
-for Scrape JSON, are added automatically.
+for Scrape JSON, are added automatically. HTML, Markdown, screenshot, and JSON
+results are always saved to the dashboard (`saveResult=true`), and `tokenCap`
+is never sent.
 
 ## Step 1 — Verify or Install MrScraper
 
@@ -264,7 +266,8 @@ Check remaining tokens before a large batch of page retrievals.
   `webSearch`, and `account` commands are removed; `account` is now `status`.
   The `--super`, `--wait-until`, `--proxy-country`, `--proxy`, and
   `--return-cookie` options were removed because the Scraper API reference no
-  longer lists them.
+  longer lists them. `--save-result` and `--token-cap` are not options either:
+  results are always saved and `tokenCap` is never sent.
 
 ## Limits
 

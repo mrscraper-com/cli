@@ -6,8 +6,9 @@ description: Extract structured JSON from a known public URL with the MrScraper 
 # Scrape JSON with MrScraper
 
 `mrscraper scrape-json <url> --prompt TEXT` extracts structured data from one
-page with MrScraper's `general` AI agent. It sends `agent=general`
-automatically. See [mrscraper](../mrscraper/SKILL.md) for installation,
+page with MrScraper's `general` AI agent. It sends `agent=general` and
+`saveResult=true` automatically, so results are always saved to the dashboard
+Result tab. See [mrscraper](../mrscraper/SKILL.md) for installation,
 authentication, and account status.
 
 The prompt only parses the scraped content; it cannot click, scroll, or
@@ -52,9 +53,7 @@ also reports `data.success`, `data.token_usage`, `data.status`, and
 | `--block-resources` | Off | `blockResources`: skip images, fonts, and stylesheets. |
 | `--wait-for-selector SELECTOR` | Omitted | `waitForSelector`: CSS selector or text to wait for, up to 500 characters. |
 | `--geo-code CODE` | Omitted | `geoCode`: two-letter country to load the page from. The API uses the United States when omitted. |
-| `--save-result` / `--no-save-result` | Saved | `saveResult`: save the result to the dashboard Result tab. |
 | `--max-age MILLISECONDS` | `0` | `maxAge`: return a cached result of the same request when it is newer than this age, up to 604800000 (7 days). A cached result costs the same tokens as the original scrape. `0` always scrapes fresh. |
-| `--token-cap TOKENS` | Omitted | `tokenCap`: positive cap on tokens for the run and its retries. Omit for no limit. |
 | `--max-retries N` | Omitted | `maxRetries`: nonnegative retry limit. Omit for no limit. |
 | `--screenshot` | Off | `screenshot`: include a base64 screenshot in the response. |
 | `--token KEY` | Configured credential | Authentication override, sent in headers. |

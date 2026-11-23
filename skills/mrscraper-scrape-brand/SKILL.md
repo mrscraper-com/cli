@@ -7,7 +7,8 @@ description: Extract a website's brand identity with the MrScraper CLI's scrape-
 
 `mrscraper scrape-brand <url>` returns the brand identity of a website as JSON.
 It sends `GET https://api.mrscraper.com` with `action=brand-scraping` and
-`bundle=none` added automatically. See
+`bundle=none` added automatically, always sends `warmStart`, and sends
+`timeout` and `geoCode` only when you set them. See
 [mrscraper](../mrscraper/SKILL.md) for installation, authentication, and
 account status.
 
@@ -31,7 +32,7 @@ and the resolved address in `data.data.final_url`.
 | Option | Default | Request field |
 | --- | --- | --- |
 | `<url>` | Required | `url`, an absolute HTTP or HTTPS URL. |
-| `--timeout SECONDS` | `300` | `timeout`, 1–330. The HTTP request allows 30 more seconds. |
+| `--timeout SECONDS` | Omitted | `timeout`, 1–330. The HTTP request allows 30 more seconds, or 330 seconds when omitted. |
 | `--warm-start` | Off | `warmStart`: open the site's home page first to warm the session. |
 | `--geo-code CODE` | Omitted | `geoCode`: two-letter country to load the page from. The API uses the United States when omitted. |
 | `--token KEY` | Configured credential | Authentication override, sent in headers. |

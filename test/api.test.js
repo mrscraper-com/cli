@@ -147,8 +147,12 @@ function captureRequests(body = "<html></html>", contentType = "text/html") {
 const PAGE_URL = "https://target.example/?q=a&b=c";
 const SHARED_DEFAULTS = { timeout: "300", saveResult: "true", maxAge: "0" };
 const LOADING_DEFAULTS = { warmStart: "false", blockResources: "false" };
-// Fields that earlier releases sent but the Scraper API reference no longer lists.
+// Fields that earlier releases sent but that are no longer options: the
+// reference no longer lists them, or the value is fixed (saveResult) or never
+// sent (tokenCap).
 const UNDOCUMENTED = {
+  saveResult: false,
+  tokenCap: 5,
   record: true,
   super: true,
   superMode: true,
@@ -188,6 +192,7 @@ test("page commands send documented defaults and forced fields over GET", async 
       {
         url: PAGE_URL,
         html: "true",
+        markdown: "false",
         ...LOADING_DEFAULTS,
         ...SHARED_DEFAULTS,
         screenshot: "false",
@@ -195,12 +200,16 @@ test("page commands send documented defaults and forced fields over GET", async 
       {
         url: PAGE_URL,
         markdown: "true",
+        html: "false",
+        screenshot: "false",
         ...LOADING_DEFAULTS,
         ...SHARED_DEFAULTS,
       },
       {
         url: PAGE_URL,
         screenshot: "full",
+        html: "false",
+        markdown: "false",
         browserRendering: "true",
         ...SHARED_DEFAULTS,
       },
@@ -229,9 +238,7 @@ test("page options map to their documented query fields in order", async () => {
     blockResources: true,
     waitForSelector: " .ready ",
     geoCode: "ID",
-    saveResult: false,
     maxAge: 604800000,
-    tokenCap: 25,
     maxRetries: 0,
   };
   await scrapeHtml({
@@ -257,15 +264,15 @@ test("page options map to their documented query fields in order", async () => {
     timeout: "330",
     waitForSelector: ".ready",
     geoCode: "id",
-    saveResult: "false",
+    saveResult: "true",
     maxAge: "604800000",
-    tokenCap: "25",
     maxRetries: "0",
   };
   // A screenshot needs a rendered page, so it overrides browserRendering=false.
   assert.deepEqual(calls[0].query, {
     url,
     html: "true",
+    markdown: "false",
     browserRendering: "true",
     ...loading,
     action: "analytics",
@@ -275,6 +282,8 @@ test("page options map to their documented query fields in order", async () => {
   assert.deepEqual(calls[1].query, {
     url,
     markdown: "true",
+    html: "false",
+    screenshot: "false",
     browserRendering: "true",
     ...loading,
     action: "analytics",
@@ -283,6 +292,8 @@ test("page options map to their documented query fields in order", async () => {
   assert.deepEqual(calls[2].query, {
     url,
     screenshot: "full",
+    html: "false",
+    markdown: "false",
     browserRendering: "true",
     ...shared,
   });
@@ -299,6 +310,7 @@ test("page options map to their documented query fields in order", async () => {
   assert.deepEqual(Object.keys(calls[0].query), [
     "url",
     "html",
+    "markdown",
     "browserRendering",
     "timeout",
     "warmStart",
@@ -308,7 +320,6 @@ test("page options map to their documented query fields in order", async () => {
     "geoCode",
     "saveResult",
     "maxAge",
-    "tokenCap",
     "maxRetries",
     "screenshot",
   ]);
@@ -401,9 +412,6 @@ test("invalid inputs fail before fetching", async () => {
     for (const maxAge of [-1, 604800001, 1.5, null]) {
       await assert.rejects(operation({ ...options, maxAge }), /max age/);
     }
-    for (const tokenCap of [0, -1, 1.5]) {
-      await assert.rejects(operation({ ...options, tokenCap }), /token cap/);
-    }
     await assert.rejects(
       operation({ ...options, maxRetries: -1 }),
       /max retries/,
@@ -419,10 +427,6 @@ test("invalid inputs fail before fetching", async () => {
         /wait for selector/,
       );
     }
-    await assert.rejects(
-      operation({ ...options, saveResult: "false" }),
-      /saveResult must be a boolean/,
-    );
   }
   for (const operation of [scrapeHtml, scrapeMarkdown, scrapeJson]) {
     await assert.rejects(
@@ -447,7 +451,7 @@ test("invalid inputs fail before fetching", async () => {
     /screenshot must be a boolean/,
   );
   await assert.rejects(scrapeBrand({ ...options, url: "example.com" }), /HTTP/);
-  for (const timeout of [0, 331, 1.5, null]) {
+  for (const timeout of [0, 331, 1.5, "120"]) {
     await assert.rejects(scrapeBrand({ ...options, timeout }), /timeout/);
   }
   for (const warmStart of ["true", 1, null]) {
@@ -548,7 +552,6 @@ test("brand and web search send only their documented GET fields", async () => {
         action: "brand-scraping",
         url: "https://mrscraper.com/",
         bundle: "none",
-        timeout: "300",
         warmStart: "false",
       },
       {
