@@ -451,16 +451,6 @@ test("invalid inputs fail before fetching", async () => {
     /screenshot must be a boolean/,
   );
   await assert.rejects(scrapeBrand({ ...options, url: "example.com" }), /HTTP/);
-  for (const timeout of [0, 331, 1.5, "120"]) {
-    await assert.rejects(scrapeBrand({ ...options, timeout }), /timeout/);
-  }
-  for (const warmStart of ["true", 1, null]) {
-    await assert.rejects(
-      scrapeBrand({ ...options, warmStart }),
-      /warmStart must be a boolean/,
-    );
-  }
-  await assert.rejects(scrapeBrand({ ...options, geoCode: "usa" }), /geo code/);
   for (const numResults of [0, 9, 101, 10.5]) {
     await assert.rejects(
       webSearch({ token: "test-token", query: "test", numResults }),
@@ -523,16 +513,13 @@ test("JSON extraction falls back to the POST body only for prompts too long for 
 
 test("brand and web search send only their documented GET fields", async () => {
   const calls = captureRequests('{"success":true}', "application/json");
+  // Scrape Brand takes only the URL; other options never reach the wire.
   await scrapeBrand({
     token: "test-token",
     url: "https://mrscraper.com/",
     bundle: "full",
     maxAge: 3600000,
     saveResult: false,
-  });
-  await scrapeBrand({
-    token: "test-token",
-    url: "https://mrscraper.com/",
     timeout: 120,
     warmStart: true,
     geoCode: "GB",
@@ -552,15 +539,6 @@ test("brand and web search send only their documented GET fields", async () => {
         action: "brand-scraping",
         url: "https://mrscraper.com/",
         bundle: "none",
-        warmStart: "false",
-      },
-      {
-        action: "brand-scraping",
-        url: "https://mrscraper.com/",
-        bundle: "none",
-        timeout: "120",
-        warmStart: "true",
-        geoCode: "gb",
       },
       {
         action: "websearch",

@@ -308,10 +308,10 @@
       "name": "scrape-brand",
       "title": "Scrape brand",
       "description": "Extract a website's colors, typography, logos, and social links as JSON.",
-      "parameters": ["url", "timeout", "warmStart", "geoCode"],
+      "parameters": ["url"],
       "response": "The API body contains message and a data object with job_id, status, url, final_url, brand, and error. Brand details are available at data.data.brand in the response envelope.",
-      "transport_timeout_seconds": null,
-      "defaults": { "timeout": null },
+      "transport_timeout_seconds": 120,
+      "defaults": {},
       "response_examples": [
         {
           "label": "Success response",

@@ -229,7 +229,7 @@ def main():
             "waitForSelector": "body",
             "timeout": 120,
         },
-        "scrape-brand": {"url": "https://example.com", "geoCode": "gb"},
+        "scrape-brand": {"url": "https://example.com"},
         "scrape-json": {
             "url": "https://example.com",
             "prompt": 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}',
@@ -287,7 +287,7 @@ def main():
             "scrape-html": "Request selection: html=true, markdown=false, saveResult=true. Setting the optional screenshot also sends browserRendering=true and returns JSON with html and screenshot.",
             "scrape-markdown": "Request selection: markdown=true, html=false, screenshot=false, saveResult=true.",
             "get-screenshot": "Request selection: screenshot=full, browserRendering=true, html=false, markdown=false, saveResult=true. These are not service parameters; the API still includes the page HTML.",
-            "scrape-brand": "Request selection: action=brand-scraping, bundle=none, warmStart always sent. timeout and geoCode are sent only when set; the HTTP request allows the timeout plus 30 seconds, or 330 seconds without one.",
+            "scrape-brand": "Request selection: action=brand-scraping, bundle=none. Page controls are not accepted.",
             "web-search": "Request selection: action=websearch. country is omitted unless set.",
         }
         if service["name"] in selections:

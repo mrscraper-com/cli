@@ -288,15 +288,6 @@ test("six data commands send the documented GET contracts", async (t) => {
       ".x",
     ],
     ["scrape-brand", "https://mrscraper.com/"],
-    [
-      "scrape-brand",
-      "https://mrscraper.com/",
-      "--timeout",
-      "120",
-      "--warm-start",
-      "--geo-code",
-      "GB",
-    ],
     ["web-search", "mrscraper"],
     [
       "web-search",
@@ -328,7 +319,6 @@ test("six data commands send the documented GET contracts", async (t) => {
     screenshot,
     json,
     brand,
-    brandOptions,
     searchDefaults,
     search,
   ] = sent.map((request) => request.query);
@@ -412,15 +402,6 @@ test("six data commands send the documented GET contracts", async (t) => {
     action: "brand-scraping",
     url: "https://mrscraper.com/",
     bundle: "none",
-    warmStart: "false",
-  });
-  assert.deepEqual(brandOptions, {
-    action: "brand-scraping",
-    url: "https://mrscraper.com/",
-    bundle: "none",
-    timeout: "120",
-    warmStart: "true",
-    geoCode: "gb",
   });
   assert.deepEqual(searchDefaults, {
     action: "websearch",
@@ -480,8 +461,10 @@ test("invalid values and unsupported options fail without a request", async (t) 
     ["scrape-brand"],
     ["scrape-brand", "https://mrscraper.com/", "--bundle", "clean"],
     ["scrape-brand", "https://mrscraper.com/", "--max-age", "0"],
-    ["scrape-brand", "https://mrscraper.com/", "--timeout", "331"],
-    ["scrape-brand", "https://mrscraper.com/", "--geo-code", "usa"],
+    // Scrape Brand takes only the URL.
+    ["scrape-brand", "https://mrscraper.com/", "--timeout", "120"],
+    ["scrape-brand", "https://mrscraper.com/", "--warm-start"],
+    ["scrape-brand", "https://mrscraper.com/", "--geo-code", "gb"],
     ["scrape-brand", "https://mrscraper.com/", "--browser-rendering"],
     ["scrape-brand", "--job-id", "brand-1"],
     ["web-search", "test", "--num-results", "101"],

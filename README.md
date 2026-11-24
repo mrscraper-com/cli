@@ -66,7 +66,7 @@ Response examples show selected keys and types observed in live API responses. V
 
 ### Page controls
 
-HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `waitForSelector`, `geoCode`, `maxAge`, and `maxRetries` (using the naming style shown below). Defaults are a 300-second timeout (up to 330) and a `maxAge` of 0 milliseconds, which always scrapes fresh; `maxAge` accepts up to 604800000 (7 days). `geoCode` and `maxRetries` are omitted unless set, so the API loads the page from the United States with no retry limit. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. Scrape brand accepts `url`, `timeout`, `warmStart`, and `geoCode`: it always sends `warmStart` (default `false`) and sends `timeout` and `geoCode` only when set. Exact types, defaults, and standard descriptions appear in each service table.
+HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `waitForSelector`, `geoCode`, `maxAge`, and `maxRetries` (using the naming style shown below). Defaults are a 300-second timeout (up to 330) and a `maxAge` of 0 milliseconds, which always scrapes fresh; `maxAge` accepts up to 604800000 (7 days). `geoCode` and `maxRetries` are omitted unless set, so the API loads the page from the United States with no retry limit. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. Exact types, defaults, and standard descriptions appear in each service table.
 
 ### Loading controls
 
@@ -296,19 +296,18 @@ Extract a website's colors, typography, logos, and social links as JSON.
 
 #### Parameters
 
-| Parameter      | HTTP field  | Type    | Default  | Description                                                                                           |
-| -------------- | ----------- | ------- | -------- | ----------------------------------------------------------------------------------------------------- |
-| `<url>`        | `url`       | string  | Required | Absolute HTTP or HTTPS URL of the page to process.                                                    |
-| `--timeout`    | `timeout`   | integer | Omitted  | Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds. |
-| `--warm-start` | `warmStart` | boolean | `false`  | Whether to open the site's home page first to warm the session before loading the target URL.         |
-| `--geo-code`   | `geoCode`   | string  | Omitted  | Two-letter country code to load the page from, sent in lowercase.                                     |
+| Parameter | HTTP field | Type   | Default  | Description                                        |
+| --------- | ---------- | ------ | -------- | -------------------------------------------------- |
+| `<url>`   | `url`      | string | Required | Absolute HTTP or HTTPS URL of the page to process. |
 
-The request uses `action=brand-scraping` and `bundle=none` and always sends `warmStart`; `timeout` and `geoCode` are sent only when set. The HTTP request allows the timeout plus 30 seconds, or 330 seconds when `timeout` is omitted.
+The HTTP deadline is fixed at 120 seconds. It is not a service parameter.
+
+The request uses `action=brand-scraping` and `bundle=none`; page controls are not accepted.
 
 #### Example
 
 ```bash
-mrscraper scrape-brand https://example.com --geo-code gb
+mrscraper scrape-brand https://example.com
 ```
 
 #### Response
@@ -533,11 +532,11 @@ Hosted MCP setup is separate from the CLI and agent skill bootstrap. [MrScraper 
 
 ### Troubleshooting
 
-For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the timeout up to 330 seconds. Search has a fixed 120-second transport deadline. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
+For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 330 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
 
 ## Migration
 
-Version 0.8.0 matches the Scraper API reference. Removed options: `--super`, `--wait-until`, `--proxy-country`, `--proxy`, `--return-cookie`, `--save-result`, `--token-cap`, `scrape-markdown --html`, and the `get-screenshot` options `--screenshot`, `--no-html`, and `--markdown`; screenshots always capture the full page. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. New options: `--max-age`, `--action` for HTML and Markdown, `--no-browser-rendering`, and `scrape-html --screenshot`; JSON extraction now accepts `--warm-start`, `--block-resources`, and `--wait-for-selector`; `scrape-brand` now accepts `--timeout`, `--warm-start`, and `--geo-code`. Changed defaults: Scrape JSON includes HTML (`--no-html` opts out), browser rendering is automatic unless set, `--geo-code` and `--country` are omitted unless set, and page timeouts accept up to 330 seconds. Earlier releases replaced `account` with `status` and the combined `scraper-api` command with the six scraping and search commands.
+Version 0.8.0 matches the Scraper API reference. Removed options: `--super`, `--wait-until`, `--proxy-country`, `--proxy`, `--return-cookie`, `--save-result`, `--token-cap`, `scrape-markdown --html`, and the `get-screenshot` options `--screenshot`, `--no-html`, and `--markdown`; screenshots always capture the full page. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. New options: `--max-age`, `--action` for HTML and Markdown, `--no-browser-rendering`, and `scrape-html --screenshot`; JSON extraction now accepts `--warm-start`, `--block-resources`, and `--wait-for-selector`. Changed defaults: Scrape JSON includes HTML (`--no-html` opts out), browser rendering is automatic unless set, `--geo-code` and `--country` are omitted unless set, and page timeouts accept up to 330 seconds. Earlier releases replaced `account` with `status` and the combined `scraper-api` command with the six scraping and search commands.
 
 ## Development and testing
 

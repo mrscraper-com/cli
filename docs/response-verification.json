@@ -44,11 +44,7 @@
       "http_status": 200,
       "content_type": "application/json",
       "body_kind": "object",
-      "assertions_passed": [
-        "HTTP 200",
-        "Settled job contains brand data",
-        "timeout, warmStart, and geoCode are accepted"
-      ]
+      "assertions_passed": ["HTTP 200", "Settled job contains brand data"]
     },
     {
       "service": "scrape-json",
@@ -112,11 +108,6 @@
       "check": "geoCode and country omitted",
       "http_status": 200,
       "result": "Requests succeed; the API uses its United States default."
-    },
-    {
-      "check": "Scrape Brand with timeout, warmStart, and geoCode",
-      "http_status": 200,
-      "result": "Defaults send action, url, bundle, and warmStart=false; timeout and geoCode are sent only when set. Every job settled with brand data."
     },
     {
       "check": "Fixed output fields",
