@@ -535,10 +535,6 @@ Hosted MCP setup is separate from the CLI and agent skill bootstrap. [MrScraper 
 
 For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 330 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
 
-## Migration
-
-Version 0.8.0 matches the Scraper API reference. Removed options: `--super`, `--wait-until`, `--proxy-country`, `--proxy`, `--return-cookie`, `--save-result`, `--token-cap`, `scrape-markdown --html`, and the `get-screenshot` options `--no-html` and `--markdown`; `get-screenshot --screenshot` still defaults to `full` and now also accepts a `WIDTHxHEIGHT[-ZOOM]` viewport. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. New options: `--max-age`, `--action` for HTML and Markdown, `--no-browser-rendering`, and `scrape-html --screenshot`; JSON extraction now accepts `--warm-start`, `--block-resources`, and `--wait-for-selector`. Changed defaults: Scrape JSON includes HTML (`--no-html` opts out), browser rendering is automatic unless set, `--geo-code` and `--country` are omitted unless set, and page timeouts accept up to 330 seconds. The `mrscraper-fetch` and `mrscraper-serp` skills are replaced by one skill per command: run `mrscraper setup skills` to install them, then `npx skills remove mrscraper-fetch mrscraper-serp --global --yes` to remove the old skills. Earlier releases replaced `account` with `status` and the combined `scraper-api` command with the six scraping and search commands.
-
 ## Development and testing
 
 ### Automated checks
