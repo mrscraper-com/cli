@@ -1,6 +1,6 @@
 ---
 name: mrscraper-scrape-html
-description: Retrieve the raw HTML of a known public URL with the MrScraper CLI's scrape-html command. Use when a parser, archive, or audit needs page markup; supports browser rendering, geography, selectors, caching, token caps, retries, and an optional screenshot.
+description: Retrieve the raw HTML of a known public URL with the MrScraper CLI's scrape-html command. Use when a parser, archive, or audit needs page markup; supports browser rendering, geography, selectors, caching, retries, and an optional screenshot.
 ---
 
 # Scrape HTML with MrScraper

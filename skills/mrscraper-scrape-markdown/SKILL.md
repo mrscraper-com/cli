@@ -1,6 +1,6 @@
 ---
 name: mrscraper-scrape-markdown
-description: Convert a known public URL into clean Markdown with the MrScraper CLI's scrape-markdown command. Use for reading, summarizing, quoting, or feeding page text to an LLM or RAG pipeline; supports browser rendering, geography, selectors, caching, token caps, and retries.
+description: Convert a known public URL into clean Markdown with the MrScraper CLI's scrape-markdown command. Use for reading, summarizing, quoting, or feeding page text to an LLM or RAG pipeline; supports browser rendering, geography, selectors, caching, and retries.
 ---
 
 # Scrape Markdown with MrScraper
