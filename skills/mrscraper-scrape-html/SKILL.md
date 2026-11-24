@@ -52,7 +52,6 @@ file ./.mrscraper/page-screenshot
 | `--warm-start` | Off | `warmStart`: open the site's home page first to warm the session. |
 | `--block-resources` | Off | `blockResources`: skip images, fonts, and stylesheets. |
 | `--wait-for-selector SELECTOR` | Omitted | `waitForSelector`: CSS selector or text to wait for, up to 500 characters. |
-| `--action NAME` | Omitted | `action`: route the request to a scraper action or flag it for analytics. |
 | `--geo-code CODE` | Omitted | `geoCode`: two-letter country to load the page from. The API uses the United States when omitted. |
 | `--max-age MILLISECONDS` | `0` | `maxAge`: return a cached result of the same request when it is newer than this age, up to 604800000 (7 days). A cached result costs the same tokens as the original scrape. `0` always scrapes fresh. |
 | `--max-retries N` | Omitted | `maxRetries`: nonnegative retry limit. Omit for no limit. |

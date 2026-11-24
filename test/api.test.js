@@ -162,6 +162,7 @@ const UNDOCUMENTED = {
   returnCookie: true,
   markdown: true,
   bundle: "full",
+  action: "custom",
 };
 
 test("page commands send documented defaults and forced fields over GET", async () => {
@@ -176,9 +177,8 @@ test("page commands send documented defaults and forced fields over GET", async 
     html: false,
     warmStart: true,
     blockResources: true,
-    action: "custom",
   });
-  await scrapeJson({ ...options, action: "custom" });
+  await scrapeJson(options);
 
   assert.equal(html.data, "Authorization: Bearer documentation-example");
   for (const call of calls) {
@@ -243,13 +243,11 @@ test("page options map to their documented query fields in order", async () => {
   };
   await scrapeHtml({
     ...options,
-    action: " analytics ",
     screenshot: "1920x1080-75",
   });
   await scrapeMarkdown({
     ...options,
     browserRendering: true,
-    action: "analytics",
   });
   await getScreenshot(options);
   await scrapeJson({
@@ -275,7 +273,6 @@ test("page options map to their documented query fields in order", async () => {
     markdown: "false",
     browserRendering: "true",
     ...loading,
-    action: "analytics",
     ...shared,
     screenshot: "1920x1080-75",
   });
@@ -286,7 +283,6 @@ test("page options map to their documented query fields in order", async () => {
     screenshot: "false",
     browserRendering: "true",
     ...loading,
-    action: "analytics",
     ...shared,
   });
   assert.deepEqual(calls[2].query, {
@@ -316,7 +312,6 @@ test("page options map to their documented query fields in order", async () => {
     "warmStart",
     "blockResources",
     "waitForSelector",
-    "action",
     "geoCode",
     "saveResult",
     "maxAge",
@@ -481,9 +476,6 @@ test("invalid inputs fail before fetching", async () => {
       operation({ ...options, blockResources: 1 }),
       /blockResources must be a boolean/,
     );
-  }
-  for (const operation of [scrapeHtml, scrapeMarkdown]) {
-    await assert.rejects(operation({ ...options, action: " " }), /action/);
   }
   await assert.rejects(scrapeJson({ ...options, prompt: " " }), /prompt/);
   await assert.rejects(

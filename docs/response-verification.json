@@ -75,11 +75,6 @@
       "result": "x-cache: HIT"
     },
     {
-      "check": "action reaches the API",
-      "http_status": 400,
-      "result": "An action must name a flow configured for the host; an unknown action returns bad_request."
-    },
-    {
       "check": "Scrape HTML with screenshot=top",
       "http_status": 200,
       "result": "JSON with html and screenshot; the image was PNG in one request and JPEG in another."

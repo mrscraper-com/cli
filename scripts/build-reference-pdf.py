@@ -317,13 +317,13 @@ def main():
         "scrape-html": {
             "request": scraper,
             "fixed": "html=true, markdown=false, saveResult=true; browserRendering=true when a screenshot is set",
-            "query": "url, html=true, markdown=false, [browserRendering], timeout, warmStart, blockResources, [waitForSelector], [action], [geoCode], saveResult=true, maxAge, [maxRetries], screenshot",
+            "query": "url, html=true, markdown=false, [browserRendering], timeout, warmStart, blockResources, [waitForSelector], [geoCode], saveResult=true, maxAge, [maxRetries], screenshot",
             "notes": "A screenshot other than false also sends browserRendering=true, and the response becomes JSON with html and screenshot.",
         },
         "scrape-markdown": {
             "request": scraper,
             "fixed": "markdown=true, html=false, screenshot=false, saveResult=true",
-            "query": "url, markdown=true, html=false, screenshot=false, [browserRendering], timeout, warmStart, blockResources, [waitForSelector], [action], [geoCode], saveResult=true, maxAge, [maxRetries]",
+            "query": "url, markdown=true, html=false, screenshot=false, [browserRendering], timeout, warmStart, blockResources, [waitForSelector], [geoCode], saveResult=true, maxAge, [maxRetries]",
         },
         "get-screenshot": {
             "request": scraper,

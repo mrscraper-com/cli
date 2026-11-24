@@ -72,13 +72,6 @@
       "default": null,
       "required": false
     },
-    "action": {
-      "name": "action",
-      "type": "string",
-      "description": "Scraper action that routes the request or simply flags it, useful for separating analytics per domain.",
-      "default": null,
-      "required": false
-    },
     "geoCode": {
       "name": "geoCode",
       "type": "string",
@@ -209,7 +202,6 @@
         "warmStart",
         "blockResources",
         "waitForSelector",
-        "action",
         "geoCode",
         "maxAge",
         "maxRetries",
@@ -256,7 +248,6 @@
         "warmStart",
         "blockResources",
         "waitForSelector",
-        "action",
         "geoCode",
         "maxAge",
         "maxRetries"
