@@ -15,7 +15,7 @@ The CLI has six scraping and search commands, plus account status:
 | --- | --- | --- |
 | `mrscraper scrape-html <url>` | Retrieve raw page HTML, optionally with a screenshot. | [mrscraper-scrape-html](../mrscraper-scrape-html/SKILL.md) |
 | `mrscraper scrape-markdown <url>` | Retrieve clean Markdown. | [mrscraper-scrape-markdown](../mrscraper-scrape-markdown/SKILL.md) |
-| `mrscraper get-screenshot <url>` | Capture a full-page PNG screenshot. | [mrscraper-get-screenshot](../mrscraper-get-screenshot/SKILL.md) |
+| `mrscraper get-screenshot <url>` | Capture a PNG screenshot of the full page, the first viewport, or a custom viewport. | [mrscraper-get-screenshot](../mrscraper-get-screenshot/SKILL.md) |
 | `mrscraper scrape-brand <url>` | Extract a website's brand as JSON. | [mrscraper-scrape-brand](../mrscraper-scrape-brand/SKILL.md) |
 | `mrscraper scrape-json <url>` | Extract structured JSON using a prompt. | [mrscraper-scrape-json](../mrscraper-scrape-json/SKILL.md) |
 | `mrscraper web-search <query>` | Search the web using query text. | [mrscraper-web-search](../mrscraper-web-search/SKILL.md) |

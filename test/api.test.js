@@ -207,7 +207,7 @@ test("page commands send documented defaults and forced fields over GET", async 
       },
       {
         url: PAGE_URL,
-        screenshot: "full",
+        screenshot: "top",
         html: "false",
         markdown: "false",
         browserRendering: "true",
@@ -340,6 +340,50 @@ test("browser rendering is omitted unless set and preserves false", async () => 
       );
     }
   }
+});
+
+test("Get screenshot defaults to full and accepts every documented area", async () => {
+  const calls = captureRequests();
+  await getScreenshot({ token: "test", url: "https://example.com" });
+  assert.equal(calls.at(-1).query.screenshot, "full");
+  const accepted = [
+    "full",
+    "top",
+    "100x100",
+    "1280x800",
+    "3840x3840",
+    "1280x800-25",
+    "1920x1080-75",
+    "1920x1080-300",
+  ];
+  for (const screenshot of accepted) {
+    await getScreenshot({ token: "test", url: "https://example.com", screenshot });
+    const { query } = calls.at(-1);
+    assert.equal(query.screenshot, screenshot);
+    assert.equal(query.browserRendering, "true");
+  }
+  for (const screenshot of [
+    false,
+    true,
+    "",
+    "false",
+    "FULL",
+    "bottom",
+    "99x800",
+    "1280x3841",
+    "12345x800",
+    "1280x800-24",
+    "1280x800-301",
+    "1280x800-",
+    1280,
+  ]) {
+    await assert.rejects(
+      getScreenshot({ token: "test", url: "https://example.com", screenshot }),
+      /screenshot must be full, top/,
+      String(screenshot),
+    );
+  }
+  assert.equal(calls.length, accepted.length + 1);
 });
 
 test("Scrape HTML accepts every documented screenshot capture", async () => {

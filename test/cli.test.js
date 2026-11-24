@@ -276,6 +276,12 @@ test("six data commands send the documented GET contracts", async (t) => {
       "330",
     ],
     [
+      "get-screenshot",
+      "https://target.example",
+      "--screenshot",
+      "1920x1080-75",
+    ],
+    [
       "scrape-json",
       "https://target.example",
       "--prompt",
@@ -317,6 +323,7 @@ test("six data commands send the documented GET contracts", async (t) => {
     html,
     markdown,
     screenshot,
+    screenshotViewport,
     json,
     brand,
     searchDefaults,
@@ -385,6 +392,16 @@ test("six data commands send the documented GET contracts", async (t) => {
     saveResult: "true",
     maxAge: "0",
   });
+  assert.deepEqual(screenshotViewport, {
+    url: "https://target.example",
+    screenshot: "1920x1080-75",
+    html: "false",
+    markdown: "false",
+    browserRendering: "true",
+    timeout: "300",
+    saveResult: "true",
+    maxAge: "0",
+  });
   assert.deepEqual(json, {
     url: "https://target.example",
     prompt: "Extract prices",
@@ -449,7 +466,8 @@ test("invalid values and unsupported options fail without a request", async (t) 
     ["scrape-html", page, "--return-cookie"],
     ["scrape-markdown", page, "--html"],
     ["scrape-markdown", page, "--screenshot", "full"],
-    ["get-screenshot", page, "--screenshot", "top"],
+    ["get-screenshot", page, "--screenshot", "false"],
+    ["get-screenshot", page, "--screenshot", "99x800"],
     ["get-screenshot", page, "--browser-rendering"],
     ["get-screenshot", page, "--no-html"],
     ["get-screenshot", page, "--markdown"],

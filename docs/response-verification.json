@@ -92,7 +92,12 @@
     {
       "check": "screenshot=true on Get Screenshot",
       "http_status": 200,
-      "result": "Returns the first viewport, the same as top; the clients send screenshot=full instead."
+      "result": "Returns the first viewport, the same as top; the clients send full by default instead."
+    },
+    {
+      "check": "Get screenshot areas",
+      "http_status": 200,
+      "result": "full returned the whole scroll height, top the first viewport, and 1280x800 and 1920x1080-75 custom viewports; every image was a PNG."
     },
     {
       "check": "Scrape JSON with html=false and screenshot=true",

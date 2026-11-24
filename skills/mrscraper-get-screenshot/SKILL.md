@@ -1,16 +1,19 @@
 ---
 name: mrscraper-get-screenshot
-description: Capture a full-page PNG screenshot of a known public URL with the MrScraper CLI's get-screenshot command. Use for visual checks, archiving, previews, or debugging what a page shows; the page always renders in a real browser.
+description: Capture a PNG screenshot of a known public URL with the MrScraper CLI's get-screenshot command, as the full page, the first viewport, or a custom viewport. Use for visual checks, archiving, previews, or debugging what a page shows; the page always renders in a real browser.
 ---
 
 # Get a Screenshot with MrScraper
 
-`mrscraper get-screenshot <url>` captures the full scrollable page as a base64
-PNG. It sends `GET https://api.mrscraper.com` with `screenshot=full`,
-`browserRendering=true`, `html=false`, `markdown=false`, and `saveResult=true`
-added automatically, so there is no screenshot area, rendering, or output
-option to pass; results are always saved to the dashboard Result tab. See [mrscraper](../mrscraper/SKILL.md) for
-installation, authentication, and account status.
+`mrscraper get-screenshot <url>` captures a base64 PNG of the full scrollable
+page by default. Pass `--screenshot top` for the first viewport, or a
+`WIDTHxHEIGHT` viewport with an optional `-ZOOM` percent, such as
+`--screenshot 1280x800` or `--screenshot 1920x1080-75`. It sends
+`GET https://api.mrscraper.com` with `browserRendering=true`, `html=false`,
+`markdown=false`, and `saveResult=true` added automatically, so there is no
+rendering or output option to pass; results are always saved to the dashboard
+Result tab. See [mrscraper](../mrscraper/SKILL.md) for installation,
+authentication, and account status.
 
 Use public content the user is authorized to access. The browser loads the
 page; it does not click controls, submit forms, or sign in.
@@ -22,7 +25,9 @@ mkdir -p ./.mrscraper
 mrscraper get-screenshot "https://example.com" > ./.mrscraper/screenshot.json
 jq -r '.data.screenshot' ./.mrscraper/screenshot.json \
   | base64 --decode > ./.mrscraper/page.png
-mrscraper get-screenshot "https://example.com" \
+mrscraper get-screenshot "https://example.com" --screenshot top \
+  > ./.mrscraper/top.json
+mrscraper get-screenshot "https://example.com" --screenshot 1280x800 \
   --wait-for-selector '#results' --geo-code de --timeout 120 \
   > ./.mrscraper/results.json
 ```
@@ -32,15 +37,16 @@ the API still includes the page HTML in `data.html` even though `html=false`
 is sent. Decode the screenshot before viewing it, and
 avoid printing the base64 text into a conversation.
 
-For a first-viewport or custom-size image, use
+To get the page HTML together with a screenshot, use
 [mrscraper-scrape-html](../mrscraper-scrape-html/SKILL.md) with
-`--screenshot top` or `--screenshot 1280x800`.
+`--screenshot`.
 
 ## Options
 
 | Option | Default | Request field |
 | --- | --- | --- |
 | `<url>` | Required | `url`, an absolute HTTP or HTTPS URL. |
+| `--screenshot AREA` | `full` | `screenshot`: `full` for the entire scroll height, `top` for the first viewport, or `WIDTHxHEIGHT` (100–3840 pixels) with an optional `-ZOOM` (25–300), such as `1280x800` or `1920x1080-75`. |
 | `--timeout SECONDS` | `300` | `timeout`, 1–330. The HTTP request allows 30 more seconds. |
 | `--wait-for-selector SELECTOR` | Omitted | `waitForSelector`: CSS selector or text to wait for, up to 500 characters. |
 | `--geo-code CODE` | Omitted | `geoCode`: two-letter country to load the page from. The API uses the United States when omitted. |

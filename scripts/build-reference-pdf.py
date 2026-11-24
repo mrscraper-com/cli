@@ -202,11 +202,11 @@ def main():
         ),
         p(reference["response_examples_note"], "SmallRef"),
         p(
-            "Screenshot has two service-specific forms: false, full, top, or a custom viewport for Scrape HTML, and a boolean for JSON extraction. Get screenshot always captures the full page and takes no screenshot parameter. These forms have distinct descriptions because their types and meanings differ.",
+            "Screenshot has three service-specific forms: full (default), top, or a custom viewport for Get screenshot; the same values or false for Scrape HTML; and a boolean for JSON extraction. These forms have distinct descriptions because their types and meanings differ.",
             "SmallRef",
         ),
         p(
-            "Each service adds its documented fixed request fields automatically: html=true and markdown=false (plus browserRendering=true when a screenshot is set), markdown=true with html=false and screenshot=false, screenshot=full with html=false, markdown=false, and browserRendering=true, action=brand-scraping with bundle=none, agent=general, and action=websearch. HTML, Markdown, screenshots, and JSON extraction always send saveResult=true, and tokenCap is never sent. Fixed fields are not service parameters.",
+            "Each service adds its documented fixed request fields automatically: html=true and markdown=false (plus browserRendering=true when a screenshot is set), markdown=true with html=false and screenshot=false, browserRendering=true with html=false and markdown=false for screenshots, action=brand-scraping with bundle=none, agent=general, and action=websearch. HTML, Markdown, screenshots, and JSON extraction always send saveResult=true, and tokenCap is never sent. Fixed fields are not service parameters.",
             "SmallRef",
         ),
     ]
@@ -226,7 +226,7 @@ def main():
         },
         "get-screenshot": {
             "url": "https://example.com",
-            "waitForSelector": "body",
+            "screenshot": "top",
             "timeout": 120,
         },
         "scrape-brand": {"url": "https://example.com"},
@@ -286,7 +286,7 @@ def main():
         selections = {
             "scrape-html": "Request selection: html=true, markdown=false, saveResult=true. Setting the optional screenshot also sends browserRendering=true and returns JSON with html and screenshot.",
             "scrape-markdown": "Request selection: markdown=true, html=false, screenshot=false, saveResult=true.",
-            "get-screenshot": "Request selection: screenshot=full, browserRendering=true, html=false, markdown=false, saveResult=true. These are not service parameters; the API still includes the page HTML.",
+            "get-screenshot": "Request selection: browserRendering=true, html=false, markdown=false, saveResult=true. screenshot defaults to full; the API still includes the page HTML.",
             "scrape-brand": "Request selection: action=brand-scraping, bundle=none. Page controls are not accepted.",
             "web-search": "Request selection: action=websearch. country is omitted unless set.",
         }
