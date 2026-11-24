@@ -15,6 +15,12 @@ def main():
         "--workspace", type=Path, default=Path(__file__).resolve().parents[2]
     )
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--repo",
+        action="append",
+        choices=["cli", "sdk-python", "sdk-node", "langchain-mrscraper", "mrscraper-mcp"],
+        help="Render only this repository; repeat to select several (default: all five).",
+    )
     args = parser.parse_args()
     root = args.workspace
     ref = json.loads((root / "cli/docs/service-reference.json").read_text())
@@ -57,13 +63,20 @@ def main():
         if repo == "cli":
             if name in ["url", "query"]:
                 return "<" + name + ">"
-            if name == "html" and service["name"] == "get-screenshot":
-                return "--no-html (sets html=false)"
-            return "--" + re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
+            flag = re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
+            if P[key]["type"] == "boolean" and P[key]["default"] in [None, True]:
+                return "--" + flag + " / --no-" + flag
+            return "--" + flag
         return name
 
     def dtype(repo, key):
         typ = P[key]["type"]
+        if typ == "false | string":
+            return {
+                "sdk-python": "`False` or str",
+                "langchain-mrscraper": "`False` or str",
+                "cli": "string",
+            }.get(repo, "`false` or string")
         types = {"integer": "int", "string": "str", "boolean": "bool"}
         result = (
             types.get(typ, typ)
@@ -126,14 +139,13 @@ def main():
         },
         "scrape-markdown": {
             "url": "https://example.com",
-            "html": True,
             "warmStart": True,
+            "maxAge": 86400000,
         },
         "get-screenshot": {
             "url": "https://example.com",
             "screenshot": "top",
-            "html": False,
-            "markdown": True,
+            "timeout": 120,
         },
         "scrape-brand": {"url": "https://example.com"},
         "scrape-json": {
@@ -150,8 +162,8 @@ def main():
     cli_examples = {
         "status": "mrscraper status",
         "scrape-html": "mrscraper scrape-html https://example.com --browser-rendering --warm-start \\\n  --wait-for-selector 'body' --timeout 120 --max-retries 0",
-        "scrape-markdown": "mrscraper scrape-markdown https://example.com --html --warm-start",
-        "get-screenshot": "mrscraper get-screenshot https://example.com --screenshot top --no-html --markdown",
+        "scrape-markdown": "mrscraper scrape-markdown https://example.com --warm-start --max-age 86400000",
+        "get-screenshot": "mrscraper get-screenshot https://example.com --screenshot top --timeout 120",
         "scrape-brand": "mrscraper scrape-brand https://example.com",
         "scrape-json": """mrscraper scrape-json https://example.com --browser-rendering \\\n  --prompt 'Extract the first 2 items with title and price. Json Schema: {"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"price":{"type":"string"}},"required":["title","price"]}}' """,
         "web-search": 'mrscraper web-search "site:example.com documentation" --country id --num-results 20',
@@ -254,16 +266,16 @@ python -m pip install --upgrade mrscraper-sdk
 ```bash
 npm install @mrscraper/sdk
 ```""",
-        "langchain-mrscraper": """Requires Python 3.9 or newer, LangChain Core, and `mrscraper-sdk>=0.10.0,<0.11.0` with the seven-service interface documented here.
+        "langchain-mrscraper": """Requires Python 3.9 or newer, LangChain Core, and `mrscraper-sdk>=0.12.0,<0.13.0` with the seven-service interface documented here.
 
 ```bash
 python -m pip install --upgrade langchain-mrscraper
 ```
 
-Before the matching releases are published, install both local checkouts together:
+To install this checkout with its published SDK dependency:
 
 ```bash
-python -m pip install -e ../sdk-python -e '.[test]'
+python -m pip install -e '.[test]'
 ```""",
         "mrscraper-mcp": """The hosted server requires an MCP client with Streamable HTTP support. Local execution requires Node.js 20 or newer.
 
@@ -362,13 +374,17 @@ mrscraper init --all --yes --skip-auth --dry-run
 mrscraper setup skills
 mrscraper setup skills --agent hermes
 ```""",
-            """Three repository-hosted skills cover setup and account usage, page retrieval, and search:
+            """Seven repository-hosted skills cover setup and account usage, plus one skill for each scraping and search command:
 
 - [mrscraper](./skills/mrscraper/SKILL.md)
-- [mrscraper-fetch](./skills/mrscraper-fetch/SKILL.md)
-- [mrscraper-serp](./skills/mrscraper-serp/SKILL.md)
+- [mrscraper-scrape-html](./skills/mrscraper-scrape-html/SKILL.md)
+- [mrscraper-scrape-markdown](./skills/mrscraper-scrape-markdown/SKILL.md)
+- [mrscraper-get-screenshot](./skills/mrscraper-get-screenshot/SKILL.md)
+- [mrscraper-scrape-brand](./skills/mrscraper-scrape-brand/SKILL.md)
+- [mrscraper-scrape-json](./skills/mrscraper-scrape-json/SKILL.md)
+- [mrscraper-web-search](./skills/mrscraper-web-search/SKILL.md)
 
-For programmatic JavaScript usage, import `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, `webSearch`, or `getSubscriptionAccountApi` from `@mrscraper/cli`. These low-level exports accept options objects; the internal JavaScript option for `super` is `superMode`.
+For programmatic JavaScript usage, import `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, `webSearch`, or `getSubscriptionAccountApi` from `@mrscraper/cli`. These low-level exports accept options objects that use the HTTP field names shown in each service table.
 
 ```js
 import { scrapeHtml } from "@mrscraper/cli";
@@ -377,7 +393,7 @@ console.log(result.data);
 ```
 
 Hosted MCP setup is separate from the CLI and agent skill bootstrap. [MrScraper MCP](https://github.com/mrscraper-com/mrscraper-mcp) exposes `status`, `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, and `webSearch`. Native agent plugins are maintained separately for [ChatGPT and Codex](https://github.com/mrscraper-com/mrscraper-chatgpt-plugin) and [Claude](https://github.com/mrscraper-com/mrscraper-claude-plugin).""",
-            """For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 300 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.""",
+            """For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 330 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.""",
         ],
         "sdk-python": [
             """All methods are coroutines and must be awaited. Examples use `asyncio.run(main())`; inside a notebook with an active event loop, use `await main()` instead. Keyword dictionaries can be unpacked with `**payload`. Optional controls set to `None` are omitted; explicit `False` and `0` are preserved.""",
@@ -398,10 +414,10 @@ asyncio.run(main())
 ```
 
 The SDK applies each service's HTTP deadline even when a shared client is supplied.""",
-            """Check token precedence when authentication fails. Use snake_case argument names rather than HTTP camelCase names. Page timeouts must be integers from 1 to 300; search does not accept a timeout argument. Inspect the raw API body before selecting nested fields.""",
+            """Check token precedence when authentication fails. Use snake_case argument names rather than HTTP camelCase names. Page timeouts must be integers from 1 to 330; search does not accept a timeout argument. Inspect the raw API body before selecting nested fields.""",
         ],
         "sdk-node": [
-            """Functions return promises and use camelCase options. Omit optional controls or use `undefined`; explicit `false` and `0` are preserved. TypeScript exports include `PageOptions`, `HtmlOptions`, `MarkdownOptions`, `ScreenshotOptions`, `JsonOptions`, `WebSearchOptions`, `StatusOptions`, and `MrScraperResponse<T>`.""",
+            """Functions return promises and use camelCase options. Omit optional controls or use `undefined`; explicit `false` and `0` are preserved. TypeScript exports include `PageOptions`, `LoadingOptions`, `HtmlOptions`, `MarkdownOptions`, `ScreenshotOptions`, `JsonOptions`, `WebSearchOptions`, `StatusOptions`, and `MrScraperResponse<T>`.""",
             """Supply a generic response body type when you know the returned API shape:
 
 ```ts
@@ -420,7 +436,7 @@ if (typeof result.data === "object" && typeof result.data?.screenshot === "strin
   await writeFile("page.png", Buffer.from(result.data.screenshot, "base64"));
 }
 ```""",
-            """Check environment credentials when authentication fails. Use camelCase option names and `super`, rather than old snake_case options or `superMode`. Page timeouts are integers from 1 to 300; status and search do not expose timeout options.""",
+            """Check environment credentials when authentication fails. Use camelCase option names rather than snake_case. Page timeouts are integers from 1 to 330; status and search do not expose timeout options.""",
         ],
         "langchain-mrscraper": [
             """Each tool supports `invoke` and `ainvoke`. Synchronous calls are also supported inside notebooks with a running event loop. `MrScraperToolkit` and `load_mrscraper_tools` share one SDK client across their tools. Use `tool_names` to filter by exact tool names; an empty list returns none.""",
@@ -440,7 +456,7 @@ asyncio.run(main())
 ```
 
 Pass an existing `MrScraper(http_client=http_client)` as `client=` to reuse a connection pool. Manage the HTTP client's lifetime yourself. The public tool classes are `MrScraperStatus`, `MrScraperScrapeHTML`, `MrScraperScrapeMarkdown`, `MrScraperGetScreenshot`, `MrScraperScrapeBrand`, `MrScraperScrapeJSON`, and `MrScraperWebSearch`.""",
-            """Install the matching Python SDK checkout before testing an unpublished integration release. Tool inputs use snake_case and reject unsupported fields. Parse the JSON string returned by a tool with `json.loads`; raw API nesting remains inside `data`.""",
+            """Install this checkout with `python -m pip install -e '.[test]'` to resolve the matching SDK dependency before testing. Tool inputs use snake_case and reject unsupported fields. Parse the JSON string returned by a tool with `json.loads`; raw API nesting remains inside `data`.""",
         ],
         "mrscraper-mcp": [
             """All client surfaces receive the same seven tools, input fields, and defaults. `/mcp/chatgpt` is an alternative route with the same service schemas and sign-in audience as `/mcp`. Tools authenticate through the connection.
@@ -478,18 +494,11 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             """For 401, reconnect through OAuth or check the bearer key. For `insufficient_scope`, reconnect and approve `scrape:write`. Ensure the hosted URL ends in `/mcp` because the audience is bound to that resource. For origin errors, configure the exact browser origin in `MRSCRAPER_ALLOWED_ORIGINS`. Start a new client session if cached tool schemas are stale.""",
         ],
     }
-    migration = {
-        "cli": "Replace `account` with `status`. Replace combined `scraperAPI` / `scraper-api` calls with `scrape-html`, `scrape-markdown`, or `get-screenshot`. Search uses `web-search` with `country` and `num-results`. Legacy locale, header, token-budget, result, rerun, and bundle controls are outside the seven-service interface. `super` and `saveResult` default to false; omitted `maxRetries` means no limit.",
-        "sdk-python": 'Replace `client.account()` with `client.status()` and read the raw API body. Remove status/search timeout arguments. Replace `scraper_api` with `scrape_html`, `scrape_markdown`, or `get_screenshot`. Replace `full_page` with `screenshot="full"` or `"top"`. Search uses `query`, `country`, and `num_results`. Legacy job, sitemap, rerun, result, and bundle-download methods are outside this interface.',
-        "sdk-node": 'Replace `account()` with `status()` and read the raw API body. Remove status/search timeout options and rename `superMode` to `super`. Replace combined scraper calls with `scrapeHtml`, `scrapeMarkdown`, or `getScreenshot`; use camelCase options. Replace `full_page` with `screenshot: "full"` or `"top"`. Search uses `query`, `country`, and `numResults`.',
-        "langchain-mrscraper": "Replace `MrScraperAccount` / `mrscraper_account` with `MrScraperStatus` / `mrscraper_status`. Remove status/search timeout inputs. Replace combined `scraper_api` calls with the HTML, Markdown, or screenshot tools. Tool inputs use snake_case and match the Python SDK. The matching Python SDK must be available before publishing this integration release.",
-        "mrscraper-mcp": "Status keeps its tool name and returns the raw API body. Replace `scraperAPI` with `scrapeHtml`, `scrapeMarkdown`, or `getScreenshot`. Brand and JSON extraction are separate tools. Search uses `query`, `country`, and `numResults`. All clients now receive the full CLI-aligned input schema. Refresh cached tool definitions and approve `scrape:write` when upgrading older OAuth connections.",
-    }
     auto = {
         "cli": "npm install\nnpm test\nnode bin/mrscraper.js --help",
         "sdk-python": "python -m pip install -e . pytest pytest-asyncio httpx ruff mypy\npython -m pytest -m 'not integration' -q\nruff check src tests\nmypy src",
         "sdk-node": "npm ci\nnpm test\nnpm run build",
-        "langchain-mrscraper": "python -m pip install -e ../sdk-python -e '.[test]'\npython -m pytest -m 'not integration' -q\nruff check src tests\nmypy src",
+        "langchain-mrscraper": "python -m pip install -e '.[dev]'\npython -m pytest -m 'not integration' -q\nruff check src tests\nmypy src",
         "mrscraper-mcp": "npm ci\nnpm test\nnpm run lint\nnpm run format:check\nnpm run build",
     }
     manual = {
@@ -513,7 +522,7 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
                 path.parent.mkdir(exist_ok=True, parents=True)
                 path.write_text(out)
 
-    for repo in repos:
+    for repo in args.repo or repos:
         logo = "./assets/mrscraper.jpeg" if repo == "cli" else "./mrscraper.jpeg"
         if repo == "mrscraper-mcp":
             logo = "./assets/mrscraper-banner.jpeg"
@@ -522,7 +531,7 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             f"![MrScraper]({logo})",
             intro[repo],
             "## Overview",
-            "Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. The standard reference is maintained in [docs/service-reference.json](docs/service-reference.json).",
+            "Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. See the [API Reference](https://docs.mrscraper.com/docs/api/overview).",
             "| Service | Public name | Description |",
             "| --- | --- | --- |",
         ]
@@ -540,13 +549,14 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             "## Quickstart",
             example(repo, ref["services"][1]),
             "Examples use `example.com` as the sample target. Replace it for your use case. Live scraping and search calls consume account quota.",
-            ref["response_examples_note"]
-            + " See [live response verification](docs/response-verification.json).",
+            ref["response_examples_note"],
             "## Shared parameters",
             "### Page controls",
-            "HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `geoCode`, `proxyCountry`, `super`, `waitUntil`, `proxy`, `maxRetries`, and `saveResult` (using the naming style shown below). Page defaults are 300 seconds, US geolocation/proxy country, real-device routing off, and dashboard saving off. Omitted retry limits mean no limit. Exact types, defaults, and standard descriptions appear in each service table.",
+            "HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `waitForSelector`, `geoCode`, `maxAge`, and `maxRetries` (using the naming style shown below). Defaults are a 300-second timeout (up to 330) and a `maxAge` of 0 milliseconds, which always scrapes fresh; `maxAge` accepts up to 604800000 (7 days). `geoCode` and `maxRetries` are omitted unless set, so the API loads the page from the United States with no retry limit. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. Exact types, defaults, and standard descriptions appear in each service table.",
             "### Loading controls",
-            "HTML, Markdown, and screenshots additionally accept `blockResources`, `waitForSelector`, and `returnCookie`. JSON extraction does not accept these controls. Browser rendering is optional for HTML, Markdown, and JSON; screenshots always enable it. Markdown with HTML also enables browser rendering.",
+            "HTML, Markdown, and JSON extraction also accept `browserRendering`, `warmStart`, and `blockResources`. `browserRendering` is omitted unless set: the API loads the page without a browser first and switches to one if the request is blocked, while `true` always renders and `false` never does. Screenshots always render in a browser: Get screenshot sends `browserRendering=true`, and so does Scrape HTML whenever a screenshot is set.",
+            "### Fixed request fields",
+            "Each service adds its documented fixed fields automatically, so they are not service parameters: `html=true` and `markdown=false` for HTML (plus `browserRendering=true` when a screenshot is set), `markdown=true`, `html=false`, and `screenshot=false` for Markdown, `browserRendering=true`, `html=false`, and `markdown=false` for screenshots, `action=brand-scraping` and `bundle=none` for brand, `agent=general` for JSON extraction, and `action=websearch` for search. HTML, Markdown, screenshots, and JSON extraction also always send `saveResult=true`.",
             "## Service reference",
         ]
         for service in ref["services"]:
@@ -563,13 +573,29 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
                     + str(service["transport_timeout_seconds"])
                     + " seconds. It is not a service parameter."
                 ]
+            if service["name"] == "scrape-html":
+                blocks += [
+                    "The request uses `html=true`, `markdown=false`, and `saveResult=true`. The screenshot is optional; setting one also sends `browserRendering=true`, because a screenshot needs a rendered page, and the response becomes JSON with `html` and `screenshot`."
+                ]
+            if service["name"] == "scrape-markdown":
+                blocks += [
+                    "The request uses `markdown=true`, `html=false`, `screenshot=false`, and `saveResult=true`."
+                ]
+            if service["name"] == "get-screenshot":
+                blocks += [
+                    "The request uses `browserRendering=true`, `html=false`, `markdown=false`, and `saveResult=true`; these are not service parameters. `screenshot` defaults to `full` and also accepts `top` or a `WIDTHxHEIGHT[-ZOOM]` viewport. The API still includes the page HTML in the response."
+                ]
             if service["name"] == "scrape-brand":
                 blocks += [
                     "The request uses `action=brand-scraping` and `bundle=none`; page controls are not accepted."
                 ]
+            if service["name"] == "web-search":
+                blocks += [
+                    "The request uses `action=websearch`. `country` is omitted unless set, so the API searches from the United States."
+                ]
             if service["name"] == "scrape-json":
                 blocks += [
-                    "The request uses `agent=general` and GET. If the encoded URL exceeds 8,000 characters, it switches to POST with `url`, `prompt`, and `agent` in the body; page controls remain in the query."
+                    "The request uses `agent=general`, `saveResult=true`, and GET. If the encoded URL exceeds 8,000 characters, it switches to POST with `url`, `prompt`, and `agent` in the body; page controls remain in the query."
                 ]
             blocks += [
                 "#### Example",
@@ -601,8 +627,6 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
             features[repo][1],
             "### Troubleshooting",
             features[repo][2],
-            "## Migration",
-            migration[repo],
             "## Development and testing",
             "### Automated checks",
             "The automated suite checks service behavior without production API calls.",
@@ -679,7 +703,7 @@ Trusted local origins, `claude.ai`, `chatgpt.com`, and configured exact origins 
         raise SystemExit("READMEs differ from the standard: " + ", ".join(differences))
     print(
         ("Checked" if args.check else "Generated")
-        + " five READMEs with the same section structure."
+        + f" {len(args.repo or repos)} README(s) with the same section structure."
     )
 
 

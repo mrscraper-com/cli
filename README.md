@@ -8,15 +8,15 @@ Command-line access to the seven MrScraper services, with browser sign-in and op
 
 Seven services share the same descriptions, parameter meanings, and defaults across the CLI, SDKs, and integrations. Names, types, authentication, and code examples follow each surface's conventions. See the [API Reference](https://docs.mrscraper.com/docs/api/overview).
 
-| Service                             | Public name       | Description                                                                                                                     |
-| ----------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| [Status](#status)                   | `status`          | Return the raw account status API response without summarizing, redacting body fields, or adding calculated fields.             |
-| [Scrape HTML](#scrape-html)         | `scrape-html`     | Retrieve the raw HTML of a page. Browser rendering is optional.                                                                 |
-| [Scrape Markdown](#scrape-markdown) | `scrape-markdown` | Retrieve a page as Markdown. Including HTML also enables browser rendering and returns both outputs as JSON.                    |
-| [Get screenshot](#get-screenshot)   | `get-screenshot`  | Capture a base64 screenshot of the full page or top viewport. Browser rendering is always enabled.                              |
-| [Scrape brand](#scrape-brand)       | `scrape-brand`    | Extract a website's colors, typography, logos, and social links as JSON.                                                        |
-| [Scrape JSON](#scrape-json)         | `scrape-json`     | Extract structured JSON from a page using a natural-language prompt. Append Json Schema: and a JSON schema to shape the output. |
-| [Web search](#web-search)           | `web-search`      | Search the web and return ranked results with titles, URLs, descriptions, and sources.                                          |
+| Service                             | Public name       | Description                                                                                                                      |
+| ----------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [Status](#status)                   | `status`          | Return the raw account status API response without summarizing, redacting body fields, or adding calculated fields.              |
+| [Scrape HTML](#scrape-html)         | `scrape-html`     | Retrieve the raw HTML of a page. Browser rendering is optional.                                                                  |
+| [Scrape Markdown](#scrape-markdown) | `scrape-markdown` | Retrieve a page as clean Markdown. Browser rendering is optional.                                                                |
+| [Get screenshot](#get-screenshot)   | `get-screenshot`  | Capture a base64 PNG screenshot of the full page, the first viewport, or a custom viewport. Browser rendering is always enabled. |
+| [Scrape brand](#scrape-brand)       | `scrape-brand`    | Extract a website's colors, typography, logos, and social links as JSON.                                                         |
+| [Scrape JSON](#scrape-json)         | `scrape-json`     | Extract structured JSON from a page using a natural-language prompt. Append Json Schema: and a JSON schema to shape the output.  |
+| [Web search](#web-search)           | `web-search`      | Search the web and return ranked results with titles, URLs, descriptions, and sources.                                           |
 
 ## Installation
 
@@ -66,11 +66,15 @@ Response examples show selected keys and types observed in live API responses. V
 
 ### Page controls
 
-HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `geoCode`, `proxyCountry`, `super`, `waitUntil`, `proxy`, `maxRetries`, and `saveResult` (using the naming style shown below). Page defaults are 300 seconds, US geolocation/proxy country, real-device routing off, and dashboard saving off. Omitted retry limits mean no limit. Exact types, defaults, and standard descriptions appear in each service table.
+HTML, Markdown, screenshots, and JSON extraction share `url`, `timeout`, `waitForSelector`, `geoCode`, `maxAge`, and `maxRetries` (using the naming style shown below). Defaults are a 300-second timeout (up to 330) and a `maxAge` of 0 milliseconds, which always scrapes fresh; `maxAge` accepts up to 604800000 (7 days). `geoCode` and `maxRetries` are omitted unless set, so the API loads the page from the United States with no retry limit. Results are always saved to the dashboard (`saveResult=true`), and `tokenCap` is never sent. Exact types, defaults, and standard descriptions appear in each service table.
 
 ### Loading controls
 
-HTML, Markdown, and screenshots additionally accept `blockResources`, `waitForSelector`, and `returnCookie`. JSON extraction does not accept these controls. Browser rendering is optional for HTML, Markdown, and JSON; screenshots always enable it. Markdown with HTML also enables browser rendering.
+HTML, Markdown, and JSON extraction also accept `browserRendering`, `warmStart`, and `blockResources`. `browserRendering` is omitted unless set: the API loads the page without a browser first and switches to one if the request is blocked, while `true` always renders and `false` never does. Screenshots always render in a browser: Get screenshot sends `browserRendering=true`, and so does Scrape HTML whenever a screenshot is set.
+
+### Fixed request fields
+
+Each service adds its documented fixed fields automatically, so they are not service parameters: `html=true` and `markdown=false` for HTML (plus `browserRendering=true` when a screenshot is set), `markdown=true`, `html=false`, and `screenshot=false` for Markdown, `browserRendering=true`, `html=false`, and `markdown=false` for screenshots, `action=brand-scraping` and `bundle=none` for brand, `agent=general` for JSON extraction, and `action=websearch` for search. HTML, Markdown, screenshots, and JSON extraction also always send `saveResult=true`.
 
 ## Service reference
 
@@ -141,22 +145,20 @@ Retrieve the raw HTML of a page. Browser rendering is optional.
 
 #### Parameters
 
-| Parameter             | HTTP field         | Type                                                               | Default              | Description                                                                                     |
-| --------------------- | ------------------ | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `<url>`               | `url`              | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
-| `--timeout`           | `timeout`          | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
-| `--geo-code`          | `geoCode`          | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
-| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
-| `--super`             | `super`            | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
-| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
-| `--proxy`             | `proxy`            | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
-| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
-| `--save-result`       | `saveResult`       | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
-| `--block-resources`   | `blockResources`   | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
-| `--wait-for-selector` | `waitForSelector`  | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
-| `--return-cookie`     | `returnCookie`     | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
-| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`              | Whether to render the page in a browser before returning the result.                            |
-| `--warm-start`        | `warmStart`        | boolean                                                            | `false`              | Whether to enable warm start for more reliable scraping, at the cost of additional latency.     |
+| Parameter                                      | HTTP field         | Type    | Default  | Description                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------- | ------------------ | ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<url>`                                        | `url`              | string  | Required | Absolute HTTP or HTTPS URL of the page to process.                                                                                                                                                                                                                                                    |
+| `--browser-rendering / --no-browser-rendering` | `browserRendering` | boolean | Omitted  | Whether to load the page in a browser: true always does and false never does. Omit it to load the page without a browser first and switch to a browser automatically if the request is blocked.                                                                                                       |
+| `--timeout`                                    | `timeout`          | integer | `300`    | Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds.                                                                                                                                                                                                 |
+| `--warm-start`                                 | `warmStart`        | boolean | `false`  | Whether to open the site's home page first to warm the session before loading the target URL.                                                                                                                                                                                                         |
+| `--block-resources`                            | `blockResources`   | boolean | `false`  | Whether to block images, fonts, and stylesheets while loading the page.                                                                                                                                                                                                                               |
+| `--wait-for-selector`                          | `waitForSelector`  | string  | Omitted  | CSS selector or text to wait for on the page before returning the result, up to 500 characters.                                                                                                                                                                                                       |
+| `--geo-code`                                   | `geoCode`          | string  | Omitted  | Two-letter country code to load the page from, sent in lowercase.                                                                                                                                                                                                                                     |
+| `--max-age`                                    | `maxAge`           | integer | `0`      | Return a cached result of the same request when it is newer than the selected age. A cached result costs the same tokens as the original scrape.                                                                                                                                                      |
+| `--max-retries`                                | `maxRetries`       | integer | Omitted  | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                                                                                                                                                                                                                |
+| `--screenshot`                                 | `screenshot`       | string  | `false`  | Screenshot to capture with the HTML: false for none, full for the entire page, top for the first viewport, or a WIDTHxHEIGHT viewport from 100 to 3840 pixels with an optional -ZOOM percent from 25 to 300, such as 1280x800 or 1920x1080-75. Setting a screenshot also sends browserRendering=true. |
+
+The request uses `html=true`, `markdown=false`, and `saveResult=true`. The screenshot is optional; setting one also sends `browserRendering=true`, because a screenshot needs a rendered page, and the response becomes JSON with `html` and `screenshot`.
 
 #### Example
 
@@ -167,9 +169,9 @@ mrscraper scrape-html https://example.com --browser-rendering --warm-start \
 
 #### Response
 
-The default response body is HTML text. Additional controls can cause the API to return JSON; the returned structure is preserved.
+The response body is HTML text. With a screenshot, the API returns JSON containing html and a base64 screenshot.
 
-**Success response**
+**Default HTML text**
 
 ```json
 {
@@ -181,56 +183,52 @@ The default response body is HTML text. Additional controls can cause the API to
 }
 ```
 
-### Scrape Markdown
-
-#### Description
-
-Retrieve a page as Markdown. Including HTML also enables browser rendering and returns both outputs as JSON.
-
-#### Parameters
-
-| Parameter             | HTTP field         | Type                                                               | Default              | Description                                                                                     |
-| --------------------- | ------------------ | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `<url>`               | `url`              | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
-| `--timeout`           | `timeout`          | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
-| `--geo-code`          | `geoCode`          | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
-| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
-| `--super`             | `super`            | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
-| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
-| `--proxy`             | `proxy`            | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
-| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
-| `--save-result`       | `saveResult`       | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
-| `--block-resources`   | `blockResources`   | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
-| `--wait-for-selector` | `waitForSelector`  | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
-| `--return-cookie`     | `returnCookie`     | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
-| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`              | Whether to render the page in a browser before returning the result.                            |
-| `--warm-start`        | `warmStart`        | boolean                                                            | `false`              | Whether to enable warm start for more reliable scraping, at the cost of additional latency.     |
-| `--html`              | `html`             | boolean                                                            | `false`              | Whether to include the page HTML in the response.                                               |
-
-#### Example
-
-```bash
-mrscraper scrape-markdown https://example.com --html --warm-start
-```
-
-#### Response
-
-The default response body is Markdown text. Enabling HTML returns JSON containing both HTML and Markdown.
-
-**With html enabled**
+**With a screenshot**
 
 ```json
 {
   "status_code": 200,
   "data": {
     "html": "<html>...</html>",
-    "markdown": "# Example page\n\n..."
+    "screenshot": "BASE64_IMAGE_DATA"
   },
   "headers": {
-    "content-type": "application/json"
+    "content-type": "application/json; charset=utf-8"
   }
 }
 ```
+
+### Scrape Markdown
+
+#### Description
+
+Retrieve a page as clean Markdown. Browser rendering is optional.
+
+#### Parameters
+
+| Parameter                                      | HTTP field         | Type    | Default  | Description                                                                                                                                                                                     |
+| ---------------------------------------------- | ------------------ | ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<url>`                                        | `url`              | string  | Required | Absolute HTTP or HTTPS URL of the page to process.                                                                                                                                              |
+| `--browser-rendering / --no-browser-rendering` | `browserRendering` | boolean | Omitted  | Whether to load the page in a browser: true always does and false never does. Omit it to load the page without a browser first and switch to a browser automatically if the request is blocked. |
+| `--timeout`                                    | `timeout`          | integer | `300`    | Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds.                                                                                           |
+| `--warm-start`                                 | `warmStart`        | boolean | `false`  | Whether to open the site's home page first to warm the session before loading the target URL.                                                                                                   |
+| `--block-resources`                            | `blockResources`   | boolean | `false`  | Whether to block images, fonts, and stylesheets while loading the page.                                                                                                                         |
+| `--wait-for-selector`                          | `waitForSelector`  | string  | Omitted  | CSS selector or text to wait for on the page before returning the result, up to 500 characters.                                                                                                 |
+| `--geo-code`                                   | `geoCode`          | string  | Omitted  | Two-letter country code to load the page from, sent in lowercase.                                                                                                                               |
+| `--max-age`                                    | `maxAge`           | integer | `0`      | Return a cached result of the same request when it is newer than the selected age. A cached result costs the same tokens as the original scrape.                                                |
+| `--max-retries`                                | `maxRetries`       | integer | Omitted  | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                                                                                                          |
+
+The request uses `markdown=true`, `html=false`, `screenshot=false`, and `saveResult=true`.
+
+#### Example
+
+```bash
+mrscraper scrape-markdown https://example.com --warm-start --max-age 86400000
+```
+
+#### Response
+
+The response body is Markdown text.
 
 **Default Markdown text**
 
@@ -248,37 +246,31 @@ The default response body is Markdown text. Enabling HTML returns JSON containin
 
 #### Description
 
-Capture a base64 screenshot of the full page or top viewport. Browser rendering is always enabled.
+Capture a base64 PNG screenshot of the full page, the first viewport, or a custom viewport. Browser rendering is always enabled.
 
 #### Parameters
 
-| Parameter                     | HTTP field        | Type                                                               | Default              | Description                                                                                     |
-| ----------------------------- | ----------------- | ------------------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `<url>`                       | `url`             | string                                                             | Required             | Absolute HTTP or HTTPS URL of the page to process.                                              |
-| `--timeout`                   | `timeout`         | integer                                                            | `300`                | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.     |
-| `--geo-code`                  | `geoCode`         | string                                                             | `"us"`               | Two-letter country code to load the page from, sent in lowercase.                               |
-| `--proxy-country`             | `proxyCountry`    | string                                                             | `"us"`               | Two-letter country code of the proxy server, sent in lowercase.                                 |
-| `--super`                     | `super`           | boolean                                                            | `false`              | Whether to route the request through real devices.                                              |
-| `--wait-until`                | `waitUntil`       | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"` | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2. |
-| `--proxy`                     | `proxy`           | string                                                             | Omitted              | Custom proxy URL used to load the page.                                                         |
-| `--max-retries`               | `maxRetries`      | integer                                                            | Omitted              | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.          |
-| `--save-result`               | `saveResult`      | boolean                                                            | `false`              | Whether to save the result to the dashboard Result tab.                                         |
-| `--block-resources`           | `blockResources`  | boolean                                                            | `false`              | Whether to block images, fonts, and stylesheets while loading the page.                         |
-| `--wait-for-selector`         | `waitForSelector` | string                                                             | Omitted              | Wait for the page to contain the specified CSS selector before returning the result.            |
-| `--return-cookie`             | `returnCookie`    | boolean                                                            | `false`              | Whether to include browser session cookies in the response.                                     |
-| `--screenshot`                | `screenshot`      | string: `full`, `top`                                              | `"full"`             | Screenshot area to capture: full for the entire page or top for the top viewport.               |
-| `--no-html (sets html=false)` | `html`            | boolean                                                            | `true`               | Whether to include the page HTML in the response.                                               |
-| `--markdown`                  | `markdown`        | boolean                                                            | `false`              | Whether to include the page Markdown in the response.                                           |
+| Parameter             | HTTP field        | Type    | Default  | Description                                                                                                                                                                                                                    |
+| --------------------- | ----------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<url>`               | `url`             | string  | Required | Absolute HTTP or HTTPS URL of the page to process.                                                                                                                                                                             |
+| `--screenshot`        | `screenshot`      | string  | `"full"` | Screenshot area to capture: full for the entire scroll height, top for the first viewport, or a WIDTHxHEIGHT viewport from 100 to 3840 pixels with an optional -ZOOM percent from 25 to 300, such as 1280x800 or 1920x1080-75. |
+| `--timeout`           | `timeout`         | integer | `300`    | Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds.                                                                                                                          |
+| `--wait-for-selector` | `waitForSelector` | string  | Omitted  | CSS selector or text to wait for on the page before returning the result, up to 500 characters.                                                                                                                                |
+| `--geo-code`          | `geoCode`         | string  | Omitted  | Two-letter country code to load the page from, sent in lowercase.                                                                                                                                                              |
+| `--max-age`           | `maxAge`          | integer | `0`      | Return a cached result of the same request when it is newer than the selected age. A cached result costs the same tokens as the original scrape.                                                                               |
+| `--max-retries`       | `maxRetries`      | integer | Omitted  | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                                                                                                                                         |
+
+The request uses `browserRendering=true`, `html=false`, `markdown=false`, and `saveResult=true`; these are not service parameters. `screenshot` defaults to `full` and also accepts `top` or a `WIDTHxHEIGHT[-ZOOM]` viewport. The API still includes the page HTML in the response.
 
 #### Example
 
 ```bash
-mrscraper get-screenshot https://example.com --screenshot top --no-html --markdown
+mrscraper get-screenshot https://example.com --screenshot top --timeout 120
 ```
 
 #### Response
 
-The response body contains a base64 screenshot and requested page outputs. The API can still include HTML when HTML output is disabled.
+The response body is JSON containing a base64 PNG screenshot and the page HTML, which the API includes even though html=false is sent.
 
 **Success response**
 
@@ -287,8 +279,7 @@ The response body contains a base64 screenshot and requested page outputs. The A
   "status_code": 200,
   "data": {
     "html": "<html>...</html>",
-    "screenshot": "BASE64_PNG_DATA",
-    "markdown": "# Example page\n\n..."
+    "screenshot": "BASE64_PNG_DATA"
   },
   "headers": {
     "content-type": "application/json; charset=utf-8"
@@ -364,23 +355,22 @@ Extract structured JSON from a page using a natural-language prompt. Append Json
 
 #### Parameters
 
-| Parameter             | HTTP field         | Type                                                               | Default                                       | Description                                                                                             |
-| --------------------- | ------------------ | ------------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `<url>`               | `url`              | string                                                             | Required                                      | Absolute HTTP or HTTPS URL of the page to process.                                                      |
-| `--timeout`           | `timeout`          | integer                                                            | `300`                                         | Page load timeout in seconds, from 1 to 300. The HTTP request allows 30 additional seconds.             |
-| `--geo-code`          | `geoCode`          | string                                                             | `"us"`                                        | Two-letter country code to load the page from, sent in lowercase.                                       |
-| `--proxy-country`     | `proxyCountry`     | string                                                             | `"us"`                                        | Two-letter country code of the proxy server, sent in lowercase.                                         |
-| `--super`             | `super`            | boolean                                                            | `false`                                       | Whether to route the request through real devices.                                                      |
-| `--wait-until`        | `waitUntil`        | string: `domcontentloaded`, `load`, `networkidle0`, `networkidle2` | `"domcontentloaded"`                          | Navigation completion event to wait for: domcontentloaded, load, networkidle0, or networkidle2.         |
-| `--proxy`             | `proxy`            | string                                                             | Omitted                                       | Custom proxy URL used to load the page.                                                                 |
-| `--max-retries`       | `maxRetries`       | integer                                                            | Omitted                                       | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                  |
-| `--save-result`       | `saveResult`       | boolean                                                            | `false`                                       | Whether to save the result to the dashboard Result tab.                                                 |
-| `--prompt`            | `prompt`           | string                                                             | `"Extract all data as complete as possible."` | Instructions describing the data to extract. Append Json Schema: and a JSON schema to shape the output. |
-| `--browser-rendering` | `browserRendering` | boolean                                                            | `false`                                       | Whether to render the page in a browser before returning the result.                                    |
-| `--html`              | `html`             | boolean                                                            | `false`                                       | Whether to include the page HTML in the response.                                                       |
-| `--screenshot`        | `screenshot`       | boolean                                                            | `false`                                       | Whether to include a base64 screenshot in the response.                                                 |
+| Parameter                                      | HTTP field         | Type    | Default                                       | Description                                                                                                                                                                                     |
+| ---------------------------------------------- | ------------------ | ------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<url>`                                        | `url`              | string  | Required                                      | Absolute HTTP or HTTPS URL of the page to process.                                                                                                                                              |
+| `--prompt`                                     | `prompt`           | string  | `"Extract all data as complete as possible."` | Instructions describing the data to extract. Append Json Schema: and a JSON schema to shape the output.                                                                                         |
+| `--html / --no-html`                           | `html`             | boolean | `true`                                        | Whether to include the page HTML in the response.                                                                                                                                               |
+| `--browser-rendering / --no-browser-rendering` | `browserRendering` | boolean | Omitted                                       | Whether to load the page in a browser: true always does and false never does. Omit it to load the page without a browser first and switch to a browser automatically if the request is blocked. |
+| `--timeout`                                    | `timeout`          | integer | `300`                                         | Maximum seconds to wait for the scrape, from 1 to 330. The HTTP request allows 30 additional seconds.                                                                                           |
+| `--warm-start`                                 | `warmStart`        | boolean | `false`                                       | Whether to open the site's home page first to warm the session before loading the target URL.                                                                                                   |
+| `--block-resources`                            | `blockResources`   | boolean | `false`                                       | Whether to block images, fonts, and stylesheets while loading the page.                                                                                                                         |
+| `--wait-for-selector`                          | `waitForSelector`  | string  | Omitted                                       | CSS selector or text to wait for on the page before returning the result, up to 500 characters.                                                                                                 |
+| `--geo-code`                                   | `geoCode`          | string  | Omitted                                       | Two-letter country code to load the page from, sent in lowercase.                                                                                                                               |
+| `--max-age`                                    | `maxAge`           | integer | `0`                                           | Return a cached result of the same request when it is newer than the selected age. A cached result costs the same tokens as the original scrape.                                                |
+| `--max-retries`                                | `maxRetries`       | integer | Omitted                                       | Maximum number of retries, as a nonnegative integer. Omit this parameter for no limit.                                                                                                          |
+| `--screenshot`                                 | `screenshot`       | boolean | `false`                                       | Whether to include a base64 screenshot in the response.                                                                                                                                         |
 
-The request uses `agent=general` and GET. If the encoded URL exceeds 8,000 characters, it switches to POST with `url`, `prompt`, and `agent` in the body; page controls remain in the query.
+The request uses `agent=general`, `saveResult=true`, and GET. If the encoded URL exceeds 8,000 characters, it switches to POST with `url`, `prompt`, and `agent` in the body; page controls remain in the query.
 
 #### Example
 
@@ -391,7 +381,7 @@ mrscraper scrape-json https://example.com --browser-rendering \
 
 #### Response
 
-Extraction results are in the API body's data field and follow the requested schema. Response metadata includes thread_id, token_usage, status, error, runtime, and cookies. html, markdown, and screenshot can be empty strings when not requested.
+Extraction results are in the API body's data field and follow the requested schema. Response metadata includes thread_id, token_usage, status, error, runtime, and cookies. html contains the page HTML unless disabled; markdown and screenshot can be empty strings.
 
 **Success response**
 
@@ -408,7 +398,7 @@ Extraction results are in the API body's data field and follow the requested sch
     ],
     "thread_id": "THREAD_ID",
     "token_usage": 1,
-    "html": "",
+    "html": "<html>...</html>",
     "markdown": "",
     "screenshot": "",
     "status": "Results ready",
@@ -433,10 +423,12 @@ Search the web and return ranked results with titles, URLs, descriptions, and so
 | Parameter       | HTTP field   | Type    | Default  | Description                                                                                       |
 | --------------- | ------------ | ------- | -------- | ------------------------------------------------------------------------------------------------- |
 | `<query>`       | `query`      | string  | Required | Search query text, trimmed before sending, containing 1 to 1000 characters.                       |
-| `--country`     | `country`    | string  | `"us"`   | Two-letter country code to search from, sent in lowercase.                                        |
+| `--country`     | `country`    | string  | Omitted  | Two-letter country code to search from, sent in lowercase.                                        |
 | `--num-results` | `numResults` | integer | `10`     | Number of search results to request, as an integer from 10 to 100. Fewer results may be returned. |
 
 The HTTP deadline is fixed at 120 seconds. It is not a service parameter.
+
+The request uses `action=websearch`. `country` is omitted unless set, so the API searches from the United States.
 
 #### Example
 
@@ -514,13 +506,17 @@ mrscraper setup skills --agent hermes
 
 ### Advanced usage
 
-Three repository-hosted skills cover setup and account usage, page retrieval, and search:
+Seven repository-hosted skills cover setup and account usage, plus one skill for each scraping and search command:
 
 - [mrscraper](./skills/mrscraper/SKILL.md)
-- [mrscraper-fetch](./skills/mrscraper-fetch/SKILL.md)
-- [mrscraper-serp](./skills/mrscraper-serp/SKILL.md)
+- [mrscraper-scrape-html](./skills/mrscraper-scrape-html/SKILL.md)
+- [mrscraper-scrape-markdown](./skills/mrscraper-scrape-markdown/SKILL.md)
+- [mrscraper-get-screenshot](./skills/mrscraper-get-screenshot/SKILL.md)
+- [mrscraper-scrape-brand](./skills/mrscraper-scrape-brand/SKILL.md)
+- [mrscraper-scrape-json](./skills/mrscraper-scrape-json/SKILL.md)
+- [mrscraper-web-search](./skills/mrscraper-web-search/SKILL.md)
 
-For programmatic JavaScript usage, import `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, `webSearch`, or `getSubscriptionAccountApi` from `@mrscraper/cli`. These low-level exports accept options objects; the internal JavaScript option for `super` is `superMode`.
+For programmatic JavaScript usage, import `scrapeHtml`, `scrapeMarkdown`, `getScreenshot`, `scrapeBrand`, `scrapeJson`, `webSearch`, or `getSubscriptionAccountApi` from `@mrscraper/cli`. These low-level exports accept options objects that use the HTTP field names shown in each service table.
 
 ```js
 import { scrapeHtml } from "@mrscraper/cli";
@@ -535,11 +531,7 @@ Hosted MCP setup is separate from the CLI and agent skill bootstrap. [MrScraper 
 
 ### Troubleshooting
 
-For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 300 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
-
-## Migration
-
-Replace `account` with `status`. Replace combined `scraperAPI` / `scraper-api` calls with `scrape-html`, `scrape-markdown`, or `get-screenshot`. Search uses `web-search` with `country` and `num-results`. Legacy locale, header, token-budget, result, rerun, and bundle controls are outside the seven-service interface. `super` and `saveResult` default to false; omitted `maxRetries` means no limit.
+For missing credentials, run `mrscraper login` or configure `MRSCRAPER_API_KEY`. For slow pages, increase the page timeout up to 330 seconds. Brand and search have fixed 120-second transport deadlines. Use `--help` on a command to inspect its accepted options. Save large output with shell redirection.
 
 ## Development and testing
 

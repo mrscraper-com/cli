@@ -42,7 +42,16 @@ test("service and parameter help match the standard descriptions", async () => {
       ...command.options
         .filter(
           (option) =>
-            !["help", "token", "json"].includes(option.attributeName()),
+            !["help", "token", "json"].includes(option.attributeName()) &&
+            // A --no-x flag paired with --x documents only the negation.
+            !(
+              option.negate &&
+              command.options.some(
+                (other) =>
+                  !other.negate &&
+                  other.attributeName() === option.attributeName(),
+              )
+            ),
         )
         .map((option) => [option.attributeName(), option.description]),
     ]);

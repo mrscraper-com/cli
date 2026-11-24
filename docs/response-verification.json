@@ -1,26 +1,25 @@
 {
-  "verified_on": "2026-11-19",
-  "live_target": "https://books.toscrape.com/",
-  "scope": "Seven live API services, plus combined Markdown variants. Captured successful bodies were replayed through all five adapters without additional production calls.",
+  "verified_on": "2026-11-23",
+  "live_targets": ["https://example.com", "https://books.toscrape.com/"],
+  "scope": "Seven live API services through the CLI with the final 2026-11-23 parameter set and the outgoing request captured, plus direct requests that checked fixed fields, defaults, and edge cases.",
   "services": [
     {
       "service": "status",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
       "body_kind": "object",
-      "assertions_passed": [
-        "HTTP 200",
-        "Raw body contains message and data",
-        "Account quota uses numeric fields",
-        "Subscription and allowance objects are present"
-      ]
+      "assertions_passed": ["HTTP 200", "Raw body contains message and data"]
     },
     {
       "service": "scrape-html",
       "http_status": 200,
       "content_type": "text/html; charset=utf-8",
       "body_kind": "string",
-      "assertions_passed": ["HTTP 200", "Body is nonempty HTML text"]
+      "assertions_passed": [
+        "HTTP 200",
+        "Body is nonempty HTML text",
+        "screenshot=false keeps the text/html response"
+      ]
     },
     {
       "service": "scrape-markdown",
@@ -36,8 +35,8 @@
       "body_kind": "object",
       "assertions_passed": [
         "HTTP 200",
-        "Body has HTML, Markdown and screenshot fields",
-        "Screenshot decodes to a PNG"
+        "Body has html and screenshot fields",
+        "screenshot=full decodes to a full-page PNG"
       ]
     },
     {
@@ -45,11 +44,7 @@
       "http_status": 200,
       "content_type": "application/json",
       "body_kind": "object",
-      "assertions_passed": [
-        "HTTP 200",
-        "Settled job contains brand data",
-        "Job has no error"
-      ]
+      "assertions_passed": ["HTTP 200", "Settled job contains brand data"]
     },
     {
       "service": "scrape-json",
@@ -59,8 +54,7 @@
       "assertions_passed": [
         "HTTP 200",
         "Extraction succeeded",
-        "Requested extraction schema is preserved",
-        "Execution metadata uses observed key spellings"
+        "html is included by default"
       ]
     },
     {
@@ -70,47 +64,65 @@
       "body_kind": "object",
       "assertions_passed": [
         "HTTP 200",
-        "Search returned ranked results",
-        "Search rows have documented fields",
-        "Usage field is camelCase"
+        "Search returned ranked results without a country"
       ]
     }
   ],
-  "combined_markdown": [
+  "parameter_checks": [
     {
-      "html": true,
-      "warmStart": false,
-      "maxRetries": 1,
+      "check": "maxAge=3600000 repeats a request from the cache",
       "http_status": 200,
-      "body_keys": ["html", "markdown"]
+      "result": "x-cache: HIT"
     },
     {
-      "html": true,
-      "warmStart": true,
-      "maxRetries": 1,
+      "check": "Scrape HTML with screenshot=top",
       "http_status": 200,
-      "body_keys": ["html", "markdown"]
+      "result": "JSON with html and screenshot; the image was PNG in one request and JPEG in another."
+    },
+    {
+      "check": "Scrape HTML with a screenshot and browserRendering=false",
+      "http_status": 200,
+      "result": "The client sends browserRendering=true with any screenshot; the response has html and a PNG screenshot."
+    },
+    {
+      "check": "screenshot=true on Get Screenshot",
+      "http_status": 200,
+      "result": "Returns the first viewport, the same as top; the clients send full by default instead."
+    },
+    {
+      "check": "Get screenshot areas",
+      "http_status": 200,
+      "result": "full returned the whole scroll height, top the first viewport, and 1280x800 and 1920x1080-75 custom viewports; every image was a PNG."
+    },
+    {
+      "check": "Scrape JSON with html=false and screenshot=true",
+      "http_status": 200,
+      "result": "html is empty and screenshot is included."
+    },
+    {
+      "check": "waitForSelector with browserRendering=false",
+      "http_status": 200,
+      "result": "success: false with token_usage 0; a selector needs a rendered page."
+    },
+    {
+      "check": "geoCode and country omitted",
+      "http_status": 200,
+      "result": "Requests succeed; the API uses its United States default."
+    },
+    {
+      "check": "Fixed output fields",
+      "http_status": 200,
+      "result": "Scrape HTML with markdown=false, Scrape Markdown with html=false and screenshot=false, and Get screenshot with html=false and markdown=false succeed; Get screenshot still includes the page HTML."
+    },
+    {
+      "check": "saveResult and tokenCap",
+      "http_status": 200,
+      "result": "Every HTML, Markdown, screenshot, and JSON request sends saveResult=true; tokenCap is never sent."
     }
   ],
-  "transient_failure": {
-    "service": "scrape-markdown",
-    "html": true,
-    "warmStart": true,
-    "maxRetries": 0,
-    "http_status": 500,
-    "body_keys": ["detail"],
-    "recheck_http_status": 200
-  },
-  "postman_status_assertions": {
-    "passed": 3,
-    "failed": 0
-  },
-  "captured_response_replays": {
-    "CLI": 7,
-    "Python SDK": 7,
-    "Node SDK": 7,
-    "LangChain": 7,
-    "MCP": 7
-  },
+  "observations": [
+    "Uncached web searches took 63 to 110 seconds, close to the clients' fixed 120-second search deadline. One CLI search with country=id and numResults=20 timed out at 120 seconds; the same request completed in 110 seconds without a client deadline.",
+    "One Scrape JSON request returned a transient HTTP 500 and succeeded when repeated."
+  ],
   "privacy": "No API credentials, account values, page bodies, or image data are included. Documentation values are placeholders."
 }
